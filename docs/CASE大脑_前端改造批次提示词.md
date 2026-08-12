@@ -22,6 +22,7 @@
 | F-6d（最终版） | 侧栏内容上导航下 + 图标统一 + 搜索图标化 + 顶栏下拉优化 + 阶段节点 + 头部精简 + 动效统一 | ✅ 已交付（(32) 大部分落地） |
 | F-6e | 主导航上移顶栏：今日工作台/全局咨询 → TopNavBar（搜索栏旁）；侧栏底部只留 4 入口 + 更多；搜索保留图标式 | ✅ 已交付（(33)），待真机验收 |
 | F-6f | 全局咨询快捷发问 chips（空态引导：到期查询/建案/统计/政策/写邮件） | ✅ 已交付（(33)），待真机验收 |
+| F-7 | 统一建案表单 sheet（新客户/存量壳/历史导入；文件导入口 + 一段话识别 + 中断恢复）+ 今日待办间距修复 | 已出（下文） |
 
 > ✅ **已定稿（2026-08-12）**：在现有 `ui/vera-工作台 (23)` 基础上**增量改造**（换壳不换内脏）——
 > 保留 services/types/stores/themes/已验证组件，换 AppShell 外壳 + 新增 `src/components/brain/` 目录；
@@ -289,6 +290,113 @@ src/stores/uiStore.ts
 - **F-4**：Apple 风格打磨——毛玻璃材质/弹簧动画细节/空态插画/reduced-motion 复查；旧页面入口收尾
 
 > 注：F-2b~F-4 的具体提示词待对应批次验收后按实际代码结构撰写。
+
+---
+
+## 批 F-7：统一建案表单 sheet（配对后端 WO-18）+ 今日待办间距修复
+
+> 后端 WO-18 已就绪：`POST /api/cases/parse-text`（一段话识别预填）、`POST /api/cases/parse-file`（文件提取预填）、`POST /api/cases`（支持 employment_type/residency/is_imported/property_value/interest_rate + LVR 自动算 + 建档即预选清单）。本批实现前端统一建案页（#13/#15/#16）。
+
+### 提示词正文（复制给 AI Studio）
+
+```
+# 任务：Vera Workbench — 统一建案表单 sheet + 今日待办间距修复（F-7）
+
+## 背景
+在 ui/vera-工作台 (33) 基础上：
+① 新建"统一建案表单"（Apple 风格底部 sheet）：新客户建档 / 存量壳（三级）/ 历史导入 三种模式共用；
+   支持顶部文件导入口（扔文件 → parse-file 预填）、一段话识别（parse-text 预填）、字段确认、中断恢复（localStorage）。
+② 小修复：今日工作台"今日待办"标题栏与待办项间距过大（外层 justify-between 导致）。
+不动后端（WO-18 已交付），只接现有接口。
+
+## 技术约束
+- TypeScript strict / React / Vite / Tailwind / motion/react / zustand（现有）
+- 不引入新依赖（文件上传用现有 input[type=file]；识别/解析走现有后端接口）
+- 颜色从现有 CSS 变量派生；动效统一 spring（damping 1.0 / response 0.3-0.4；sheet 用 0.8 / 0.3）；遵守 prefers-reduced-motion
+- 接口契约（后端已就绪，前端照此对接）：
+  - `POST /api/cases/parse-text` body `{ raw_text }` → `{ prefilled: {client_name, lender, loan_amount, property_value, purpose, employment_type, residency, interest_rate, client_goal, special_circumstances}, facts: [...] }`
+  - `POST /api/cases/parse-file`（multipart `file`）→ `{ filename, text_preview, prefilled, facts }`
+  - `POST /api/cases` body 支持 `employment_type / residency / is_imported / property_value / interest_rate / finance_clause_date / client_goal / special_circumstances / raw_text`（LVR 后端自动算，建档自动预选清单）
+
+## 改动范围（严禁超出）
+
+| 文件 | 操作 |
+|------|------|
+| src/types/api.ts | 修改：新增 PreFillResponse / ParseFileResponse 类型 |
+| src/services/api/cases.ts | 修改：新增 parseCaseText / parseCaseFile |
+| src/components/cases/NewCaseSheet.tsx | 新建：统一建案表单 sheet（三种模式 + 文件/识别预填 + 中断恢复） |
+| src/components/cases/NewCaseModal.tsx | 修改：移除或降级（入口改指向 NewCaseSheet；若删除需一并清理引用） |
+| src/components/layout/AppShell.tsx · src/components/brain/HomePage.tsx · src/components/brain/BrainChat.tsx | 修改：建案触发入口（＋新案件按钮 / 首页快捷 / 全局咨询 new_case chip）统一指向 NewCaseSheet |
+| src/components/brain/HomePage.tsx | 修改：今日待办卡片外层去掉 `justify-between`（间距修复） |
+
+⚠️ 严禁修改其他文件；严禁改动后端/接口。
+
+## 一、统一建案表单 sheet（NewCaseSheet.tsx）
+
+### 形态
+- Apple 风格底部 sheet：从下往上滑出（spring damping 0.8 / response 0.3，可中断；reduced-motion 退化淡变），遮罩渐变；宽度 max-w-lg 居中于中栏，高度自适应（max-h-[85vh] 内滚动）
+- 标题："新建案件" + 模式切换（三个 pill：新客户 / 存量壳 / 历史导入）
+
+### 三种模式
+1. **新客户**：必填 7 项（客户姓名/银行/贷款额/房价/用途/收入类型/居住），LVR 随贷款额+房价实时显示（前端算，仅展示）；可选折叠区（利率/Finance 截止日/客户目标/特殊情况/收入描述/是否加急）
+2. **存量壳**：三级 tabs——极简（客户名 + 一句话）/ 标准（+ 银行 + 当前阶段 + 一句话）/ 完整（+ 贷款额/收入类型/签证/注意事项）；提交时 `is_imported: true`
+3. **历史导入**：同"存量壳-完整"，额外显示"历史导入"标识（is_imported: true）
+
+### 预填入口（sheet 顶部）
+- **文件导入口**：拖放/点击上传 1 个文件 → `parseCaseFile(file)` → 成功后把 `prefilled` 填进表单 + 显示 `text_preview` 前 120 字（可展开）+ 提示"解析完成，请核对"；失败 Toast"文件解析失败"
+- **一段话识别**：textarea"贴一段客户描述，自动识别填充" + [识别] 按钮 → `parseCaseText(raw_text)` → prefilled 填表 + Toast"识别完成，请核对低置信字段"
+- 两种预填后：已填字段标记"AI 填充"（紫色小标），Vera 可修改；必填项校验在提交时
+
+### 提交
+- `createCase({ ...表单值, is_imported, raw_text? })` → 成功后：清空 localStorage 草稿 + 自动 setCurrentCase(新案件) + 进入案件对话（onCreated 回调，沿用现有 AppShell 逻辑）
+- 必填校验：新客户 7 项必填；存量壳按模式要求；缺项标红提示
+
+### 中断恢复（localStorage）
+- 表单值实时写入 `localStorage['caseDraft_v1']`（防抖）；sheet 关闭不清
+- 再次打开同一模式 → 检测到草稿 → 顶部提示"检测到未完成草稿，继续？[继续][重新开始]"
+- 提交成功清空草稿；V1 不做后端草稿表
+
+## 二、入口统一
+- AppShell/首页"新建案件"按钮 → 打开 NewCaseSheet（替代 NewCaseModal）
+- 全局咨询 new_case chip（F-6f 已建）→ 打开 NewCaseSheet
+- 对话内 AI 检测建档意图（V1：后端 tool 卡或前端关键词，若暂无则暂只靠按钮入口）
+
+## 三、小修复：今日待办间距
+- HomePage 今日待办卡片外层：`flex flex-col justify-between h-full min-h-[380px]` → 去掉 `justify-between`（保留 flex-col h-full min-h）；待办列表 `flex-1 max-h-[285px]` 保持——标题栏与列表紧贴，列表占满剩余高度
+
+## 验证
+- npx tsc --noEmit → 零错误；npm run build → 成功
+
+## 验收参考（手动）
+1. 点"新建案件"（首页/侧栏/全局 chip）→ 底部滑出统一建案 sheet，三模式可切换
+2. 新客户模式：必填 7 项 + LVR 实时显示；贴一段话 [识别] → 字段自动填充（AI 填充标记可改）
+3. 扔一个 payslip PDF → 解析预填 + text_preview；后端未启动 → Toast 失败不崩溃
+4. 存量壳模式：三级切换；提交 is_imported 生效（案件列表可见、全景正常）
+5. 中途关闭 sheet → 再开提示"继续？"；提交成功 → 清草稿 + 自动进入新案件对话
+6. 今日待办标题与列表间距明显收窄（不再上下拉开）
+7. sheet 动画顺滑可中断；reduced-motion 生效
+
+⚠️ 执行纪律：
+1. 只修改改动范围表中的文件；不碰后端/接口
+2. 不引入新依赖；接口字段名与 WO-18 契约一字不差
+3. 动效统一 spring；每步完成运行验证；失败先报告
+```
+
+### 上传给 AI Studio 的参考文件（最小集）
+
+```
+src/components/cases/NewCaseModal.tsx
+src/components/cases/NewCaseFields.tsx
+src/components/brain/HomePage.tsx
+src/components/brain/BrainChat.tsx
+src/components/layout/AppShell.tsx
+src/services/api/cases.ts
+src/services/http.ts
+src/types/api.ts
+src/stores/caseStore.ts
+src/stores/uiStore.ts
+src/stores/toastStore.ts
+```
 
 ---
 
