@@ -8,6 +8,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
+from core.context.accumulator import append_context_event
 from core.models.orm import Action, Case, CaseContextEvent
 from server.deps import get_db
 from server.main import app
@@ -187,3 +188,127 @@ class TestManualTasks:
             },
         )
         assert resp.status_code == 422
+
+
+class TestConfirmationGate:
+    """确认闸门状态机：pending → confirmed → superseded（WO-14）。"""
+
+    def test_manual_note_defaults_confirmed(self, client, test_db):
+        test_db.add(Case(id="CG-1", client_name="客户一"))
+        test_db.commit()
+
+        resp = client.post(
+            "/api/cases/CG-1/context-events",
+            json={"content": "默认记录"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "confirmed"
+
+        ok = client.get("/api/cases/CG-1/context-events", params={"status": "confirmed"})
+        assert ok.status_code == 200
+        assert [e["content"] for e in ok.json()] == ["默认记录"]
+        assert ok.json()[0]["status"] == "confirmed"
+
+        pend = client.get("/api/cases/CG-1/context-events", params={"status": "pending"})
+        assert pend.status_code == 200
+        assert pend.json() == []
+
+    def test_pending_not_in_distill(self, client, test_db):
+        test_db.add(Case(id="CG-2", client_name="客户二"))
+        test_db.commit()
+
+        append_context_event("CG-2", "manual_note", "低置信猜测内容", test_db, status="pending")
+
+        case = test_db.get(Case, "CG-2")
+        assert not case.context_summary or "低置信猜测内容" not in case.context_summary
+
+        append_context_event("CG-2", "manual_note", "低置信猜测内容", test_db, status="confirmed")
+        case = test_db.get(Case, "CG-2")
+        assert "低置信猜测内容" in case.context_summary
+
+    def test_confirm_pending(self, client, test_db):
+        test_db.add(Case(id="CG-3", client_name="客户三"))
+        test_db.commit()
+        evt = append_context_event("CG-3", "manual_note", "待确认信息", test_db, status="pending")
+
+        resp = client.post(f"/api/cases/CG-3/context-events/{evt.id}/confirm")
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "confirmed"
+
+        stored = test_db.get(CaseContextEvent, evt.id)
+        assert stored.status == "confirmed"
+
+    def test_confirm_idempotent(self, client, test_db):
+        test_db.add(Case(id="CG-4", client_name="客户四"))
+        test_db.commit()
+        evt = append_context_event("CG-4", "manual_note", "已确认记录", test_db)
+
+        first = client.post(f"/api/cases/CG-4/context-events/{evt.id}/confirm")
+        assert first.status_code == 200
+        assert first.json()["status"] == "confirmed"
+
+        second = client.post(f"/api/cases/CG-4/context-events/{evt.id}/confirm")
+        assert second.status_code == 200
+        assert second.json()["status"] == "confirmed"
+
+    def test_confirm_superseded_conflict(self, client, test_db):
+        test_db.add(Case(id="CG-5", client_name="客户五"))
+        test_db.commit()
+        evt = append_context_event("CG-5", "manual_note", "已被撤销", test_db)
+        evt.status = "superseded"
+        test_db.commit()
+
+        resp = client.post(f"/api/cases/CG-5/context-events/{evt.id}/confirm")
+        assert resp.status_code == 409
+        assert resp.json()["detail"] == "已撤销事件不可确认"
+
+    def test_supersede_with_reason_and_replacement(self, client, test_db):
+        test_db.add(Case(id="CG-6", client_name="客户六"))
+        test_db.commit()
+        evt1 = append_context_event("CG-6", "manual_note", "旧事实", test_db)
+        evt2 = append_context_event("CG-6", "manual_note", "新事实", test_db)
+
+        resp = client.post(
+            f"/api/cases/CG-6/context-events/{evt1.id}/supersede",
+            json={"reason": "金额更正", "replacement_event_id": evt2.id},
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["status"] == "superseded"
+        assert body["supersede_reason"] == "金额更正"
+        assert body["superseded_by"] == evt2.id
+
+        stored = test_db.get(CaseContextEvent, evt1.id)
+        assert stored.status == "superseded"
+        assert stored.supersede_reason == "金额更正"
+        assert stored.superseded_by == evt2.id
+
+        again = client.post(
+            f"/api/cases/CG-6/context-events/{evt1.id}/supersede",
+            json={"reason": "再撤一次"},
+        )
+        assert again.status_code == 409
+        assert again.json()["detail"] == "事件已撤销"
+
+    def test_supersede_reason_required(self, client, test_db):
+        test_db.add(Case(id="CG-9", client_name="客户九"))
+        test_db.commit()
+        evt = append_context_event("CG-9", "manual_note", "待撤记录", test_db)
+
+        resp = client.post(
+            f"/api/cases/CG-9/context-events/{evt.id}/supersede",
+            json={},
+        )
+        assert resp.status_code == 422
+
+    def test_unknown_event_or_wrong_case(self, client, test_db):
+        test_db.add(Case(id="CG-7", client_name="客户七"))
+        test_db.add(Case(id="CG-8", client_name="客户八"))
+        test_db.commit()
+        evt = append_context_event("CG-7", "manual_note", "仅属于 CG-7", test_db)
+
+        missing = client.post("/api/cases/CG-7/context-events/999999/confirm")
+        assert missing.status_code == 404
+
+        wrong_case = client.post(f"/api/cases/CG-8/context-events/{evt.id}/confirm")
+        assert wrong_case.status_code == 404

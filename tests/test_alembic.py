@@ -41,6 +41,25 @@ def test_upgrade_head_creates_all_orm_tables(tmp_path):
         engine.dispose()
 
 
+def test_event_status_column_defaults_confirmed(tmp_path):
+    """WO-14：空库 upgrade head 后 case_context_events.status 存在且列默认 'confirmed'。"""
+    db_path = tmp_path / "event_status.db"
+    _upgrade_head(db_path)
+
+    engine = sqlalchemy.create_engine(f"sqlite:///{db_path}")
+    try:
+        inspector = sqlalchemy.inspect(engine)
+        cols = {c["name"]: c for c in inspector.get_columns("case_context_events")}
+        assert "status" in cols, "case_context_events.status 应存在"
+        assert "superseded_by" in cols, "case_context_events.superseded_by 应存在"
+        assert "supersede_reason" in cols, "case_context_events.supersede_reason 应存在"
+        assert cols["status"]["default"] == "'confirmed'", (
+            f"status 列默认应为 'confirmed'，实际 {cols['status']['default']!r}"
+        )
+    finally:
+        engine.dispose()
+
+
 def test_alembic_env_binds_core_orm_metadata():
     assert ALEMBIC_INI.exists(), "alembic.ini 应位于 core/alembic.ini（db.py Config 解析路径）"
     env_src = (MIGRATIONS_DIR / "env.py").read_text(encoding="utf-8")

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from core.ai.case_context import build_case_context
@@ -13,11 +13,12 @@ from core.case_creation import create_case_from_source
 from core.case_engine.progression import evaluate_stage_signal
 from core.checklist.matcher import CaseNotFoundError, check_completeness
 from core.constants import TERMINAL_STAGES
-from core.context.accumulator import append_context_event
+from core.context.accumulator import append_context_event, get_context_events
 from core.events.timeline import get_timeline
 from core.models.orm import (
     Case,
     CaseChecklist,
+    CaseContextEvent,
     CaseKnowledge,
     CaseTimelineEvent,
     OsCondition,
@@ -32,6 +33,7 @@ from server.api.schemas import (
     ContextEventResponse,
     StageAdvanceRequest,
     SubmissionCheckResponse,
+    SupersedeEventRequest,
     TimelineEventResponse,
 )
 from server.deps import get_db, get_settings
@@ -210,14 +212,62 @@ def create_context_event(
         event.source_ref = req.source_ref
         db.commit()
         db.refresh(event)
-    return ContextEventResponse(
-        id=event.id,
-        case_id=event.case_id,
-        source_type=event.source_type,
-        content=event.content,
-        track=event.track,
-        created_at=event.created_at,
-    )
+    return ContextEventResponse.model_validate(event)
+
+
+@router.get("/{case_id}/context-events", response_model=list[ContextEventResponse])
+def list_context_events(
+    case_id: str,
+    db: Session = Depends(get_db),  # noqa: B008
+    status: str | None = Query(default=None, pattern="^(pending|confirmed|superseded)$"),
+    track: str | None = Query(default=None, pattern="^(internal|external)$"),
+    limit: int = Query(default=100, ge=1, le=500),
+) -> list[ContextEventResponse]:
+    """案件上下文事件列表（按状态/轨道过滤），供确认卡与"已记录 N 条"使用。"""
+    _get_case_or_404(case_id, db)
+    events = get_context_events(case_id, db, limit=limit, track=track, status=status)
+    return [ContextEventResponse.model_validate(e) for e in events]
+
+
+@router.post("/{case_id}/context-events/{event_id}/confirm", response_model=ContextEventResponse)
+def confirm_context_event(case_id: str, event_id: int, db: Session = Depends(get_db)) -> ContextEventResponse:  # noqa: B008
+    """低置信确认：pending → confirmed。已 confirmed 幂等 200；superseded → 409。"""
+    _get_case_or_404(case_id, db)
+    event = db.query(CaseContextEvent).filter(
+        CaseContextEvent.id == event_id, CaseContextEvent.case_id == case_id
+    ).first()
+    if event is None:
+        raise HTTPException(status_code=404, detail="事件不存在")
+    if event.status == "superseded":
+        raise HTTPException(status_code=409, detail="已撤销事件不可确认")
+    event.status = "confirmed"
+    db.commit()
+    db.refresh(event)
+    return ContextEventResponse.model_validate(event)
+
+
+@router.post("/{case_id}/context-events/{event_id}/supersede", response_model=ContextEventResponse)
+def supersede_context_event(
+    case_id: str,
+    event_id: int,
+    req: SupersedeEventRequest,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> ContextEventResponse:
+    """撤销/纠正：confirmed|pending → superseded（不物理删除，审计保留）。superseded → 409。"""
+    _get_case_or_404(case_id, db)
+    event = db.query(CaseContextEvent).filter(
+        CaseContextEvent.id == event_id, CaseContextEvent.case_id == case_id
+    ).first()
+    if event is None:
+        raise HTTPException(status_code=404, detail="事件不存在")
+    if event.status == "superseded":
+        raise HTTPException(status_code=409, detail="事件已撤销")
+    event.status = "superseded"
+    event.supersede_reason = req.reason
+    event.superseded_by = req.replacement_event_id
+    db.commit()
+    db.refresh(event)
+    return ContextEventResponse.model_validate(event)
 
 
 @router.post("/", response_model=CaseDetailResponse)

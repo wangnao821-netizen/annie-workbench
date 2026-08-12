@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class TaskResponse(BaseModel):
@@ -86,12 +86,22 @@ class ContextEventRequest(BaseModel):
 
 
 class ContextEventResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     case_id: str
     source_type: str
     content: str
     track: str
+    status: str = "confirmed"   # pending | confirmed | superseded
+    superseded_by: int | None = None
+    supersede_reason: str | None = None
     created_at: datetime | None = None
+
+
+class SupersedeEventRequest(BaseModel):
+    reason: str = Field(..., min_length=1)          # 撤销原因（必填）
+    replacement_event_id: int | None = None          # 可选：纠正时指向替代事件
 
 
 class CaseCreateRequest(BaseModel):

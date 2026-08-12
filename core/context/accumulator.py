@@ -70,6 +70,7 @@ def append_context_event(
     *,
     trigger_distill: bool = True,
     track: str = "internal",
+    status: str = "confirmed",
 ) -> CaseContextEvent:
     """追加一条上下文事件到案件，并可选触发蒸馏。
 
@@ -83,12 +84,14 @@ def append_context_event(
             - internal 事件 → 蒸馏写入 Case.context_summary（内线记忆）
             - external 事件 → 蒸馏写入 Case.submission_summary（外线呈现）
             默认 "internal"：不破坏既有调用。
+        status: 事件状态，"pending" | "confirmed" | "superseded" (默认 "confirmed")。
+            默认 "confirmed"：不破坏既有调用；pending 不参与蒸馏。
 
     Returns:
         创建的 CaseContextEvent 对象。
 
     Raises:
-        ValueError: 如果 case_id 为空、content 为空或 track 非法。
+        ValueError: 如果 case_id 为空、content 为空、track 非法或 status 非法。
     """
     if not case_id:
         raise ValueError("case_id is required")
@@ -96,6 +99,8 @@ def append_context_event(
         raise ValueError("content cannot be empty")
     if track not in _TRACKS:
         raise ValueError(f"track must be one of {_TRACKS}, got {track!r}")
+    if status not in ("pending", "confirmed", "superseded"):
+        raise ValueError(f"status must be one of pending/confirmed/superseded, got {status!r}")
 
     # 1. 写入不可变事件记录
     event = CaseContextEvent(
@@ -103,6 +108,7 @@ def append_context_event(
         source_type=source_type,
         content=content.strip(),
         track=track,
+        status=status,
     )
     db.add(event)
     db.commit()
@@ -128,15 +134,19 @@ def get_context_events(
     db: Session,
     limit: int = 100,
     track: str | None = None,
+    status: str | None = None,
 ) -> list[CaseContextEvent]:
     """获取案件的所有上下文事件（按时间正序）。
 
     Args:
         track: 仅返回该轨道的事件；None 返回全部（默认）。
+        status: 仅返回该状态事件；None 返回全部（默认，兼容既有调用）。
     """
     query = db.query(CaseContextEvent).filter(CaseContextEvent.case_id == case_id)
     if track is not None:
         query = query.filter(CaseContextEvent.track == track)
+    if status is not None:
+        query = query.filter(CaseContextEvent.status == status)
     return (
         query.order_by(CaseContextEvent.created_at.asc())
         .limit(limit)
@@ -161,8 +171,9 @@ def _distill_context_summary(case_id: str, db: Session, track: str = "internal")
         - track="internal" → Case.context_summary
         - track="external" → Case.submission_summary
     如果 LLM 调用失败，则 fallback 为简单拼接（最近 10 条）。
+    只从 confirmed 事件蒸馏（#6：pending 不参与）。
     """
-    events = get_context_events(case_id, db, limit=100, track=track)
+    events = get_context_events(case_id, db, limit=100, track=track, status="confirmed")
     if not events:
         return
 

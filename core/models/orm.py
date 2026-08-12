@@ -575,6 +575,9 @@ class CaseContextEvent(Base):  # type: ignore[misc]
     content = Column(Text, nullable=False)  # 本次追加的内容片段
     track = Column(String, nullable=False, default="internal")  # internal | external
     source_ref = Column(String, nullable=True)  # 去重键（S2/S3 用：message-id/主题+日期哈希）
+    status = Column(String(20), nullable=False, default="confirmed", server_default="confirmed")  # pending | confirmed | superseded
+    superseded_by = Column(Integer, nullable=True)   # 撤销/纠正时指向替代事件 id（审计链）
+    supersede_reason = Column(Text, nullable=True)   # 撤销原因（审计）
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
