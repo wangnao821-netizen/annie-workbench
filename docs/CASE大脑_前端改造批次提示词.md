@@ -20,7 +20,8 @@
 | F-6 | 首页（今日工作台）界面设计——应用框架感 + 今日概览/待办/提醒/快捷操作/对话入口（自由发挥，功能要求到位） | 已出（下文） |
 | F-6c | 首页融合 + 侧栏布局修整——原型设计模式 × 主前端真实数据（固定顶栏/Bento 小组件/待办 tabs/侧栏分区） | 已出（下文） |
 | F-6d（最终版） | 侧栏内容上导航下 + 图标统一 + 搜索图标化 + 顶栏下拉优化 + 阶段节点 + 头部精简 + 动效统一 | ✅ 已交付（(32) 大部分落地） |
-| F-6e | 主导航上移顶栏：今日工作台/全局咨询 → TopNavBar（搜索栏旁）；侧栏底部只留 4 入口 + 更多；搜索保留图标式 | 已出（下文） |
+| F-6e | 主导航上移顶栏：今日工作台/全局咨询 → TopNavBar（搜索栏旁）；侧栏底部只留 4 入口 + 更多；搜索保留图标式 | 已出（上文） |
+| F-6f | 全局咨询快捷发问 chips（空态引导：到期查询/建案/统计/政策/写邮件） | 已出（下文） |
 
 > ✅ **已定稿（2026-08-12）**：在现有 `ui/vera-工作台 (23)` 基础上**增量改造**（换壳不换内脏）——
 > 保留 services/types/stores/themes/已验证组件，换 AppShell 外壳 + 新增 `src/components/brain/` 目录；
@@ -288,6 +289,88 @@ src/stores/uiStore.ts
 - **F-4**：Apple 风格打磨——毛玻璃材质/弹簧动画细节/空态插画/reduced-motion 复查；旧页面入口收尾
 
 > 注：F-2b~F-4 的具体提示词待对应批次验收后按实际代码结构撰写。
+
+---
+
+## 批 F-6f：全局咨询快捷发问 chips
+
+> 用户确认过但漏实现的点（2026-08-13）：全局咨询空态加快捷发问引导，降低"不知道问什么"的启动成本。V1 空态引导 = 到期查询 / 建案 / 业务统计 / 政策查询 / 写邮件（动作类特殊处理）。
+
+### 提示词正文（复制给 AI Studio）
+
+```
+# 任务：Vera Workbench — 全局咨询快捷发问 chips
+
+## 背景
+在 ui/vera-工作台 (32) 基础上：全局咨询（无案件）空态目前只有标题 + 引导文字 + 新建案件按钮。
+新增一排"快捷发问"chips，让 Vera 一点就能问高频问题；动作类 chip（建案/写邮件）做特殊处理。
+只改 BrainChat 空态渲染与少量逻辑，不动后端/接口/路由。
+
+## 技术约束
+- TypeScript strict / React / Vite / Tailwind / motion/react / zustand（现有）
+- 不引入新依赖；颜色从现有 CSS 变量派生；动效统一 spring（damping 1.0 / response 0.3-0.4）；遵守 prefers-reduced-motion
+- 快捷提问走现有 sendChat（case_id 不传 = 全局对话）；不新增接口
+
+## 改动范围（严禁超出）
+
+| 文件 | 操作 |
+|------|------|
+| src/components/brain/BrainChat.tsx | 修改：全局咨询空态新增快捷发问 chips |
+
+⚠️ 严禁修改其他文件；严禁改动业务逻辑/接口/路由。
+
+## 接口契约
+
+在全局咨询空态（!activeCaseInfo && messages.length === 0）中，"全局咨询模式"标题与引导文字下方、新建案件按钮上方（或下方，以视觉平衡为准），新增 chips 区：
+
+```typescript
+type QuickAsk = { label: string; action: 'ask' | 'new_case' | 'compose_email' };
+
+const QUICK_ASKS: QuickAsk[] = [
+  { label: '今天有哪些到期/逾期？', action: 'ask' },
+  { label: '帮我建一个案件', action: 'new_case' },
+  { label: '最近业务怎么样？', action: 'ask' },
+  { label: '查一下 CBA 的政策', action: 'ask' },
+  { label: '写一封补件邮件', action: 'compose_email' },
+];
+```
+
+交互：
+- `ask`：点击 → 调现有 handleSend（把 label 作为消息发出，case_id 不传 = 全局对话）
+- `new_case`：点击 → setNewCaseOpen(true)（弹现有建案表单）
+- `compose_email`：点击 → Toast 提示"请先选择左侧案件，进入案件对话后再写邮件"（全局对话禁止外线草稿，#2 红线）
+
+样式：
+- chips：`px-3 py-1.5 rounded-full border text-xs font-medium`，背景 var(--bg-card)、边框 var(--border)、文字 text-secondary
+- hover：背景 var(--bg-card-hover) + 边框/文字 accent；点击 `whileTap={{ scale: 0.95 }}`；入场 spring 依次淡入（可中断）
+- 标题上方小标："💡 快捷提问"（lucide Lightbulb 图标 + text-muted 小字）
+- reduced-motion：淡入退化为 opacity
+
+## 验证
+- npx tsc --noEmit → 零错误；npm run build → 成功
+
+## 验收参考（手动）
+1. 全局咨询（无案件）空态出现 5 个快捷 chips：到期查询/建案/统计/政策/写邮件
+2. 点"今天有哪些到期/逾期？" → 消息发出并收到 AI 回复（全局对话，无客户名上下文）
+3. 点"帮我建一个案件" → 弹出建案表单
+4. 点"写一封补件邮件" → Toast"请先选择左侧案件…"，不发消息
+5. 选中案件进入案件对话后 → 快捷 chips 不显示（仅全局空态）
+6. chips hover/点击动效顺滑，reduced-motion 生效
+
+⚠️ 执行纪律：
+1. 只修改 BrainChat.tsx 一个文件；不碰业务逻辑/接口/路由
+2. 不引入新依赖；动效统一 spring；每步完成运行验证；失败先报告
+```
+
+### 上传给 AI Studio 的参考文件（最小集）
+
+```
+src/components/brain/BrainChat.tsx
+src/components/brain/ConfirmCard.tsx
+src/services/api/chat.ts
+src/stores/uiStore.ts
+src/types/api.ts
+```
 
 ---
 
