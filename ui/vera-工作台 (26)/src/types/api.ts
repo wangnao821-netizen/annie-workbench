@@ -54,6 +54,20 @@ export interface ContextEventResponse {
   message?: string;
 }
 
+export interface BrainFact {
+  id: number;
+  case_id: string;
+  key: string;        // "category.key"，如 "bank.lender"
+  value: string;
+  category: string;   // identity/income/employment/property/loan/liability/bank/stage/commitment/disclosure/special
+  track: 'internal' | 'external';
+  event_id: number;
+  superseded_by: number | null;
+  conflict: boolean;  // true 时卡片加 ⚠️ 角标
+  valid_to: string | null;
+  created_at: string | null;
+}
+
 // 请求体（POST /api/tasks/{id}/dispatch）
 export interface DispatchRequest { action: "approve" | "reject" | "defer" | "delegate" }
 // 请求体（POST /api/tasks/{id}/delegate）

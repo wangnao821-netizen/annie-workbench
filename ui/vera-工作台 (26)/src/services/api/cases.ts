@@ -9,6 +9,7 @@ import {
   CreateCaseResponse,
   ArchivedCase,
   CaseContext,
+  BrainFact,
   ContextEvent,
   ContextEventRequest,
   ContextEventResponse,
@@ -97,6 +98,17 @@ export function supersedeContextEvent(caseId: string, eventId: number, reason: s
     method: 'POST',
     body: JSON.stringify({ reason }),
   });
+}
+
+export function listBrainFacts(
+  caseId: string,
+  params?: { track?: 'internal' | 'external' },
+): Promise<BrainFact[]> {
+  const query = new URLSearchParams();
+  if (params?.track) query.append('track', params.track);
+  const queryString = query.toString();
+  const url = `/api/cases/${encodeURIComponent(caseId)}/facts${queryString ? `?${queryString}` : ''}`;
+  return request<BrainFact[]>(url);
 }
 
 
