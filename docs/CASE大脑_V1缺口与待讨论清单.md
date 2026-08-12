@@ -179,6 +179,7 @@
   - **服务端工具循环**：LLM 工具调用 → 服务端白名单执行 → 结果回注 → 继续 → 最终回复；脱敏/确认闸门全在服务端边界内，前端只拿可展示成品。
   - **结构化卡片**：低置信确认卡（#6）/ 草稿卡+披露清单（#9）/ 流程卡（#3 L3）由服务端生成结构化数据，前端渲染成卡片（F-2 接口契约）。
   - **流式 V2（协议预留）**：同端点加 `stream=true`；事件类型 `text_chunk / tool_call / tool_result / record_confirm / done`；Vercel AI SDK 只连后端、前端无 provider key；前端只换渲染方式，契约不变。
+- **✅ 施工完成（2026-08-12，WO-16）**：POST /api/chat 升级为非流式工具协议——服务端工具循环（≤3 轮）+ 结构化卡片（record_confirm/submission_suggest/draft/flow）+ V1 工具 record_fact（高置信 confirmed/低置信 pending）与 suggest_submission；全局对话只读（tool_choice=none）；工具回注不含事件原文（PII 红线）；全量 pytest **487 passed**（基线 479 + 新增 8，零回归）。#8 五层注入归 WO-17；draft_email 工具归 WO-18。
 
 ---
 
