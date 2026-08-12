@@ -15,6 +15,7 @@
 | F-2b | 中栏：递交模式横幅 + 建议卡 + 草稿卡骨架（依赖 WO-16 ✅；draft 真实数据等 WO-18） | 已出（下文） |
 | F-3 | 右栏实化：事实卡（BrainFact）/补全进度灰提示（依赖 WO-15 ✅） | ✅ 已交付（vera-工作台 (26)），待真机运行验收 |
 | F-3b | 右栏：递交模式联动外线视图 + 待办卡（依赖模式状态 store / tasks 契约） | 待出 |
+| F-5 | 全局咨询右栏：统计分析面板（概览 + 趋势 + AI 用量） | 已出（下文） |
 | F-4 | Apple 风格动画与材质打磨 + 次级入口收尾 | 待出 |
 
 > ✅ **已定稿（2026-08-12）**：在现有 `ui/vera-工作台 (23)` 基础上**增量改造**（换壳不换内脏）——
@@ -283,6 +284,133 @@ src/stores/uiStore.ts
 - **F-4**：Apple 风格打磨——毛玻璃材质/弹簧动画细节/空态插画/reduced-motion 复查；旧页面入口收尾
 
 > 注：F-2b~F-4 的具体提示词待对应批次验收后按实际代码结构撰写。
+
+---
+
+## 批 F-5：全局咨询右栏 — 统计分析面板
+
+> 无案件（全局咨询）时，右栏不再空态，显示"业务概览"统计面板：概览数字 + 迷你趋势 + AI 用量；切到案件恢复客户全景。后端依赖：现有 analytics 端点 + WO-17 usage 端点（WO-17 交付前 mock 兜底）。
+
+### 提示词正文（复制给 AI Studio）
+
+```
+# 任务：Vera Workbench — F-5 全局咨询右栏统计分析面板
+
+## 背景
+在 F-1~F-3（ui/vera-工作台 (26)）基础上：全局咨询（无选中案件）时，右栏 CasePanorama 目前是空态。
+改为渲染"业务概览"统计面板（GlobalStatsPanel）：概览数字（活跃/新增/递交/批准/佣金）+ 迷你趋势（pipeline）+ AI 用量；
+选中案件时右栏恢复客户全景。她大部分时间在全局聊天，右栏给业务全貌，点数字可进完整统计页。
+
+## 技术约束
+- 前端：TypeScript strict / React 18 / Vite / Tailwind CSS / motion/react / zustand（现有版本）
+- 图标：lucide-react（现有）；Toast：useToastStore（现有）
+- 禁止：引入任何新的 npm 依赖（**不引入图表库**，趋势用纯 div 高度条）；禁止修改后端；禁止改动现有页面逻辑
+- 样式：一律使用项目现有 CSS 变量（var(--bg-app)/var(--bg-panel)/var(--bg-card)/var(--border)/var(--text-primary)/var(--text-muted)/var(--accent) 等），不新增配色
+- 动画：motion/react spring（damping 1.0 / response 0.3-0.4），可中断；遵守 prefers-reduced-motion
+
+## 改动范围（严禁超出）
+
+| 文件 | 操作 |
+|------|------|
+| src/types/api.ts | 修改：新增 AnalyticsUsage / UsagePeriod 类型 |
+| src/services/api/analytics.ts | 修改：新增 getUsage（mock 兜底） |
+| src/components/brain/GlobalStatsPanel.tsx | 新建：全局统计面板 |
+| src/components/layout/AppShell.tsx | 修改：brain 视图右栏按有无案件条件渲染 |
+
+⚠️ 严禁修改上表以外的文件。严禁删除/重命名现有文件。严禁改动后端。
+
+## 接口契约
+
+1. types/api.ts 新增（对齐后端 WO-17 AnalyticsUsageResponse）：
+   ```typescript
+   export interface UsagePeriod {
+     calls: number;
+     prompt_tokens: number;
+     completion_tokens: number;
+     prompt_cache_hit_tokens: number;
+     prompt_cache_miss_tokens: number;
+     cache_hit_rate: number | null;
+     cost_usd: number;
+     avg_latency_ms: number | null;
+     corrected_count: number;
+   }
+   export interface AnalyticsUsage {
+     current: UsagePeriod;
+     previous: UsagePeriod;
+   }
+   ```
+2. services/api/analytics.ts 新增：
+   ```typescript
+   export async function getUsage(granularity: Granularity): Promise<AnalyticsUsage> {
+     // mock 分支返回 MOCK_USAGE（current.calls=38, cost_usd≈2.4, cache_hit_rate=0.72 等合理值）；
+     // 真实分支 GET /api/analytics/usage?granularity=...；失败回退 mock
+   }
+   ```
+3. GlobalStatsPanel.tsx：
+   - props: `{ onNavigate: (v: ViewId) => void }`（ViewId 从 types/navigation 导入）
+   - 顶部：标题"业务概览" + 天/周/月切换（三个 pill，选中态 accent，复用现有 Granularity 类型）
+   - **概览数字区**（getOverview）：6 个数字卡（活跃案件 / 新增 / 递交 / 批准 / 结算 / 佣金），每卡：label + 数值 + 变化箭头（trend up/down/flat 用 ArrowUpRight/ArrowDownRight 图标）+ compare_label 小字；网格 2 列
+   - **迷你趋势区**（getPipeline，buckets=5）：标题"近期走势"；用纯 div 柱状条展示最近 5 桶 new_cases / submitted / approved（每组 3 根细柱，高度按最大值归一化；hover 显示数值 title）
+   - **AI 用量区**（getUsage）：标题"AI 用量"；一行小字：`调用 {calls} 次 · {cost_usd}$ · 缓存命中 {cache_hit_rate%}`；`corrected_count > 0` 时加"已纠正 {n} 次"（muted）
+   - 底部：[查看完整统计] 按钮（onNavigate('analytics')）
+   - 加载中：骨架闪烁；失败：Toast + 显示 mock 数据（沿用现有 getOverview 等"失败回退 mock"模式）
+4. AppShell.tsx（brain 视图三栏右栏）：
+   - 原 `caseId={currentCase?.caseId ?? null}` 的 CasePanorama 改为条件渲染：
+     ```tsx
+     {currentCase ? (
+       <CasePanorama caseId={currentCase.caseId} collapsed={panoramaCollapsed} onToggle={...} />
+     ) : (
+       <GlobalStatsPanel onNavigate={(v) => setView(v)} />
+     )}
+     ```
+   - 右栏折叠按钮仍只对 CasePanorama 生效（全局统计面板不折叠，V1）
+   - 其余渲染零改动
+
+## 实施步骤
+
+### Step 1：类型 + API
+- [ ] src/types/api.ts：AnalyticsUsage / UsagePeriod（契约 1）
+- [ ] src/services/api/analytics.ts：getUsage（契约 2）
+
+### Step 2：GlobalStatsPanel
+- [ ] 新建 src/components/brain/GlobalStatsPanel.tsx（契约 3；不引入图表库）
+
+### Step 3：AppShell 条件渲染
+- [ ] src/components/layout/AppShell.tsx：右栏按 currentCase 有无切换（契约 4）
+
+### Step 4：验证
+- [ ] npx tsc --noEmit → 零错误
+- [ ] npm run build → 成功
+
+## 验收标准（手动）
+1. 全局咨询（无案件）→ 右栏显示"业务概览"：6 个数字卡 + 近期走势柱状 + AI 用量 + [查看完整统计]
+2. 天/周/月切换 → 数字与走势随粒度刷新（mock 数据各有不同）
+3. 点 [查看完整统计] → 进入完整 Analytics 页
+4. 点击左栏案件 → 右栏切换为客户全景；返回全局 → 恢复统计面板
+5. 趋势柱状 hover 显示数值；加载有骨架；后端未启动（真实分支失败）→ Toast + mock 兜底不崩溃
+6. 动画 spring 可中断；prefers-reduced-motion 生效
+
+⚠️ 执行纪律：
+1. 只修改改动范围表中的文件，绝不碰其他文件
+2. 接口名/props/字段名严格按契约，一个字符不改
+3. 不引入新依赖（尤其不引入图表库）；不改动现有页面内部逻辑（Analytics 页不动）
+4. 每完成一步运行验证；失败先报告，不自作主张修计划外代码
+5. 动画一律 spring（damping 1.0 / response 0.3-0.4），可中断，遵守 prefers-reduced-motion
+```
+
+### 上传给 AI Studio 的参考文件（最小集）
+
+```
+src/types/api.ts
+src/types/navigation.ts
+src/services/api/analytics.ts
+src/services/http.ts
+src/components/brain/CasePanorama.tsx
+src/components/layout/AppShell.tsx
+src/pages/Analytics.tsx
+src/stores/caseStore.ts
+src/stores/toastStore.ts
+```
 
 ---
 
