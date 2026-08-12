@@ -85,6 +85,7 @@
 - 后端：**WO-14 确认闸门 ✅**（事件状态机 pending→confirmed→superseded；蒸馏只吃 confirmed；3 端点；pytest 464/0）
 - 后端：**WO-15 BrainFact ✅**（fact_schema 42 key + brain_facts 表 + 规则/LLM 提取 + 幂等同步；pytest 479/0）
 - 后端：**WO-16 对话协议 ✅**（非流式 + 服务端工具循环 + 结构化卡片 + record_fact/suggest_submission；pytest 487/0）
+- 后端：**WO-17 上下文注入 ✅**（五层缓存友好协议 + 对话窗口 + ai_usage_log/缓存命中率 + DeepSeek/Gemini 路由；pytest 497/0）
 - 前端：批 1-12 + 批 A/B/C/C-2/C-3/D-1/D-2/E-1 全部完成 + **F-1 三栏骨架 ✅ + F-2 确认记录 ✅ + F-3 事实卡/补全进度 ✅ + F-2b 递交横幅/草稿卡骨架 ✅ + F-5 全局统计面板 ✅ + F-3b 右栏指挥中心 ✅（(27) 汇总交付，2026-08-12 待真机验收）**（AI Studio 线维护）
 - 联调：后端 + 前端已在本地跑通（8000/3000）；已修复：id/case_id、datetime naive、SSE payload、草稿 404、设置页离线误报、案件下拉遮挡、邮件附件预览、客户全景同源
 

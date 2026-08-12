@@ -126,6 +126,7 @@
   - **缓存命中率指标（✅ 2026-08-12 拍板）**：网关记录 DeepSeek 返回的 prompt_cache_hit_tokens / prompt_cache_miss_tokens，测量工具加"缓存命中率"维度——命中率高 = 前缀稳定有效，是省钱的核心杠杆。
   - **全局对话**：不注入案件上下文；只读查询回答必须标注客户名（见 #2 防串案）。
   - **验收**：用她 10 个真实问题验证"窗口内自然对话不丢上下文、窗口外靠蒸馏仍记得关键事实"；观察期 1 周采集用量/费用/命中率基线。
+- **✅ 施工完成（2026-08-13，WO-17）**：五层注入（角色→案件大脑→经验/政策→实时数据→对话追加区，缓存友好层序）+ 对话窗口 10 轮/预算截断（折叠语义）+ `ai_usage_log` 表（token/费用/延迟/缓存命中率/纠正次数）+ `GET /api/analytics/usage` + DeepSeek/Gemini 模型路由（external→gemini 优先，失败回退 deepseek）；全量 pytest **497 passed**（基线 487 + 新增 10，零回归）。
 
 ### 9. 递交模式怎么进、disclosed 开关谁按
 
@@ -155,6 +156,7 @@
   - **递交模式英文草稿**：Gemini 为主——银行邮件/翻译/复杂英文推理走 Gemini；**Gemini 失败/超时 → DeepSeek 接手**（英文链路：Gemini → DeepSeek）。
   - **OpenAI 不引入**：V1 只配 DeepSeek + Gemini 两个 provider，不保留第三备选。
   - **验收**：上线前跑 10 题脱敏问答测试集（她 10 个真实问题，去 PII），两模型对比答对率/中文自然度/速度/成本；测试集同时作为 #21 周度 QA 的回归基准；结果出来若 DeepSeek 中文有硬伤再调配置。
+- **✅ 施工完成（2026-08-13，WO-17）**：gateway 支持 `prefer_provider` 路由——日常 internal 走 DeepSeek，递交模式 external 首选 Gemini、失败自动回退 DeepSeek；10 题测试集仍待 Vera 出题跑验收。
 
 ### 11. 提醒的触达通道（"3 天后问客户回没回"）
 
