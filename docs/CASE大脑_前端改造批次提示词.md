@@ -19,6 +19,7 @@
 | F-4 | Apple 风格打磨——玻璃材质/排版层级/动效/微交互/空态/旧页面视觉统一（已读 apple-design 规范） | 已出（下文） |
 | F-6 | 首页（今日工作台）界面设计——应用框架感 + 今日概览/待办/提醒/快捷操作/对话入口（自由发挥，功能要求到位） | 已出（下文） |
 | F-6c | 首页融合 + 侧栏布局修整——原型设计模式 × 主前端真实数据（固定顶栏/Bento 小组件/待办 tabs/侧栏分区） | 已出（下文） |
+| F-6d | 首页与侧栏细节修整（5 项）——去重复品牌/案件阶段节点/底部入口横排/首页头部精简/卡片动效统一（参考原型） | 已出（下文） |
 
 > ✅ **已定稿（2026-08-12）**：在现有 `ui/vera-工作台 (23)` 基础上**增量改造**（换壳不换内脏）——
 > 保留 services/types/stores/themes/已验证组件，换 AppShell 外壳 + 新增 `src/components/brain/` 目录；
@@ -286,6 +287,98 @@ src/stores/uiStore.ts
 - **F-4**：Apple 风格打磨——毛玻璃材质/弹簧动画细节/空态插画/reduced-motion 复查；旧页面入口收尾
 
 > 注：F-2b~F-4 的具体提示词待对应批次验收后按实际代码结构撰写。
+
+---
+
+## 批 F-6d：首页与侧栏细节修整（5 项，参考原型 `vera-workbench-—-今日工作台`）
+
+### 提示词正文（复制给 AI Studio）
+
+```
+# 任务：Vera Workbench — 首页与侧栏细节修整（5 项）
+
+## 背景
+在 ui/vera-工作台 (31) 基础上修 5 个细节问题，动效与首页头部参考独立原型 `ui/vera-workbench-—-今日工作台` 的设计。
+只改布局/样式/微交互，不动业务逻辑、接口、props、路由。
+
+## 技术约束
+- TypeScript strict / React / Vite / Tailwind / motion/react / zustand（现有）
+- 不引入新依赖；颜色从现有 CSS 变量派生；动效统一 motion/react spring（damping 1.0 / response 0.3-0.4），可中断；遵守 prefers-reduced-motion
+- 不复制原型写死色（bg-gray-100 等）与硬编码日期
+
+## 改动范围（严禁超出）
+
+| 文件 | 操作 |
+|------|------|
+| src/components/layout/TopNavBar.tsx | 修改：品牌区保留，如与侧栏重复只保留此处 |
+| src/components/brain/CaseListSidebar.tsx | 修改：顶部去重复品牌 + 案件卡阶段节点 + 底部 4 入口横排 |
+| src/components/brain/HomePage.tsx | 修改：头部精简（日期放大、去早安/badge）+ 卡片动效统一 |
+| src/components/brain/GlobalStatsPanel.tsx · TodoCard.tsx · BrainChat.tsx | 修改：统一卡片 hover/按压微交互（只改样式） |
+
+⚠️ 严禁修改其他文件；严禁改动业务逻辑/接口/路由。
+
+## 一、去掉左上角重复品牌/图标（问题 1）
+- TopNavBar 品牌区保留（渐变 AI 块 + "Vera Workbench"，点击回首页）
+- CaseListSidebar 顶部**去掉 "Vera Workbench" 文字**（与顶栏重复）；该行只保留折叠按钮，或改为"案件"分组标题 + 折叠按钮（二选一，以简洁为准）
+- 全局只保留一处品牌（顶栏）
+
+## 二、案件列表卡片：阶段关键节点（问题 2）
+- 在案件卡"客户名/银行"下方，把单条阶段文字升级为**紧凑阶段进度**：
+  - 关键节点：建档 → 收集 → 递交 → 补件 → 批准 → 结算（6 个节点）
+  - 呈现：一排小圆点/短段条，当前节点高亮（accent），已过节点实心、未到节点空心/弱化；下方保留当前阶段中文小字
+  - 映射：根据 c.stage 关键词定位（含"建档/收集/准备"→收集；"递交/审贷/评估"→递交；"补件"→补件；"批准/预批"→批准；"结算/交割"→结算；默认建档）
+  - 折叠态（60px）不显示节点，保留首字母头像
+
+## 三、底部 4 入口水平一行（问题 3）
+- CaseListSidebar 底部"待办 · 看板 · 统计 · 设置"从竖排改为**一行横排**（grid-cols-4 或 flex 均分，图标在上/文字在下或图标+小字并排，以省空间为优先）
+- 选中态仍保留（accent-soft + 顶部/底部指示条）；"更多功能"按钮保留在横排下方或右侧
+- 折叠态（60px）下横排自然退化为 4 个竖排图标（或保持一行 4 图标，以视觉为准）
+
+## 四、首页头部精简（问题 4，参考原型）
+- **去掉**："早安，Vera！今日业务概览"主标题、"Vera 经纪人工作台"紫色 badge
+- **日期放大为主标题**：`{todayDateStr}` 用 text-2xl/3xl font-extrabold tracking-tight（参考原型 h1）
+- 日期下方保留一行 muted 概览："今天有 N 个紧急待办 · 到期预警 · 银行审贷回复待处理"
+- 快捷操作（新建案件/写邮件/统计视图）保留在右侧，与放大日期对齐（视觉平衡、不拥挤）
+- 顶部到期/逾期提醒条保留
+
+## 五、卡片动效统一（问题 5，参考原型，全页面统一规范）
+- **统计卡 / 小组件卡**（HomePage 4 统计卡、快捷看板卡、专家贴士卡；GlobalStatsPanel 数字卡）：hover 抬升 `whileHover={{ y: -2 }}` + 阴影加深（shadow-sm→shadow-md，用现有 --shadow-* 变量），spring 可中断
+- **今日待办卡**（HomePage 待办行、TodoCard）：hover 边框高亮（逾期 `hover:border-red-400`，普通 `hover:border-[var(--accent)]`）+ 轻微抬升；点击回弹 `whileTap={{ scale: 0.98 }}`
+- **可点按钮/入口**（侧栏入口、快捷操作、工具卡）：统一 `whileTap={{ scale: 0.96-0.97 }}` 点击回弹 + hover 过渡（transition-colors/opacity）
+- 统一到全部页面（BrainChat 工具卡/建议卡、侧栏案件卡/入口、首页全部卡片），保证交互手感一致
+- reduced-motion：所有抬升/回弹退化为透明度变化（现有 useReducedMotion 模式）
+
+## 验证
+- npx tsc --noEmit → 零错误；npm run build → 成功
+- 后端未启动/接口失败 → 页面不崩溃
+
+## 验收参考（手动）
+1. 左上角只有一个品牌（顶栏）；侧栏顶部无重复 "Vera Workbench"
+2. 案件卡有 6 节点阶段进度，当前阶段高亮、文字保留；折叠态正常
+3. 底部"待办·看板·统计·设置"一行横排，省空间；选中态清晰
+4. 首页头部：大日期为主标题，无"早安/工作台 badge"，不拥挤；提醒条与快捷操作保留
+5. 所有卡片 hover 有抬升/阴影或边框高亮，点击有回弹；动效一致、顺滑可中断；reduced-motion 生效
+
+⚠️ 执行纪律：
+1. 只修改改动范围表中的文件；不碰业务逻辑/接口/路由
+2. 不引入新依赖；颜色走现有变量；动效统一 spring 规范
+3. 每步完成运行验证；失败先报告
+```
+
+### 上传给 AI Studio 的参考文件（最小集）
+
+```
+src/components/layout/TopNavBar.tsx
+src/components/brain/CaseListSidebar.tsx
+src/components/brain/HomePage.tsx
+src/components/brain/GlobalStatsPanel.tsx
+src/components/brain/TodoCard.tsx
+src/components/brain/BrainChat.tsx
+src/themes/tokens.css
+src/stores/caseStore.ts
+```
+
+> 参考原型（仅设计参考）：`ui/vera-workbench-—-今日工作台` 的 `HomePage.tsx`（日期块 + 卡片动效）与 `LeftSidebar.tsx`（底部导航）。
 
 ---
 
