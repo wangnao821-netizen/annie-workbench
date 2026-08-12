@@ -36,6 +36,18 @@ export interface ContextEventRequest {
   track?: 'internal' | 'external' | string;
 }
 
+export interface ContextEvent {
+  id: number;
+  case_id: string;
+  source_type: string;
+  content: string;
+  track: 'internal' | 'external';
+  status: 'pending' | 'confirmed' | 'superseded';
+  superseded_by: number | null;
+  supersede_reason: string | null;
+  created_at: string | null;
+}
+
 export interface ContextEventResponse {
   id?: number;
   status?: string;

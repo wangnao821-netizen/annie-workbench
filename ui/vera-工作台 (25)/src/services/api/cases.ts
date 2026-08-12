@@ -9,6 +9,7 @@ import {
   CreateCaseResponse,
   ArchivedCase,
   CaseContext,
+  ContextEvent,
   ContextEventRequest,
   ContextEventResponse,
 } from '../../types/api';
@@ -71,4 +72,31 @@ export function createContextEvent(caseId: string, body: ContextEventRequest): P
     body: JSON.stringify(body),
   });
 }
+
+export function listContextEvents(
+  caseId: string,
+  params?: { status?: 'pending' | 'confirmed' | 'superseded'; track?: 'internal' | 'external'; limit?: number }
+): Promise<ContextEvent[]> {
+  const query = new URLSearchParams();
+  if (params?.status) query.append('status', params.status);
+  if (params?.track) query.append('track', params.track);
+  if (params?.limit) query.append('limit', String(params.limit));
+  const queryString = query.toString();
+  const url = `/api/cases/${encodeURIComponent(caseId)}/context-events${queryString ? `?${queryString}` : ''}`;
+  return request<ContextEvent[]>(url);
+}
+
+export function confirmContextEvent(caseId: string, eventId: number): Promise<ContextEvent> {
+  return request<ContextEvent>(`/api/cases/${encodeURIComponent(caseId)}/context-events/${eventId}/confirm`, {
+    method: 'POST',
+  });
+}
+
+export function supersedeContextEvent(caseId: string, eventId: number, reason: string): Promise<ContextEvent> {
+  return request<ContextEvent>(`/api/cases/${encodeURIComponent(caseId)}/context-events/${eventId}/supersede`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  });
+}
+
 

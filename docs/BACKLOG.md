@@ -83,7 +83,7 @@
 - 双 data 目录：`core/data/assistant.db` 唯一真源 ✅（测试库已快照归档 `core/data/backups/legacy/`；根库原文件待后端重启后归档）
 - 后端：**WO-13 收口施工单 ✅**（统计时区 Australia/Sydney + alembic URL `%(here)s` 加固 + 双库启动自检；env.py 日志器隐患修复；pytest 455/0）
 - 后端：**WO-14 确认闸门 ✅**（事件状态机 pending→confirmed→superseded；蒸馏只吃 confirmed；3 端点；pytest 464/0）
-- 前端：批 1-12 + 批 A/B/C/C-2/C-3/D-1/D-2/E-1 全部完成 + **F-1 三栏骨架已交付（ui/vera-工作台 (24)，2026-08-12，待真机验收）**（AI Studio 线维护）
+- 前端：批 1-12 + 批 A/B/C/C-2/C-3/D-1/D-2/E-1 全部完成 + **F-1 三栏骨架 ✅（(24)）+ F-2 确认记录交互 ✅（(25)，2026-08-12，待真机验收）**（AI Studio 线维护）
 - 联调：后端 + 前端已在本地跑通（8000/3000）；已修复：id/case_id、datetime naive、SSE payload、草稿 404、设置页离线误报、案件下拉遮挡、邮件附件预览、客户全景同源
 
 ---
