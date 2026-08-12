@@ -4,7 +4,7 @@ import {
   Sparkles, Plus, Mail, BarChart2, AlertTriangle, 
   Calendar, CheckCircle2, ArrowRight, 
   RefreshCw, User, Briefcase, FileText, X, MessageSquare,
-  Lightbulb, Layers
+  Lightbulb, Layers, ChevronDown, Filter
 } from 'lucide-react';
 import { ViewId } from '../../types/navigation';
 import { useTaskStore } from '../../stores/taskStore';
@@ -361,9 +361,9 @@ export function HomePage({ onNavigate }: HomePageProps) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
         
         {/* Left Column (span-2): 今日待办 */}
-        <div className="lg:col-span-2 rounded-2xl border p-5 space-y-4 shadow-sm glass-panel" style={{ borderColor: 'var(--border)' }}>
-          {/* Section Header & Tabs */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b" style={{ borderColor: 'var(--border)' }}>
+        <div className="lg:col-span-2 rounded-2xl border p-4 shadow-sm glass-panel flex flex-col justify-between h-full min-h-[380px]" style={{ borderColor: 'var(--border)' }}>
+          {/* Section Header & Dropdown Filter */}
+          <div className="flex items-center justify-between gap-2 pb-3 border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
             <div className="flex items-center space-x-2">
               <CheckCircle2 className="w-4.5 h-4.5 text-purple-500" />
               <h2 className="text-sm font-extrabold tracking-tight text-primary">
@@ -374,76 +374,54 @@ export function HomePage({ onNavigate }: HomePageProps) {
               </span>
             </div>
 
-            {/* Filter Tabs (全部 / 逾期 / AI 建议) */}
-            <div className="flex items-center space-x-1 p-1 rounded-xl bg-black/5 dark:bg-white/5 border" style={{ borderColor: 'var(--border)' }}>
-              <button
-                onClick={() => setTaskTab('all')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center space-x-1 ${
-                  taskTab === 'all' ? 'bg-[var(--bg-card)] text-[var(--accent)] shadow-2xs' : 'text-muted hover:text-primary'
-                }`}
-              >
-                <span>全部</span>
-                <span className="text-[10px] opacity-75">({tasks.filter(t => !t.completed).length})</span>
-              </button>
-
-              <button
-                onClick={() => setTaskTab('overdue')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center space-x-1 ${
-                  taskTab === 'overdue' ? 'bg-[var(--bg-card)] text-rose-500 shadow-2xs' : 'text-muted hover:text-primary'
-                }`}
-              >
-                <span>逾期/紧急</span>
-                {overdueTasks.length > 0 && (
-                  <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[10px] font-extrabold">
-                    {overdueTasks.length}
-                  </span>
-                )}
-              </button>
-
-              <button
-                onClick={() => setTaskTab('ai')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center space-x-1 ${
-                  taskTab === 'ai' ? 'bg-[var(--bg-card)] text-purple-500 shadow-2xs' : 'text-muted hover:text-primary'
-                }`}
-              >
-                <span>AI 建议</span>
-                {aiSuggestedTasks.length > 0 && (
-                  <span className="px-1.5 py-0.2 rounded-full bg-purple-500 text-white text-[10px] font-extrabold">
-                    {aiSuggestedTasks.length}
-                  </span>
-                )}
-              </button>
+            {/* 下拉菜单形式 (Task Category Dropdown) */}
+            <div className="flex items-center space-x-1.5">
+              <Filter className="w-3.5 h-3.5 text-muted hidden sm:inline" />
+              <div className="relative">
+                <select
+                  value={taskTab}
+                  onChange={(e) => setTaskTab(e.target.value as 'all' | 'overdue' | 'ai')}
+                  className="appearance-none bg-black/5 dark:bg-white/5 border rounded-xl px-3 py-1 pr-7 text-xs font-bold text-primary outline-none cursor-pointer hover:bg-[var(--bg-card-hover)] transition-colors"
+                  style={{ borderColor: 'var(--border)' }}
+                  id="home-task-tab-select"
+                >
+                  <option value="all" className="bg-[var(--bg-card)] text-primary">全部待办 ({tasks.filter(t => !t.completed).length})</option>
+                  <option value="overdue" className="bg-[var(--bg-card)] text-rose-500 font-bold">⚠️ 逾期/紧急 ({overdueTasks.length})</option>
+                  <option value="ai" className="bg-[var(--bg-card)] text-purple-500 font-bold">🤖 AI 建议 ({aiSuggestedTasks.length})</option>
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 text-muted absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
             </div>
           </div>
 
-          {/* Task Items list */}
-          {tasksLoading ? (
-            <div className="p-8 text-center text-xs text-muted space-y-2">
-              <RefreshCw className="w-5 h-5 animate-spin mx-auto text-purple-500" />
-              <p>正在获取最新待办清单...</p>
-            </div>
-          ) : tasksError ? (
-            <div className="p-6 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 text-xs flex items-center justify-between">
-              <span>{tasksError}</span>
-              <button onClick={() => fetchTasks()} className="px-2.5 py-1 rounded-lg bg-rose-500 text-white font-bold cursor-pointer">
-                重试
-              </button>
-            </div>
-          ) : sortedTasks.length === 0 ? (
-            <div className="py-12 px-4 text-center space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto border border-emerald-500/20 shadow-xs">
-                <CheckCircle2 className="w-6 h-6" />
+          {/* Task Items list with fixed scrollable height matching right column */}
+          <div className="flex-1 max-h-[285px] overflow-y-auto no-scrollbar space-y-2 my-1 pr-0.5">
+            {tasksLoading ? (
+              <div className="py-12 text-center text-xs text-muted space-y-2">
+                <RefreshCw className="w-5 h-5 animate-spin mx-auto text-purple-500" />
+                <p>正在获取最新待办清单...</p>
               </div>
-              <div className="space-y-1">
-                <h3 className="font-extrabold text-sm text-primary">太棒了！当前分类下暂无待办事项</h3>
-                <p className="text-xs text-muted max-w-sm mx-auto">
-                  所有对应案件与补件任务已全部跟进完毕。
-                </p>
+            ) : tasksError ? (
+              <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 text-xs flex items-center justify-between">
+                <span>{tasksError}</span>
+                <button onClick={() => fetchTasks()} className="px-2.5 py-1 rounded-lg bg-rose-500 text-white font-bold cursor-pointer">
+                  重试
+                </button>
               </div>
-            </div>
-          ) : (
-            <div className="space-y-2.5">
-              {sortedTasks.map((t) => {
+            ) : sortedTasks.length === 0 ? (
+              <div className="py-10 px-4 text-center space-y-2">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto border border-emerald-500/20 shadow-xs">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div className="space-y-0.5">
+                  <h3 className="font-extrabold text-xs text-primary">当前分类无待办事项</h3>
+                  <p className="text-[11px] text-muted max-w-sm mx-auto">
+                    相关补件与沟通任务均已按时完成。
+                  </p>
+                </div>
+              </div>
+            ) : (
+              sortedTasks.map((t) => {
                 const isUrgent = t.priority === 'urgent' || t.tags.some(tag => tag.label.includes('超期') || tag.label.includes('逾期'));
                 const isAi = Boolean(t.aiSummary) || t.type === 'OS_ATTACK';
 
@@ -451,25 +429,25 @@ export function HomePage({ onNavigate }: HomePageProps) {
                   <motion.div
                     key={t.id}
                     whileHover={{ y: -1 }}
-                    className={`p-3.5 rounded-xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-3 ${
+                    className={`p-2.5 rounded-xl border transition-all flex items-center justify-between gap-2.5 ${
                       isUrgent ? 'bg-rose-500/5 border-rose-500/30' : 'bg-[var(--bg-card)] border-[var(--border)] hover:bg-[var(--bg-card-hover)]'
                     }`}
                     id={`home-task-item-${t.id}`}
                   >
-                    <div className="space-y-1.5 min-w-0 flex-1">
-                      <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <div className="flex items-center space-x-1.5 flex-wrap gap-y-0.5">
                         {/* Overdue / AI / Normal Badge */}
                         {isUrgent ? (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-black bg-rose-500 text-white shadow-2xs">
-                            已逾期 2 天
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-rose-500 text-white shadow-2xs">
+                            已逾期
                           </span>
                         ) : isAi ? (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/20">
                             🤖 AI 建议
                           </span>
                         ) : (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-black/5 dark:bg-white/10 text-muted">
-                            常规待办
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-medium bg-black/5 dark:bg-white/10 text-muted">
+                            常规
                           </span>
                         )}
 
@@ -478,48 +456,48 @@ export function HomePage({ onNavigate }: HomePageProps) {
 
                         {/* Client Name */}
                         {t.caseName && (
-                          <span className="font-extrabold text-xs text-primary flex items-center">
-                            <User className="w-3 h-3 mr-1 text-muted inline" />
+                          <span className="font-extrabold text-[11px] text-primary flex items-center">
+                            <User className="w-3 h-3 mr-0.5 text-muted inline" />
                             {t.caseName}
                           </span>
                         )}
 
                         {/* Lender */}
                         {t.caseBank && (
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                          <span className="px-1 py-0.2 rounded text-[9px] font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
                             {t.caseBank}
                           </span>
                         )}
                       </div>
 
-                      <h3 className="font-bold text-xs text-primary leading-tight">
+                      <h3 className="font-bold text-xs text-primary leading-tight truncate">
                         {t.title}
                       </h3>
 
                       {t.aiSummary && (
-                        <p className="text-[11px] text-muted line-clamp-1">
+                        <p className="text-[10px] text-muted truncate">
                           {t.aiSummary}
                         </p>
                       )}
                     </div>
 
-                    <div className="flex items-center space-x-2 flex-shrink-0 self-end md:self-center">
+                    <div className="flex items-center space-x-1 flex-shrink-0">
                       <motion.button
                         whileTap={{ scale: 0.95 }}
                         onClick={() => handleOpenCaseTask(t)}
-                        className="px-3 py-1.5 rounded-lg text-xs font-bold text-white shadow-xs flex items-center space-x-1 cursor-pointer transition-opacity"
+                        className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-white shadow-xs flex items-center space-x-1 cursor-pointer transition-opacity"
                         style={{ backgroundColor: 'var(--accent)' }}
                         id={`home-task-action-${t.id}`}
                       >
-                        <span>进入案件对话</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
+                        <span>进入</span>
+                        <ArrowRight className="w-3 h-3" />
                       </motion.button>
                     </div>
                   </motion.div>
                 );
-              })}
-            </div>
-          )}
+              })
+            )}
+          </div>
         </div>
 
         {/* Right Column (span-1): Bento 小组件 (Quick Kanban + Expert Tip) */}

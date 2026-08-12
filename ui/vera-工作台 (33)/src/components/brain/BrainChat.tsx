@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'motion/react';
-import { Sparkles, Send, Brain, Bot, User, PanelRightClose, Plus } from 'lucide-react';
+import { motion, useReducedMotion } from 'motion/react';
+import { Sparkles, Send, Brain, Bot, User, PanelRightClose, Plus, Lightbulb } from 'lucide-react';
 import { getChatHistory, sendChat } from '../../services/api/chat';
 import { listContextEvents, confirmContextEvent, supersedeContextEvent } from '../../services/api/cases';
 import { ChatMessageResponse, ContextEvent, ToolCard, DraftPayload, SubmissionSuggestPayload } from '../../types/api';
@@ -12,6 +12,16 @@ import { ConfirmCard } from './ConfirmCard';
 import { RecordedEventsDrawer } from './RecordedEventsDrawer';
 import { SubmissionBanner } from './SubmissionBanner';
 import { DraftCard } from './DraftCard';
+
+type QuickAsk = { label: string; action: 'ask' | 'new_case' | 'compose_email' };
+
+const QUICK_ASKS: QuickAsk[] = [
+  { label: '今天有哪些到期/逾期？', action: 'ask' },
+  { label: '帮我建一个案件', action: 'new_case' },
+  { label: '最近业务怎么样？', action: 'ask' },
+  { label: '查一下 CBA 的政策', action: 'ask' },
+  { label: '写一封补件邮件', action: 'compose_email' },
+];
 
 interface BrainChatProps {
   caseId: string | null;
@@ -63,6 +73,7 @@ const MOCK_CONFIRMED_EVENTS: ContextEvent[] = [
 ];
 
 export function BrainChat({ caseId, onTogglePanorama }: BrainChatProps) {
+  const reduced = useReducedMotion();
   const [messages, setMessages] = useState<ChatMessageResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [prompt, setPrompt] = useState('');
@@ -120,10 +131,11 @@ export function BrainChat({ caseId, onTogglePanorama }: BrainChatProps) {
     fetchContextEventsData();
   }, [fetchHistory, fetchContextEventsData]);
 
-  const handleSend = async () => {
-    if (!prompt.trim() || sending) return;
-    const text = prompt.trim();
-    setPrompt('');
+  const handleSend = async (overrideText?: string) => {
+    const rawText = overrideText || prompt;
+    if (!rawText.trim() || sending) return;
+    const text = rawText.trim();
+    if (!overrideText) setPrompt('');
     setMessages((prev) => [...prev, { id: `usr-${Date.now()}`, role: 'user', content: text, created_at: '刚刚' }]);
     setSending(true);
 
@@ -176,6 +188,16 @@ export function BrainChat({ caseId, onTogglePanorama }: BrainChatProps) {
       useToastStore.getState().showToast('error', '发送消息失败，请重试');
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleQuickAsk = (item: QuickAsk) => {
+    if (item.action === 'ask') {
+      handleSend(item.label);
+    } else if (item.action === 'new_case') {
+      setNewCaseOpen(true);
+    } else if (item.action === 'compose_email') {
+      useToastStore.getState().showToast('info', '请先选择左侧案件，进入案件对话后再写邮件');
     }
   };
 
@@ -253,7 +275,7 @@ export function BrainChat({ caseId, onTogglePanorama }: BrainChatProps) {
       {/* 2. Chat Stream */}
       <div className="p-4 space-y-4 flex-1 overflow-y-auto no-scrollbar">
         {!activeCaseInfo && messages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center p-6 text-center space-y-5">
+          <div className="h-full flex flex-col items-center justify-center p-6 text-center space-y-5 max-w-lg mx-auto">
             <div className="relative">
               <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-purple-500/20 to-indigo-500/20 flex items-center justify-center border border-purple-500/20 shadow-lg">
                 <Sparkles className="w-8 h-8 text-purple-500" />
@@ -266,6 +288,41 @@ export function BrainChat({ caseId, onTogglePanorama }: BrainChatProps) {
               <h3 className="font-extrabold text-base tracking-tight" style={{ color: 'var(--text-primary)' }}>全局咨询模式</h3>
               <p className="text-xs text-muted leading-relaxed">选择左侧案件开始深入对话，或直接向 Vera AI 询问金融业务、政策与计算方案。</p>
             </div>
+
+            {/* 快捷提问 chips 区 */}
+            <div className="w-full space-y-2.5 pt-1">
+              <div className="flex items-center justify-center space-x-1 text-[11px] font-bold text-muted">
+                <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
+                <span>快捷提问</span>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-2 max-w-md mx-auto">
+                {QUICK_ASKS.map((item, idx) => (
+                  <motion.button
+                    key={idx}
+                    initial={reduced ? { opacity: 0 } : { opacity: 0, y: 8, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{
+                      type: 'spring',
+                      damping: 20,
+                      stiffness: 300,
+                      delay: reduced ? 0 : idx * 0.05,
+                    }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => handleQuickAsk(item)}
+                    id={`quick-ask-chip-${idx}`}
+                    className="px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-all shadow-2xs hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[var(--bg-card-hover)]"
+                    style={{
+                      backgroundColor: 'var(--bg-card)',
+                      borderColor: 'var(--border)',
+                      color: 'var(--text-secondary)',
+                    }}
+                  >
+                    {item.label}
+                  </motion.button>
+                ))}
+              </div>
+            </div>
+
             <motion.button whileTap={{ scale: 0.95 }} onClick={() => setNewCaseOpen(true)} id="global-chat-new-case-btn"
               className="px-4 py-2.5 rounded-xl text-xs font-bold text-white flex items-center space-x-2 cursor-pointer shadow-md hover:opacity-90 transition-opacity" style={{ backgroundColor: 'var(--accent)' }}>
               <Plus className="w-4 h-4" /><span>新建案件</span>
@@ -390,7 +447,7 @@ export function BrainChat({ caseId, onTogglePanorama }: BrainChatProps) {
             placeholder={activeCaseInfo ? `向 Vera AI 提问或发指令 (${activeCaseInfo.clientName})...` : "向 Vera AI 全局咨询..."}
             className="bg-transparent border-none outline-none w-full text-xs" style={{ color: 'var(--text-primary)' }} />
         </div>
-        <motion.button whileTap={{ scale: 0.94 }} onClick={handleSend} disabled={sending} id="brain-chat-send-btn"
+        <motion.button whileTap={{ scale: 0.94 }} onClick={() => handleSend()} disabled={sending} id="brain-chat-send-btn"
           className="px-3.5 py-2 rounded-xl font-semibold text-xs flex items-center space-x-1 cursor-pointer text-white shadow-xs" style={{ backgroundColor: 'var(--accent)' }}>
           <span>发送</span><Send className="w-3 h-3" />
         </motion.button>

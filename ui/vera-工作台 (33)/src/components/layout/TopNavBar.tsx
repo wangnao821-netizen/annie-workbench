@@ -1,7 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { 
-  Sparkles, Search, Bell, SunMoon, X
+  Sparkles, Search, Bell, SunMoon, X, Home
 } from 'lucide-react';
 import { ViewId } from '../../types/navigation';
 import { useCaseStore } from '../../stores/caseStore';
@@ -10,6 +10,7 @@ import { THEMES, ThemeId } from '../../themes';
 
 interface TopNavBarProps {
   onNavigate: (v: ViewId) => void;
+  activeView?: ViewId;
 }
 
 interface NotificationItem {
@@ -28,15 +29,35 @@ const INITIAL_NOTIFICATIONS: NotificationItem[] = [
   { id: 3, type: 'success', title: '西太银行 (Westpac) 预审通过通知', subtitle: '预计放款产生佣金 $12,500 AUD', time: '1 小时前', read: false, caseId: 'CASE-2025-003' },
 ];
 
-export function TopNavBar({ onNavigate }: TopNavBarProps) {
+export function TopNavBar({ onNavigate, activeView: activeViewProp }: TopNavBarProps) {
   const reduced = useReducedMotion();
   const [globalSearch, setGlobalSearch] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
+  const [internalActiveView, setInternalActiveView] = useState<ViewId>('home');
 
-  const { cases, setCurrentCase } = useCaseStore();
+  const { cases, currentCase, setCurrentCase } = useCaseStore();
   const { current: themeId, setTheme } = useThemeStore();
+
+  useEffect(() => {
+    const handleCustomNav = (e: Event) => {
+      const detail = (e as CustomEvent<ViewId>).detail;
+      if (detail) {
+        setInternalActiveView(detail);
+      }
+    };
+    window.addEventListener('app-navigate', handleCustomNav);
+    return () => window.removeEventListener('app-navigate', handleCustomNav);
+  }, []);
+
+  const currentActiveView = activeViewProp ?? internalActiveView;
+
+  const handleNav = (v: ViewId) => {
+    setInternalActiveView(v);
+    window.dispatchEvent(new CustomEvent('app-navigate', { detail: v }));
+    onNavigate(v);
+  };
 
   const unreadCount = useMemo(() => notifications.filter(n => !n.read).length, [notifications]);
 
@@ -72,7 +93,7 @@ export function TopNavBar({ onNavigate }: TopNavBarProps) {
     setCurrentCase(c);
     setGlobalSearch('');
     setSearchFocused(false);
-    onNavigate('brain');
+    handleNav('brain');
   };
 
   return (
@@ -81,11 +102,11 @@ export function TopNavBar({ onNavigate }: TopNavBarProps) {
       style={{ borderColor: 'var(--border)' }}
       id="top-app-header"
     >
-      {/* 1. Left: Brand Area */}
+      {/* 1. Left: Brand Area + Main Navigation Tabs */}
       <div className="flex items-center space-x-3">
         <motion.button 
           whileTap={{ scale: 0.96 }}
-          onClick={() => onNavigate('home')} 
+          onClick={() => handleNav('home')} 
           className="flex items-center space-x-2.5 cursor-pointer text-left hover:opacity-85 transition-opacity"
           id="header-app-logo-btn"
         >
@@ -99,10 +120,46 @@ export function TopNavBar({ onNavigate }: TopNavBarProps) {
             <span className="text-[10px] text-muted leading-none mt-0.5 block">AI-Powered Mortgage Broker Desktop</span>
           </div>
         </motion.button>
+
+        {/* 页面级主入口 Tabs (今日工作台 / 全局咨询) */}
+        <div className="hidden sm:flex items-center space-x-1 pl-3 border-l" style={{ borderColor: 'var(--border)' }}>
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => handleNav('home')}
+            id="top-nav-home-btn"
+            className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer ${
+              currentActiveView === 'home'
+                ? 'bg-[var(--accent-soft)] text-[var(--accent)] font-extrabold'
+                : 'text-secondary hover:bg-[var(--bg-card-hover)] hover:text-primary'
+            }`}
+            title="今日工作台"
+          >
+            <Home className="w-3.5 h-3.5 flex-shrink-0" />
+            <span>今日工作台</span>
+          </motion.button>
+
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => {
+              setCurrentCase(null);
+              handleNav('brain');
+            }}
+            id="top-nav-global-chat-btn"
+            className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer ${
+              currentActiveView === 'brain' && currentCase === null
+                ? 'bg-[var(--accent-soft)] text-[var(--accent)] font-extrabold'
+                : 'text-secondary hover:bg-[var(--bg-card-hover)] hover:text-primary'
+            }`}
+            title="全局咨询"
+          >
+            <Sparkles className="w-3.5 h-3.5 flex-shrink-0" />
+            <span>全局咨询</span>
+          </motion.button>
+        </div>
       </div>
 
       {/* 2. Center: Global Search Bar */}
-      <div className="flex-1 max-w-md mx-6 relative hidden md:block">
+      <div className="flex-1 max-w-sm mx-4 relative hidden md:block">
         <div 
           className={`flex items-center px-3 py-1.5 rounded-xl border space-x-2 transition-all shadow-2xs ${
             searchFocused ? 'border-[var(--accent)] ring-2 ring-[var(--accent)]/10' : 'border-[var(--border)]'

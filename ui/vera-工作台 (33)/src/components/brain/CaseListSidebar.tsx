@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { 
-  Sparkles, Search, Plus, CheckSquare, Briefcase, Brain, 
+  Search, Plus, CheckSquare, Briefcase, Brain, 
   BarChart2, MoreHorizontal, Settings, FileText, Archive, 
-  History, Database, PanelLeftClose, PanelLeftOpen, Home, ChevronDown, X
+  History, Database, PanelLeftClose, PanelLeftOpen, ChevronDown, X
 } from 'lucide-react';
 import { ViewId } from '../../types/navigation';
 import { useCaseStore } from '../../stores/caseStore';
@@ -53,6 +53,11 @@ export function CaseListSidebar({ activeView, onNavigate }: CaseListSidebarProps
   const setNewCaseOpen = useUiStore((s) => s.setNewCaseOpen);
 
   useEffect(() => { fetchCases(); }, [fetchCases]);
+
+  const handleNav = (v: ViewId) => {
+    window.dispatchEvent(new CustomEvent('app-navigate', { detail: v }));
+    onNavigate(v);
+  };
 
   const filteredCases = cases.filter((c) => {
     const matchesSearch = c.clientName.toLowerCase().includes(search.toLowerCase()) || 
@@ -278,35 +283,11 @@ export function CaseListSidebar({ activeView, onNavigate }: CaseListSidebarProps
         )}
       </div>
 
-      {/* 3. 底部固定导航区 (Bottom Navigation Area: 2 Rows of System Entry Tabs) */}
+      {/* 3. 底部固定导航区 (Bottom Navigation Area: System Entry Tabs + More Dropdown) */}
       <div className="p-2 border-t space-y-1.5 flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
         {collapsed ? (
           /* 折叠态：竖排图标 */
           <div className="flex flex-col space-y-1">
-            <motion.button
-              whileTap={{ scale: 0.94 }}
-              onClick={() => onNavigate('home')}
-              className={`p-2 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
-                activeView === 'home' ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'text-secondary hover:bg-[var(--bg-card-hover)] hover:text-primary'
-              }`}
-              title="今日工作台"
-            >
-              <Home className="w-4 h-4" />
-            </motion.button>
-
-            <motion.button
-              whileTap={{ scale: 0.94 }}
-              onClick={() => { setCurrentCase(null); onNavigate('brain'); }}
-              className={`p-2 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
-                activeView === 'brain' && currentCase === null ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'text-secondary hover:bg-[var(--bg-card-hover)] hover:text-primary'
-              }`}
-              title="全局咨询"
-            >
-              <Sparkles className="w-4 h-4" />
-            </motion.button>
-
-            <div className="w-full h-px bg-[var(--border)] my-0.5" />
-
             {SYSTEM_TABS.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeView === tab.id;
@@ -314,7 +295,7 @@ export function CaseListSidebar({ activeView, onNavigate }: CaseListSidebarProps
                 <motion.button
                   key={tab.id}
                   whileTap={{ scale: 0.94 }}
-                  onClick={() => onNavigate(tab.id)}
+                  onClick={() => handleNav(tab.id)}
                   id={`nav-bottom-${tab.id}`}
                   className={`p-2 rounded-xl flex items-center justify-center transition-all cursor-pointer relative ${
                     isActive
@@ -329,66 +310,32 @@ export function CaseListSidebar({ activeView, onNavigate }: CaseListSidebarProps
             })}
           </div>
         ) : (
-          /* 展开态：导航两行 */
-          <div className="space-y-1.5">
-            {/* 行 1：今日工作台 + 全局咨询 (2 Columns, 相同 Lucide 图标样式) */}
-            <div className="grid grid-cols-2 gap-1 text-xs">
-              <motion.button
-                whileTap={{ scale: 0.96 }}
-                onClick={() => onNavigate('home')}
-                className={`py-1.5 px-2 rounded-xl flex items-center justify-center space-x-1.5 transition-all cursor-pointer relative ${
-                  activeView === 'home'
-                    ? 'bg-[var(--accent-soft)] text-[var(--accent)] font-extrabold'
-                    : 'text-secondary hover:bg-[var(--bg-card-hover)] hover:text-primary'
-                }`}
-                title="今日工作台"
-              >
-                <Home className={`w-3.5 h-3.5 flex-shrink-0 ${activeView === 'home' ? 'text-[var(--accent)]' : ''}`} />
-                <span className="truncate text-xs font-bold">今日工作台</span>
-              </motion.button>
-
-              <motion.button
-                whileTap={{ scale: 0.96 }}
-                onClick={() => { setCurrentCase(null); onNavigate('brain'); }}
-                className={`py-1.5 px-2 rounded-xl flex items-center justify-center space-x-1.5 transition-all cursor-pointer relative ${
-                  activeView === 'brain' && currentCase === null
-                    ? 'bg-[var(--accent-soft)] text-[var(--accent)] font-extrabold'
-                    : 'text-secondary hover:bg-[var(--bg-card-hover)] hover:text-primary'
-                }`}
-                title="全局咨询"
-              >
-                <Sparkles className={`w-3.5 h-3.5 flex-shrink-0 ${activeView === 'brain' && currentCase === null ? 'text-[var(--accent)]' : ''}`} />
-                <span className="truncate text-xs font-bold">全局咨询</span>
-              </motion.button>
-            </div>
-
-            {/* 行 2：待办 · 看板 · 统计 · 设置 (4 Columns) */}
-            <div className="grid grid-cols-4 gap-1 p-1 rounded-xl bg-black/5 dark:bg-white/5 border" style={{ borderColor: 'var(--border)' }}>
-              {SYSTEM_TABS.map((tab) => {
-                const Icon = tab.icon;
-                const isActive = activeView === tab.id;
-                return (
-                  <motion.button
-                    key={tab.id}
-                    whileTap={{ scale: 0.94 }}
-                    onClick={() => onNavigate(tab.id)}
-                    id={`nav-bottom-${tab.id}`}
-                    className={`flex flex-col items-center justify-center py-1.5 px-0.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer relative ${
-                      isActive
-                        ? 'bg-[var(--bg-card)] text-[var(--accent)] shadow-2xs font-extrabold'
-                        : 'text-muted hover:text-primary'
-                    }`}
-                    title={tab.label}
-                  >
-                    <Icon className={`w-3.5 h-3.5 mb-0.5 ${isActive ? 'text-[var(--accent)]' : ''}`} />
-                    <span className="truncate leading-none">{tab.label}</span>
-                    {isActive && (
-                      <span className="absolute bottom-0 left-1.5 right-1.5 h-0.5 bg-[var(--accent)] rounded-full" />
-                    )}
-                  </motion.button>
-                );
-              })}
-            </div>
+          /* 展开态：待办 · 看板 · 统计 · 设置 (4 Columns) */
+          <div className="grid grid-cols-4 gap-1 p-1 rounded-xl bg-black/5 dark:bg-white/5 border" style={{ borderColor: 'var(--border)' }}>
+            {SYSTEM_TABS.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeView === tab.id;
+              return (
+                <motion.button
+                  key={tab.id}
+                  whileTap={{ scale: 0.94 }}
+                  onClick={() => handleNav(tab.id)}
+                  id={`nav-bottom-${tab.id}`}
+                  className={`flex flex-col items-center justify-center py-1.5 px-0.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer relative ${
+                    isActive
+                      ? 'bg-[var(--bg-card)] text-[var(--accent)] shadow-2xs font-extrabold'
+                      : 'text-muted hover:text-primary'
+                  }`}
+                  title={tab.label}
+                >
+                  <Icon className={`w-3.5 h-3.5 mb-0.5 ${isActive ? 'text-[var(--accent)]' : ''}`} />
+                  <span className="truncate leading-none">{tab.label}</span>
+                  {isActive && (
+                    <span className="absolute bottom-0 left-1.5 right-1.5 h-0.5 bg-[var(--accent)] rounded-full" />
+                  )}
+                </motion.button>
+              );
+            })}
           </div>
         )}
 
@@ -426,7 +373,7 @@ export function CaseListSidebar({ activeView, onNavigate }: CaseListSidebarProps
                   return (
                     <button 
                       key={item.id} 
-                      onClick={() => { onNavigate(item.id); setMoreOpen(false); }}
+                      onClick={() => { handleNav(item.id); setMoreOpen(false); }}
                       className={`w-full px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center space-x-2 transition-colors cursor-pointer ${
                         isItemActive ? 'bg-[var(--accent-soft)] text-[var(--accent)] font-bold' : 'hover:bg-[var(--bg-card-hover)] text-secondary hover:text-primary'
                       }`}
