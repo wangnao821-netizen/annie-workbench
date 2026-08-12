@@ -1,0 +1,762 @@
+# Lender Policies — 方向性参考（非精确计算器）
+# 用于 AI 策略引擎推理"哪家银行对这个客户最友好"
+# 最后更新：2026-07-08
+# 维护者：Vera / 系统管理员
+# 注意：这不是 Quickli 的替代品，是 AI 推理的参考数据
+# 注意：key_materials / special_requirements 为方向性参考，Vera 复核后用于对外话术
+
+lenders:
+  ANZ:
+    full_name: "Australia and New Zealand Banking Group"
+    commission_upfront: 0.65  # 首期佣金率（%，不含 GST，方向性默认值，按实际协议调整）
+    commission_trail: 0.15    # 尾随佣金率（%/年，不含 GST）
+    income_shading:
+      base_salary: 1.0
+      bonus: 0.8
+      overtime: 0.8
+      commission: 0.8
+      rental_income: 0.8
+      self_employed: "2yr average (add-backs limited)"
+      foreign_income: 0.6
+    buffer_rate: 3.0
+    max_lvr_no_lmi: 80
+    max_lvr_with_lmi: 95
+    min_deposit: 5
+    key_materials:
+      - "最近3个月银行流水"
+      - "2年纳税申报单 NOA（自雇）"
+      - "工资单（PAYG）"
+      - "会计师信（自雇）"
+    special_requirements:
+      - "自雇要求严格（需 2 年税表+会计师信）"
+      - "外国收入只算 60%"
+      - "Living expense 审查较严"
+    strengths:
+      - "PAYG 审批快速（5-7天）"
+      - "接受 3 个月银行流水"
+      - "Bonus/OT 算 80% 较友好"
+      - "Digital lodgement 流程成熟"
+    weaknesses:
+      - "自雇要求严格（需 2 年税表+会计师信）"
+      - "外国收入只算 60%"
+      - "Living expense 审查较严"
+    best_for:
+      - "PAYG 稳定收入客户"
+      - "首次置业 80% LVR 以内"
+    avoid_for:
+      - "自雇 < 2 年"
+      - "高比例外国收入"
+
+  CBA:
+    full_name: "Commonwealth Bank of Australia"
+    commission_upfront: 0.65
+    commission_trail: 0.15
+    income_shading:
+      base_salary: 1.0
+      bonus: 0.5
+      overtime: 0.5
+      commission: 0.6
+      rental_income: 0.7
+      self_employed: "2yr average (generous add-backs)"
+      foreign_income: 0.5
+    buffer_rate: 3.0
+    max_lvr_no_lmi: 80
+    max_lvr_with_lmi: 95
+    min_deposit: 5
+    key_materials:
+      - "工资单（PAYG）"
+      - "1年完整税表（自雇）"
+      - "最近3个月银行流水"
+      - "会计师信（自雇 add-backs）"
+    special_requirements:
+      - "自雇政策相对宽松（接受 add-backs）"
+      - "Bonus/OT 只算 50% — 严格"
+      - "对信用卡 limit 评估保守"
+    strengths:
+      - "自雇政策相对宽松（接受 add-backs）"
+      - "产品线全面（fixed/variable/offset）"
+      - "大品牌客户认可度高"
+      - "接受 1 年完整税表"
+    weaknesses:
+      - "Bonus/OT 只算 50% — 严格"
+      - "审批时间较长（7-14天）"
+      - "对信用卡 limit 评估保守"
+    best_for:
+      - "自雇客户（有 add-backs）"
+      - "需要品牌知名度的客户"
+    avoid_for:
+      - "高 bonus/commission 结构客户"
+      - "急需快速审批"
+
+  Westpac:
+    full_name: "Westpac Banking Corporation"
+    commission_upfront: 0.65
+    commission_trail: 0.15
+    income_shading:
+      base_salary: 1.0
+      bonus: 0.8
+      overtime: 0.8
+      commission: 0.7
+      rental_income: 0.8
+      self_employed: "2yr average"
+      foreign_income: 0.6
+    buffer_rate: 3.0
+    max_lvr_no_lmi: 80
+    max_lvr_with_lmi: 95
+    min_deposit: 5
+    key_materials:
+      - "工资单（PAYG）"
+      - "纳税申报单 NOA"
+      - "最近3个月银行流水"
+      - "建筑贷款材料（Construction）"
+    special_requirements:
+      - "Bonus/OT 算 80% 较好"
+      - "对 BNPL 审查严格"
+      - "系统老旧，审批有时不稳定"
+    strengths:
+      - "Construction loan 政策友好"
+      - "Bonus/OT 80% 较好"
+      - "接受多种收入证明方式"
+      - "Rate lock 选项灵活"
+    weaknesses:
+      - "系统老旧，broker 体验一般"
+      - "审批有时不稳定"
+      - "对 BNPL 审查严格"
+    best_for:
+      - "Construction/建筑贷款"
+      - "PAYG + bonus 结构"
+    avoid_for:
+      - "有多个 BNPL 账户的客户"
+
+  NAB:
+    full_name: "National Australia Bank"
+    commission_upfront: 0.65
+    commission_trail: 0.15
+    income_shading:
+      base_salary: 1.0
+      bonus: 0.7
+      overtime: 0.7
+      commission: 0.7
+      rental_income: 0.8
+      self_employed: "2yr average (standard)"
+      foreign_income: 0.5
+    buffer_rate: 3.0
+    max_lvr_no_lmi: 80
+    max_lvr_with_lmi: 95
+    min_deposit: 5
+    key_materials:
+      - "工资单（PAYG）"
+      - "纳税申报单 NOA"
+      - "专业执业证明（医生/律师/会计）"
+      - "银行流水"
+    special_requirements:
+      - "Commission 只算 70%"
+      - "专业客户（医生/律师/会计）有特殊通道"
+      - "审批时间偏长"
+    strengths:
+      - "Professional package 优惠好"
+      - "对医生/律师等专业人士有特殊通道"
+      - "Offset 账户灵活"
+    weaknesses:
+      - "Commission 只算 70%"
+      - "自雇政策一般"
+      - "审批时间偏长"
+    best_for:
+      - "Professional 客户（医生/律师/会计）"
+      - "需要 professional package 的客户"
+    avoid_for:
+      - "高 commission 收入"
+      - "自雇 < 2 年"
+
+  Macquarie:
+    full_name: "Macquarie Bank"
+    commission_upfront: 0.65
+    commission_trail: 0.15
+    income_shading:
+      base_salary: 1.0
+      bonus: 0.8
+      overtime: 0.8
+      commission: 0.8
+      rental_income: 0.8
+      self_employed: "1yr tax return accepted"
+      foreign_income: 0.8
+    buffer_rate: 3.0
+    max_lvr_no_lmi: 80
+    max_lvr_with_lmi: 90
+    min_deposit: 10
+    key_materials:
+      - "1年税表（自雇）"
+      - "工资单（PAYG）"
+      - "银行流水"
+      - "外国收入证明"
+    special_requirements:
+      - "自雇只需 1 年税表"
+      - "外国收入接受度高（80%）"
+      - "LMI 最高只到 90%"
+    strengths:
+      - "自雇只需 1 年税表！"
+      - "外国收入接受度高（80%）"
+      - "Bonus/OT/Commission 全 80%"
+      - "审批速度快（3-5天）"
+      - "对投资者友好"
+    weaknesses:
+      - "LMI 最高只到 90%"
+      - "品牌知名度不如 Big 4"
+      - "部分地区邮编限制"
+    best_for:
+      - "自雇 < 2 年"
+      - "有外国收入"
+      - "高收入投资者"
+      - "需要快速审批"
+    avoid_for:
+      - "需要 95% LVR + LMI 的客户"
+      - "偏远地区物业"
+
+  Bankwest:
+    full_name: "Bankwest (CBA subsidiary)"
+    commission_upfront: 0.65
+    commission_trail: 0.15
+    income_shading:
+      base_salary: 1.0
+      bonus: 0.8
+      overtime: 0.8
+      commission: 0.8
+      rental_income: 0.8
+      self_employed: "2yr average (CBA aligned)"
+      foreign_income: 0.5
+    buffer_rate: 3.0
+    max_lvr_no_lmi: 80
+    max_lvr_with_lmi: 90
+    min_deposit: 10
+    key_materials:
+      - "工资单（PAYG）"
+      - "纳税申报单 NOA"
+      - "银行流水"
+      - "会计师信"
+    special_requirements:
+      - "利率通常比 CBA 低"
+      - "LMI 只到 90%"
+      - "对自雇政策和 CBA 类似但稍严"
+    strengths:
+      - "利率通常比 CBA 低"
+      - "审批快（比 CBA 快）"
+      - "Digital-first 体验好"
+      - "Bonus/OT 80% 比 CBA 友好"
+    weaknesses:
+      - "产品线不如 CBA 全"
+      - "LMI 只到 90%"
+      - "对自雇政策和 CBA 类似但稍严"
+    best_for:
+      - "想要 CBA 体系但要更好利率"
+      - "PAYG 简单案子快速批复"
+    avoid_for:
+      - "需要 95% LVR"
+      - "复杂自雇结构"
+
+  ING:
+    full_name: "ING Bank Australia"
+    commission_upfront: 0.65
+    commission_trail: 0.15
+    income_shading:
+      base_salary: 1.0
+      bonus: 0.8
+      overtime: 0.8
+      commission: 0.6
+      rental_income: 0.8
+      self_employed: "2yr average"
+      foreign_income: 0.0  # Generally not accepted
+    buffer_rate: 3.0
+    max_lvr_no_lmi: 80
+    max_lvr_with_lmi: 95
+    min_deposit: 5
+    key_materials:
+      - "工资单（PAYG）"
+      - "银行流水"
+      - "纳税申报单 NOA"
+    special_requirements:
+      - "不接受外国收入"
+      - "Commission 只算 60%"
+      - "不接受 trust/company 结构"
+    strengths:
+      - "利率极具竞争力"
+      - "无月费/年费"
+      - "Offset 功能全"
+      - "95% LVR 可用"
+    weaknesses:
+      - "不接受外国收入"
+      - "Commission 只算 60%"
+      - "不接受 trust/company 结构"
+      - "审批 7-10 天"
+    best_for:
+      - "简单 PAYG 案子追求最低利率"
+      - "首次置业 95% LVR"
+    avoid_for:
+      - "有外国收入"
+      - "Trust/company 贷款"
+      - "高 commission 结构"
+
+  Pepper:
+    full_name: "Pepper Money"
+    commission_upfront: 0.60
+    commission_trail: 0.20
+    income_shading:
+      base_salary: 1.0
+      bonus: 0.8
+      overtime: 0.8
+      commission: 0.8
+      rental_income: 0.8
+      self_employed: "1yr BAS + accountant letter"
+      foreign_income: 0.8
+    buffer_rate: 2.5  # Non-bank - lower buffer
+    max_lvr_no_lmi: 80
+    max_lvr_with_lmi: 85
+    min_deposit: 15
+    key_materials:
+      - "1年 BAS（自雇）"
+      - "会计师信（自雇）"
+      - "工资单（PAYG）"
+      - "非常规收入证明"
+    special_requirements:
+      - "对信用问题包容（paid defaults OK）"
+      - "自雇仅需 BAS + 会计师信"
+      - "LVR 最高 85%，需要较多首付"
+    strengths:
+      - "对信用问题包容（paid defaults OK）"
+      - "自雇仅需 BAS + 会计师信"
+      - "接受非常规收入证明"
+      - "Buffer 低于 Big 4（2.5%）"
+      - "审批快速"
+    weaknesses:
+      - "利率比 Big 4 高 0.5-1.5%"
+      - "LVR 最高 85%"
+      - "需要较多首付"
+      - "品牌认知度低"
+    best_for:
+      - "有信用瑕疵客户"
+      - "自雇无完整税表"
+      - "被 Big 4 拒绝的客户"
+      - "需要快速 settlement"
+    avoid_for:
+      - "追求最低利率"
+      - "信用优良且材料齐全的客户（应去 Big 4）"
+
+  "St George":
+    full_name: "St George Bank (Westpac Group)"
+    commission_upfront: 0.65
+    commission_trail: 0.15
+    income_shading:
+      base_salary: 1.0
+      bonus: 0.8
+      overtime: 0.8
+      commission: 0.7
+      rental_income: 0.8
+      self_employed: "2yr average"
+      foreign_income: 0.6
+    buffer_rate: 3.0
+    max_lvr_no_lmi: 80
+    max_lvr_with_lmi: 95
+    min_deposit: 5
+    key_materials:
+      - "工资单（PAYG）"
+      - "纳税申报单 NOA"
+      - "银行流水"
+      - "专业执业证明（医生/CFA）"
+    special_requirements:
+      - "Westpac 集团，合格转贷缓冲可降至 1%"
+      - "医生/CFA 可享 90% LVR 免 LMI"
+      - "与 Bank of Melbourne / Adelaide Bank 政策大体一致"
+    strengths:
+      - "专业客户通道好"
+      - "集团政策稳定"
+    weaknesses:
+      - "自雇政策较标准"
+    best_for:
+      - "专业客户（医生/CFA）"
+      - "Westpac 系偏好客户"
+    avoid_for:
+      - "复杂自雇结构"
+
+  "Bank of Melbourne":
+    full_name: "Bank of Melbourne (Westpac Group)"
+    commission_upfront: 0.65
+    commission_trail: 0.15
+    income_shading:
+      base_salary: 1.0
+      bonus: 0.8
+      overtime: 0.8
+      commission: 0.7
+      rental_income: 0.8
+      self_employed: "2yr average"
+      foreign_income: 0.6
+    buffer_rate: 3.0
+    max_lvr_no_lmi: 80
+    max_lvr_with_lmi: 95
+    min_deposit: 5
+    key_materials:
+      - "工资单（PAYG）"
+      - "纳税申报单 NOA"
+      - "银行流水"
+    special_requirements:
+      - "投资房 IO 最高 90% LVR（含 LMI）"
+      - "≤80% LVR 无需完成资金证据"
+      - "Basic 产品免费 redraw"
+    strengths:
+      - "投资房政策友好"
+      - "集团体系稳定"
+    weaknesses:
+      - "仅维州（Victoria）经营"
+    best_for:
+      - "投资房客户"
+    avoid_for:
+      - "维州以外物业"
+
+  "Adelaide Bank":
+    full_name: "Adelaide Bank (BOQ Group)"
+    commission_upfront: 0.65
+    commission_trail: 0.15
+    income_shading:
+      base_salary: 1.0
+      bonus: 0.8
+      overtime: 0.8
+      commission: 0.8
+      rental_income: 0.8
+      self_employed: "2yr average (low/alt doc friendly)"
+      foreign_income: 0.6
+    buffer_rate: 3.0
+    max_lvr_no_lmi: 80
+    max_lvr_with_lmi: 95
+    min_deposit: 5
+    key_materials:
+      - "工资单（PAYG）"
+      - "税表 + NOA"
+      - "银行流水"
+      - "低档材料（会计师声明等）"
+    special_requirements:
+      - "<80% LVR 无需真储蓄证明"
+      - "P&I 最长 30 年，IO 最长 25 年"
+      - "低档/Alt Doc 接受度较高"
+    strengths:
+      - "低档自雇友好"
+      - "灵活评估"
+    weaknesses:
+      - "品牌认知度一般"
+    best_for:
+      - "低档自雇客户"
+    avoid_for:
+      - "追求最低利率"
+
+  BOQ:
+    full_name: "Bank of Queensland"
+    commission_upfront: 0.65
+    commission_trail: 0.15
+    income_shading:
+      base_salary: 1.0
+      bonus: 0.8
+      overtime: 0.8
+      commission: 0.8
+      rental_income: 0.8
+      self_employed: "wages-only / 1yr / 2yr financials options"
+      foreign_income: 0.6
+    buffer_rate: 3.0
+    max_lvr_no_lmi: 80
+    max_lvr_with_lmi: 95
+    min_deposit: 5
+    key_materials:
+      - "工资单（PAYG）"
+      - "税表 + NOA（自雇）"
+      - "银行流水"
+    special_requirements:
+      - "集团含 BOQ Specialist / ME Bank / Virgin Money"
+      - "促销利率常要求最低新贷款额"
+      - "集团内转贷通常不享促销"
+    strengths:
+      - "自雇多档评估灵活"
+      - "地方银行服务"
+    weaknesses:
+      - "促销限制较多"
+    best_for:
+      - "灵活自雇评估"
+    avoid_for:
+      - "集团内转贷"
+
+  "ME Bank":
+    full_name: "ME Bank"
+    commission_upfront: 0.65
+    commission_trail: 0.15
+    income_shading:
+      base_salary: 1.0
+      bonus: 0.8
+      overtime: 0.8
+      commission: 0.8
+      rental_income: 0.8
+      self_employed: "wages-only / 1yr / 2yr financials"
+      foreign_income: 0.6
+    buffer_rate: 3.0
+    max_lvr_no_lmi: 80
+    max_lvr_with_lmi: 95
+    min_deposit: 5
+    key_materials:
+      - "工资单（PAYG）"
+      - "税表 + NOA（自雇）"
+      - "银行流水"
+    special_requirements:
+      - "自雇三档评估（仅工资/1 年/2 年财报）"
+      - "部分返现产品最高 80% LVR"
+      - "数字平台流程简化"
+    strengths:
+      - "自雇 1 年财报可做"
+      - "数字化体验好"
+    weaknesses:
+      - "非大银行品牌"
+    best_for:
+      - "只有 1 年财报的自雇客户"
+    avoid_for:
+      - "复杂结构"
+
+  Suncorp:
+    full_name: "Suncorp Bank"
+    commission_upfront: 0.65
+    commission_trail: 0.15
+    income_shading:
+      base_salary: 1.0
+      bonus: 0.8
+      overtime: 0.8
+      commission: 0.8
+      rental_income: 0.8
+      self_employed: "2yr average"
+      foreign_income: 0.6
+    buffer_rate: 3.0
+    max_lvr_no_lmi: 80
+    max_lvr_with_lmi: 95
+    min_deposit: 5
+    key_materials:
+      - "工资单（PAYG）"
+      - "纳税申报单 NOA"
+      - "银行流水"
+    special_requirements:
+      - "医疗专业人员（AHPRA 注册）最高 90% LVR 专属通道"
+      - "首置客户最高 95% LVR"
+      - "最低利率档通常 ≤60% LVR"
+    strengths:
+      - "利率具竞争力"
+      - "医疗通道好"
+    weaknesses:
+      - "专属通道限制较多（不含过桥/建房/内部转贷）"
+    best_for:
+      - "首置客户"
+      - "医疗专业人士"
+    avoid_for:
+      - "医疗通道范围外复杂结构"
+
+  HSBC:
+    full_name: "HSBC Australia"
+    commission_upfront: 0.65
+    commission_trail: 0.15
+    income_shading:
+      base_salary: 1.0
+      bonus: 0.8
+      overtime: 0.8
+      commission: 0.7
+      rental_income: 0.8
+      self_employed: "2yr average"
+      foreign_income: 0.6
+    buffer_rate: 3.0
+    max_lvr_no_lmi: 80
+    max_lvr_with_lmi: 80
+    min_deposit: 20
+    key_materials:
+      - "工资单（PAYG）"
+      - "纳税申报单 NOA"
+      - "银行流水"
+    special_requirements:
+      - "多数产品最高 80% LVR"
+      - "Premier 客户享费用减免与 100% offset"
+      - "Home Value 产品 ≤60% LVR 享促销利率"
+    strengths:
+      - "Premier 权益好"
+      - "支持高额贷款（最高 $15M）"
+    weaknesses:
+      - "LVR 上限偏保守（80%）"
+    best_for:
+      - "Premier / 大额客户"
+    avoid_for:
+      - "低首付客户"
+
+  AMP:
+    full_name: "AMP Bank"
+    commission_upfront: 0.65
+    commission_trail: 0.15
+    income_shading:
+      base_salary: 1.0
+      bonus: 0.8
+      overtime: 0.8
+      commission: 0.8
+      rental_income: 0.8
+      self_employed: "2yr average"
+      foreign_income: 0.6
+    buffer_rate: 3.0
+    max_lvr_no_lmi: 80
+    max_lvr_with_lmi: 80
+    min_deposit: 20
+    key_materials:
+      - "工资单（PAYG）"
+      - "纳税申报单 NOA"
+      - "银行流水"
+    special_requirements:
+      - "最长 10 年 Interest Only（无期中重审）"
+      - "部分自住 IO 期限较长者限 70% LVR"
+      - "投资者最高 80% LVR"
+    strengths:
+      - "长期 IO 产品独特"
+      - "退休客户友好"
+    weaknesses:
+      - "LVR 上限保守"
+    best_for:
+      - "需要长期 IO 的客户"
+      - "退休规划客户"
+    avoid_for:
+      - "高 LVR 需求"
+
+  Bendigo:
+    full_name: "Bendigo Bank"
+    commission_upfront: 0.65
+    commission_trail: 0.15
+    income_shading:
+      base_salary: 1.0
+      bonus: 0.8
+      overtime: 0.8
+      commission: 0.8
+      rental_income: 0.8
+      self_employed: "2yr average"
+      foreign_income: 0.6
+    buffer_rate: 3.0
+    max_lvr_no_lmi: 80
+    max_lvr_with_lmi: 95
+    min_deposit: 5
+    key_materials:
+      - "工资单（PAYG）"
+      - "纳税申报单 NOA"
+      - "银行流水"
+    special_requirements:
+      - "最低利率档通常 ≤60% LVR"
+      - "区域性银行，社区分行服务"
+    strengths:
+      - "社区银行服务"
+      - "产品按 LVR 分层定价"
+    weaknesses:
+      - "部分地区覆盖有限"
+    best_for:
+      - "区域客户"
+    avoid_for:
+      - "大城市高 LVR 需求"
+
+  Liberty:
+    full_name: "Liberty Financial"
+    commission_upfront: 0.70
+    commission_trail: 0.25
+    income_shading:
+      base_salary: 1.0
+      bonus: 0.8
+      overtime: 0.8
+      commission: 0.8
+      rental_income: 0.8
+      self_employed: "low/alt doc friendly (BAS, accountant declaration)"
+      foreign_income: 0.8
+    buffer_rate: 2.5  # Non-bank - lower buffer
+    max_lvr_no_lmi: 80
+    max_lvr_with_lmi: 90
+    min_deposit: 10
+    key_materials:
+      - "BAS（自雇）"
+      - "会计师声明"
+      - "非常规收入证明"
+    special_requirements:
+      - "非银行，不受 APRA 缓冲约束"
+      - "低档/Alt Doc 灵活，DTI 上限较宽"
+      - "信用瑕疵客户通常限 80% LVR"
+    strengths:
+      - "审批灵活快速"
+      - "低档自雇友好"
+    weaknesses:
+      - "利率费用高于主流银行"
+    best_for:
+      - "低档自雇 / 信用瑕疵"
+    avoid_for:
+      - "追求最低利率"
+
+  Latrobe:
+    full_name: "La Trobe Financial"
+    commission_upfront: 0.70
+    commission_trail: 0.25
+    income_shading:
+      base_salary: 1.0
+      bonus: 0.8
+      overtime: 0.8
+      commission: 0.8
+      rental_income: 0.8
+      self_employed: "non-conforming friendly"
+      foreign_income: 0.8
+    buffer_rate: 2.5  # Non-bank - lower buffer
+    max_lvr_no_lmi: 80
+    max_lvr_with_lmi: 90
+    min_deposit: 10
+    key_materials:
+      - "非常规收入证明"
+      - "税表 / BAS"
+      - "会计师信"
+    special_requirements:
+      - "非银行，不受 APRA 缓冲约束"
+      - "non-conforming 专家：bad credit / 海外收入 / 复杂结构"
+      - "信用瑕疵客户通常限 80% LVR"
+    strengths:
+      - "复杂案件处理能力强"
+      - "审批灵活"
+    weaknesses:
+      - "利率高于主流银行"
+    best_for:
+      - "信用瑕疵 / 复杂自雇"
+    avoid_for:
+      - "标准优质客户"
+
+  Resimac:
+    full_name: "Resimac"
+    commission_upfront: 0.70
+    commission_trail: 0.25
+    income_shading:
+      base_salary: 1.0
+      bonus: 0.8
+      overtime: 0.8
+      commission: 0.8
+      rental_income: 0.8
+      self_employed: "low/alt doc friendly"
+      foreign_income: 0.8
+    buffer_rate: 2.5  # Non-bank - lower buffer
+    max_lvr_no_lmi: 80
+    max_lvr_with_lmi: 85
+    min_deposit: 15
+    key_materials:
+      - "非常规收入证明"
+      - "税表 / BAS"
+      - "会计师信"
+    special_requirements:
+      - "非银行，不受 APRA 缓冲约束"
+      - "低档/Alt Doc 与自雇灵活评估"
+      - "标准最高 80% LVR，部分产品可更高"
+    strengths:
+      - "替代方案灵活"
+      - "审批快"
+    weaknesses:
+      - "利率高于主流银行"
+    best_for:
+      - "被主流银行拒绝的客户"
+    avoid_for:
+      - "标准优质客户"
+
+# ---
+# 通用规则
+general_rules:
+  apra_buffer: 3.0  # 银行必须加的利率压力测试
+  credit_card_assessment: "按 limit 的 3% 月供评估（不是实际欠款）"
+  bnpl_impact: "每 $1000 BNPL 额度大约降低 $5000 借款能力"
+  hem_note: "银行取 HEM 和客户申报生活费中较高者"
+  negative_gearing: "投资房租金亏损可抵税，但各银行对 shading 不同"

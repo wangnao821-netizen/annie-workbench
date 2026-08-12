@@ -1,0 +1,103 @@
+# 文档类型字段 → 输入控件类型映射
+# 用于 AI 审单面板中 OCR 字段的格式化编辑控件
+# field_type 枚举: date, currency, percentage, text（默认）
+
+Passport:
+  date: [材料日期, 材料有效性]
+
+DriverLicense:
+  date: [材料日期, 材料有效性]
+
+Visa:
+  date: [材料日期, 材料有效性]
+
+MedicareCard: {}
+
+VOI:
+  date: [材料日期]
+
+Payslip:
+  date: [材料日期]
+  currency: [税前收入, 税后收入, 养老金, YTD 税前]
+
+TaxReturn:
+  currency: [应税收入, 净租金收入, 折旧扣除]
+
+EmploymentLetter:
+  date: [材料日期, 入职日期]
+  currency: [年薪]
+
+BAS:
+  currency: [GST收入, GST支出, GST应缴, PAYG代扣]
+
+AccountantLetter:
+  date: [材料日期]
+  currency: [确认收入]
+
+BankStatement:
+  currency: [期末余额, 期初余额]
+
+UtilityBill:
+  date: [材料日期]
+  currency: [应付金额]
+
+HomeLoanStatement:
+  date: [材料日期, 到期日]
+  currency: [贷款余额, 月供]
+  percentage: [利率]
+
+CreditCardStatement:
+  currency: [信用额度, 欠款余额, 最低还款]
+
+ContractOfSale:
+  date: [材料日期, 交割日]
+  currency: [成交价, 定金金额]
+
+CouncilRates:
+  currency: [年费总额, 土地估值]
+
+ValuationReport:
+  date: [材料日期]
+  currency: [估价]
+
+RentalAgreement:
+  date: [材料日期, 租约到期日]
+  currency: [周租金]
+
+RentalStatement:
+  currency: [周租金, 年租金总额, 管理费]
+
+InsurancePolicy:
+  date: [材料日期, 材料有效性]
+  currency: [保额, 年保费]
+
+OccupationCertificate:
+  date: [材料日期]
+
+CompletionNotice:
+  date: [材料日期, 预计交割日]
+
+ArchitecturalPlan:
+  date: [材料日期]
+  currency: [预计造价]
+
+FloorPlan: {}
+
+BrokerNotes:
+  date: [材料日期]
+  currency: [贷款金额]
+  percentage: [LVR]
+
+EquifaxScore:
+  date: [材料日期]
+
+ApplicationForm:
+  date: [材料日期]
+  currency: [贷款金额]
+
+OutstandingQuery:
+  date: [材料日期, 截止日期]
+
+ProductComparison:
+  date: [材料日期]
+  percentage: [推荐利率]

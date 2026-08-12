@@ -1,0 +1,95 @@
+# 全局配置
+# 注意：CLIENT_FILES_ROOT 从环境变量读取，不硬编码
+# macOS: CLIENT_FILES_ROOT=/Volumes/QChome
+# Windows: CLIENT_FILES_ROOT=Z:\QChome
+# Linux: CLIENT_FILES_ROOT=/mnt/nas
+
+watch:
+  # 客户文件根目录（从环境变量 CLIENT_FILES_ROOT 读取）
+  root_path: "${CLIENT_FILES_ROOT}"
+  # watchdog 事件驱动 + 轮询兜底（NAS 上 FSEvents 不可靠）
+  poll_interval_seconds: 30
+  file_stable_seconds: 10
+  ignore_patterns:
+    - ".DS_Store"
+    - "Thumbs.db"
+    - "*.tmp"
+    - "~$*"
+    - "desktop.ini"
+    - "processed_ids.txt"
+
+# 模板文件识别（匹配到的文件跳过分类，标记为 SKIPPED）
+template_patterns:
+  # 文件名关键词（大小写不敏感）
+  filename_keywords:
+    - "Template"
+    - "模板"
+    - "Guide"
+    - "Calculator"
+    - "Product Guide"
+    - "Admin notes"
+  # 路径关键词
+  path_keywords:
+    - "Val Template"
+    - "Template - Postal address"
+    - "From Broker Portal"
+  # 精确文件名
+  exact_filenames:
+    - "箭头.png"
+    - "Admin notes.docx"
+    - "Admin notes - 新版本.docx"
+
+ai:
+  primary:
+    provider: "deepseek"
+    model: "deepseek-chat"
+    api_key_env: "DEEPSEEK_API_KEY"
+    base_url: "https://api.deepseek.com/v1"
+  fallback:
+    provider: "gemini"
+    model: "gemini-2.0-flash"
+    api_key_env: "GEMINI_API_KEY"
+    # Gemini OpenAI 兼容接口（备选，配额耗尽时不可用）
+    base_url: "https://generativelanguage.googleapis.com/v1beta/openai"
+  max_retries: 3
+  timeout_seconds: 30
+  # 置信度低于此值标记为 NEEDS_MANUAL_REVIEW
+  confidence_threshold: 0.6
+
+parser:
+  # LiteParse 配置
+  engine: "liteparse"
+  # OCR 质量阈值：低于此字符数标记 NEEDS_MANUAL_REVIEW（不发云端）
+  min_text_chars: 50
+  # 大文件处理
+  max_file_size_mb: 10
+  compress_dpi: 150
+  # .msg 递归处理深度上限
+  msg_recursion_limit: 3
+
+database:
+  path: "data/loan_assistant.db"
+
+logging:
+  level: "INFO"
+  file: "logs/app.log"
+  max_size_mb: 50
+  backup_count: 5
+
+# 通知报告配置
+report:
+  language: "zh-CN"
+  output_dir: "data/reports"
+  # 文件过期预警天数
+  expiry_warning_days: 30
+
+# 微信 iLink Bot（Spec D：全局 Agent 微信接入）
+wechat:
+  enabled: false  # 默认关闭，Vera 配置好 token 后改为 true
+  bot_token_env: "WECHAT_BOT_TOKEN"  # 从环境变量读取
+  base_url: "https://ilinkai.weixin.qq.com/ilink/bot"
+  poll_timeout_seconds: 55  # 长轮询超时（略小于服务器 60s 超时）
+  reply_max_length: 2000  # 微信单条消息最大长度，超过则分段发送
+  typing_enabled: true  # 是否发送"正在输入"状态
+  allowed_senders: []  # 允许的发送者 wxid 列表（空=允许所有人，安全起见应填 Vera 的 wxid）
+

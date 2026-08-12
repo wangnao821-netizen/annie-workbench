@@ -1,0 +1,479 @@
+# 行业知识种子数据 — 方向性参考（非最终结论）
+#
+# 目的：先给 Vera 一个可用的行业轮廓，让「银行政策速览 / 问 AI 政策 / 上下文注入」
+# 等场景有数据可用；Vera 在知识中心里确认/编辑这些条目，逐步提高精度。
+#
+# 来源：
+#   - ASIC（NCCP Act 2009、RG 273 最佳利益义务）/ APRA 公开监管资料
+#   - 各银行 2025 公开政策（银行官网 / broker 门户 / 行业媒体）
+#   - MQG 平台合规文档：MQG Supporting Document Checklist (Nov 2025)、
+#     MQG Compliance Checklist User Guide (Apr 2025)
+#
+# 导入命令（幂等，可重复执行）：
+#   python tools/import_industry_seed.py
+#
+# 注意：涉及具体政策时务必再查 The Matrix（MAX）/ 银行 broker 门户核实。
+# 所有条目导入后 vera_confirmed=False，需要 Vera 确认后才算"已核实"。
+
+defaults:
+  compliance:
+    source_ref: "ASIC（NCCP Act 2009 / RG 273）/ APRA 公开监管资料 + MQG 平台文档"
+  platform:
+    source_ref: "MQG 平台合规文档（Supporting Document Checklist Nov 2025 / Compliance Checklist Apr 2025）"
+  policy:
+    source_ref: "各银行 2025 公开政策 / 行业媒体（方向性参考，待 Vera 复核）"
+
+compliance:
+  - title: "NCCP 监管框架总览"
+    tags: [NCCP, 合规, 负责任放贷, 框架]
+    priority: high
+    content: |-
+      【NCCP 监管框架总览】
+      - NCCP Act 2009（National Consumer Credit Protection Act）管住宅抵押贷款经纪活动。
+      - 经纪承担两类核心义务：负责任放贷（Responsible Lending）与最佳利益义务（Best Interests Duty，BID）。
+      - ASIC RG 273 是评估 BID 合规的官方指南；违反 BID 属严重违规，可能面临处罚与责任险索赔。
+      - 实务上必须：做合理询问（合理调查客户财务状况与需求）→ 验证关键信息（收入/负债/身份）→
+        完成服务能力评估 → 全程留痕（myCRM 记录与证据上传）。
+      - APRA 要求银行（ADI）服务能力评估加 ≥3% 缓冲率或评估下限利率；2023 起部分主要银行
+        对合格转贷降至 1% 缓冲（CBA/NAB/Westpac 系；ANZ 维持 3%）。
+      - 非银行（Pepper/Liberty/Latrobe/Resimac 等）不受 APRA 缓冲约束，可按更接近实际利率评估，
+        借款能力通常更高，但利率与费率通常更高。
+      - 客户贷款期结束超过预计退休年龄时，需记录退出策略（退休收入来源/出售/还款能力）。
+
+  - title: "递交前合规文档清单"
+    tags: [合规, 文档, Credit Guide, Game Plan, Fact Find]
+    priority: high
+    content: |-
+      【递交前合规文档清单】
+      - Credit Guide：从开始提供建议那一刻起提供给所有申请人；每次新申请都必须重新提供
+        （同一客户连续申请可引用上次，但新申请仍需重新提供）。证据需显示邮箱与日期，
+        纯截图不被接受。
+      - Privacy Consent：需要查信用报告前必须由所有申请人接受（myCRM 电子接受或签署合并件）。
+      - Fact Find / 客户问卷：完整记录客户财务情况（myCRM 电子版或 PDF 问卷），未完成部分留注释。
+      - Credit Quote：适用时提供并被客户接受。
+      - Game Plan：所有申请人/担保人接受，且不晚于 AOL 递交当天；贷款金额增加、产品/银行变更时
+        必须重新提供并重新接受。
+      - 所有证据上传 myCRM；邮件发送的合规文件需把邮件副本一并上传。
+
+  - title: "身份验证（ID / VOI）要求"
+    tags: [合规, ID, VOI, AML]
+    priority: high
+    content: |-
+      【身份验证（ID / VOI）要求】
+      - 每位申请人/担保人至少 2 种有效证件，其中至少 1 种显示当前居住地址。
+      - 主摄影证件：澳洲驾照、护照（过期不超过 6 个月可接受；部分银行按 2 年）、
+        州/领地年龄证明卡（Proof of Age Card）。
+      - 可接受组合：2×主摄影 / 1×主摄影+1×主非摄影（出生证、公民证、养老金卡）/
+        1×主摄影+1×次要（Medicare、银行/信用卡、水电单、市政费单、银行流水，均须 3 个月内且含姓名地址）。
+      - 数字驾照：MQG 目前不接受（AUSTRAC 与银行安全标准未达标前）。
+      - 视频/电子 VOI：记录方式（Zoom/IDyou/ZipID 等）并上传截图或 VOI 报告；
+        远程访谈须截图显示经纪人与全部申请人同框及日期时间。
+      - 认证副本：仅在当面/数字 VOI 不可行时使用；由 JP、律师、会计师等合格人士认证，
+        认证日期 12 个月内，含声明、签名与资质说明。
+      - 遵循所选银行的 AML/CTF VOI 程序；TFN、CRN 一律脱敏后再上传。
+
+  - title: "收入材料验证要求"
+    tags: [合规, 收入, PAYG, 自雇, 材料]
+    priority: high
+    content: |-
+      【收入材料验证要求】
+      - PAYG：2 张连续工资单（最新一张的开票日不早于 60 天；须含姓名、雇主名与 ABN、
+        年收入 YTD、养老金基金名）+ 6 个月工资入账账户流水（不早于 60 天）。
+      - 补充验证：ATO 门户确认在职、PAYG Summary、雇佣合同/信、雇主官网信息比对。
+      - 自雇全档：个体（税表+NOA+财报）/ 合伙（合伙税表+个人税表+NOA）/ 公司（公司税表+个人税表+NOA）/
+        信托（信托税表+个人税表+NOA）；确认 ABN 有效且注册 GST。
+      - 低档/Alt Doc：银行模板的会计师声明 + ABN/GST 有效验证 + 至少 6 个月企业账户流水
+        或 12 个月 BAS；会计师声明通常不含收入金额，仍需完成服务能力计算。
+      - 外国收入：全部材料须由 NAATI 认证译员翻译（naati.com.au）。
+      - 租金收入：租赁/租约协议、中介租金单、3 个月入账流水、估价报告租金、中介租金估算（任选其一）。
+      - 政府收入（Centrelink 等）：政府机构证明或 3 个月入账流水（不早于 60 天；CRN 脱敏）。
+      - 投资收入（股息/利息）：最近税表+NOA 或 3 个月入账流水。
+      - 原则：只验证服务能力所需的收入，不额外索取不相关收入材料。
+
+  - title: "负债与生活支出验证"
+    tags: [合规, 负债, 生活支出, MLE]
+    priority: high
+    content: |-
+      【负债与生活支出验证】
+      - 生活支出：6 个月所有相关银行账户与信用卡账户流水（不早于 60 天）；MLE 月度生活支出
+        汇总与 Game Plan/AOL 一致，差异须注释说明。
+      - 抚养费：CSA 通知、分居协议/法院令、或 3 个月付款流水。
+      - 房贷：至少 6 个月流水；个人贷款：至少 3 个月；信用卡/商店卡：最近 3 份对账单；
+        ATO 债务：ATO 门户欠款证明。
+      - BNPL（Afterpay/ZipPay 等）：无需证据，但必须计入 MLE，并在记录中说明已与客户讨论。
+      - HECS/HELP：按验证收入的月供承诺计入，余额记录在 myCRM（无需余额证据）。
+      - CCR 综合信用报告：建议用于确认还款历史与未披露负债；负债月供须按实际对账单/协议计算。
+      - 结算后不再存在的负债（如已结清信用卡）：提供结清/销户证明并注释。
+
+  - title: "购房 / 建房 / 担保人文件"
+    tags: [合规, 购房, 建房, 担保人]
+    priority: high
+    content: |-
+      【购房 / 建房 / 担保人文件】
+      - 购房：已签署并交换的购房合同 + 完成资金证明（余额截图 / 3 个月流水 / 赠予信或法定声明）。
+      - 首付真储蓄：多数银行要求至少 5% 购房款在账户中持有 ≥3 个月（银行政策各异，查 The Matrix）。
+      - 建房：已交换的固定价格建房合同（含双方姓名、合同价、进度付款计划、建筑图纸、规格说明）。
+      - 担保人：Privacy Consent 电子或书面签署 + Game Plan 接受；担保人房产如有贷款需 3 个月流水；
+        担保人须单独访谈（无申请人陪同）并留 myCRM 记录。
+
+  - title: "Best Interests Duty（BID）要点"
+    tags: [合规, BID, 最佳利益, 产品比较]
+    priority: high
+    content: |-
+      【Best Interests Duty（BID）要点】
+      - 记录贷款用途与产品选择理由：贷款金额、期限、还款类型（P&I / IO）、利率类型（浮动/固定）、
+        产品特性（offset、redraw 等）、其他考量（批速、返现）。
+      - 转贷期限重置：若贷款期限长于原期限，须说明原因并确认客户知悉总利息增加。
+      - 未选最低利率方案时：记录选择该行的原因（产品特性、政策匹配、批速等）。
+      - 产品比较：最佳实践提供 ≥3 家银行方案供客户选择；不足 3 家时详细注释原因。
+      - 退出策略：贷款期结束超过预计退休年龄时，说明客户退休后的还款/出售/收入安排。
+      - 服务能力计算与材料一致，所选银行的 servicing calculator 上传 myCRM。
+
+  - title: "APRA 缓冲率与 DTI 规则"
+    tags: [政策, APRA, 缓冲率, DTI]
+    priority: high
+    content: |-
+      【APRA 缓冲率与 DTI 规则】
+      - APRA 要求银行（ADI）在服务能力评估中加 ≥3% 缓冲率（或采用评估下限利率）。
+      - 2023 年起部分主要银行对合格转贷客户降至 1% 缓冲（CBA、NAB、Westpac 及其子品牌）；
+        ANZ 维持 3% 缓冲。
+      - 非银行（Pepper、Liberty、Latrobe、Resimac 等）不受 APRA 缓冲约束，可按接近实际利率评估，
+        借款能力更高；利率与费用通常更高，适合主流银行拒绝的客户。
+      - DTI（债务收入比）限制因行而异：例如 ING 在 LVR≤70% 时要求 DTI<8，LVR>70% 时 DTI<6。
+      - 信用卡/商店卡月供：MQG Game Plan 口径按信用额度上限的 3.8% 计算（即使无欠款）；
+        通用估算常用 3%。
+
+platform:
+  - title: "MQG 平台概览与工具"
+    lender: MQG
+    tags: [MQG, 平台, myCRM, AOL]
+    priority: high
+    content: |-
+      【MQG 平台概览与工具】
+      - MoneyQuest（mqga.com.au），澳洲贷款聚合商；合规团队 compliance@mqga.com.au，电话 1300 886 100。
+      - 工具：myCRM（案件/文档/电子接受）、AOL Apply Online（递交申请）、MyHub（模板/资源库）、
+        MAX 中的 The Matrix（银行政策库）。
+      - 所有支持文件必须上传 myCRM；递交时随 AOL 一并提交。
+      - 资源库路径：Libraries > Compliance Resources – MoneyQuest > NCCP, Responsible Lending, BID。
+
+  - title: "MQG 材料最低要求（2025-12-01 生效）"
+    lender: MQG
+    tags: [MQG, 材料清单, NCCP]
+    priority: high
+    content: |-
+      【MQG 材料最低要求（2025-12-01 生效，全部 NCCP 贷款）】
+      - 身份识别：每位申请人 2 种证件（至少 1 种含现住址）；主摄影/主非摄影/次要组合；
+        数字驾照暂不接受；视频 VOI 记录方式+截图上传。
+      - 合规文档：Credit Guide、Privacy Consent、Game Plan、Credit Quote（适用时）。
+      - PAYG 收入：2 张连续工资单（≤60 天）+ 6 个月工资入账流水（≤60 天）。
+      - 自雇全档：最近税表 + NOA + 财报（按个体/合伙/公司/信托形式）。
+      - 低档/Alt Doc：会计师声明 + ABN/GST 有效 + 6 个月企业账户流水或 12 个月 BAS。
+      - 外国收入：NAATI 认证翻译；租金/政府/投资收入按类型取证。
+      - 生活支出/负债：6 个月账户流水（≤60 天）；房贷 6 个月、个人贷 3 个月、信用卡最近 3 份对账单、
+        ATO 债务证明；BNPL 计入 MLE 并记录讨论。
+      - 购房：已签署合同 + 完成资金证明；建房：固定价格合同（含进度付款计划、图纸、规格）。
+      - 担保人：Privacy + Game Plan 接受；担保房产有贷款时 3 个月流水；单独访谈记录。
+      - 其他：所有申请表签署上传（含 VOI 表）；所选银行 servicing calculator；养老金对账单（退出策略需要时）。
+
+  - title: "MQG 合规检查清单（2025-04 用户指南）"
+    lender: MQG
+    tags: [MQG, 合规清单, 检查项]
+    priority: high
+    content: |-
+      【MQG 合规检查清单（2025-04 用户指南）】
+      - Credit Guide：向所有申请人提供；合并件签署上传，或经 myCRM 发送（邮件须上传副本）；
+        截图不作为证据（不显示邮箱与日期）。
+      - Privacy：查信用报告前所有申请人接受；无信用调查则无需证据。
+      - Fact Find：myCRM 电子版或 PDF 问卷完成并保存；未完成部分由经纪人补记录。
+      - MLE：完成并更新至 myCRM；与 Game Plan/AOL 差异须注释。
+      - 收入/工资账户流水（≥3 个月）/储蓄账户流水（购房，≥3 个月，5% 存款持有 3 个月）/
+        负债账户流水：全部上传。
+      - 身份文件：护照、驾照、Medicare（或等效）；全部申请人/担保人。
+      - 访谈记录：当面/远程（远程截图）；日期时间地点。
+      - TFN 脱敏：所有文件含 TFN 的必须涂黑。
+      - BID 注释：贷款用途、产品选择理由、期限重置原因、非最低利率原因、退出策略、≥3 家比较。
+      - Game Plan：签署或电子接受，不晚于 AOL 递交当天；金额/产品/银行变更须重发。
+      - 申请表全部签署上传（含 VOI、担保人、董事、Salary Sacrifice 表）。
+      - Servicing calculator：所选银行最新版本上传，数据与 AOL 一致。
+      - 资料准确性：AOL 与 Game Plan 差异留注释（如已销户信用卡）。
+
+  - title: "MQG 常用注意点（易踩坑）"
+    lender: MQG
+    tags: [MQG, 注意点, 踩坑]
+    priority: normal
+    content: |-
+      【MQG 常用注意点（易踩坑）】
+      - TFN 与 Centrelink CRN 必须脱敏后再上传/发送。
+      - 外国收入材料需 NAATI 认证译员翻译。
+      - 远程访谈（Zoom 等）必须截图含经纪人与全部申请人同框+日期时间。
+      - 数字驾照 MQG 暂不接受。
+      - Credit Guide 发送截图不被接受，须显示收件邮箱与日期。
+      - Game Plan 后贷款金额增加/换产品/换银行 → 必须重新提供 Game Plan。
+      - 信用卡/商店卡月供按额度上限 3.8% 计算（即使无欠款）。
+      - BNPL 必须与客户讨论并记录，计入 MLE。
+      - 自雇低档/Alt Doc 仍需完成服务能力计算。
+      - 担保人必须单独访谈并记录（无申请人陪同）。
+      - 各银行政策差异（如 VOI、ID、存款持有期）以 The Matrix（MAX）与银行门户为准。
+
+policy:
+  - lender: ANZ
+    title: "ANZ 贷款政策轮廓"
+    tags: [ANZ, 政策, LVR, 收入]
+    priority: high
+    content: |-
+      【ANZ 贷款政策轮廓（方向性参考）】
+      - LVR：无 LMI 80%，有 LMI 最高 95%；最低首付 5%。
+      - 缓冲率：3%（ANZ 是少数不降转贷缓冲率的大银行）。
+      - 收入口径：PAYG 快（5-7 天）；Bonus/OT 按 80%；自雇需 2 年税表+会计师信（add-backs 受限）；
+        外国收入只算 60%。
+      - 常用材料：3 个月银行流水、2 年税表 NOA（自雇）、工资单、会计师信。
+      - 特殊要求：Living expense 审查较严；Digital lodgement 流程成熟。
+      - 适合：PAYG 稳定收入、首次置业 ≤80% LVR；避免：自雇 <2 年、高比例外国收入。
+      - 注意：医生/CFA 等专业人士可享 90% LVR 免 LMI 通道。
+
+  - lender: CBA
+    title: "CBA 贷款政策轮廓"
+    tags: [CBA, 政策, LVR, 自雇]
+    priority: high
+    content: |-
+      【CBA 贷款政策轮廓（方向性参考）】
+      - LVR：无 LMI 80%，有 LMI 最高 95%；最低首付 5%。
+      - 缓冲率：3%；合格转贷可降至 1%。
+      - 收入口径：自雇政策相对宽松（接受 add-backs）；Bonus/OT 只算 50%（严格）；
+        接受 1 年完整税表；外国收入 50%。
+      - 常用材料：工资单、1 年完整税表（自雇）、3 个月银行流水、会计师信（add-backs）。
+      - 特殊要求：对信用卡 limit 评估保守；审批时间较长（7-14 天）。
+      - 适合：自雇（有 add-backs）、需要品牌认可度的客户；避免：高 bonus/commission 结构、急需快速审批。
+      - 注意：药剂师可享最高 95% LVR 免 LMI（CBA/NAB 等）；医生/CFA 90% 免 LMI。
+
+  - lender: Westpac
+    title: "Westpac 贷款政策轮廓"
+    tags: [Westpac, 政策, 建房, 收入]
+    priority: high
+    content: |-
+      【Westpac 贷款政策轮廓（方向性参考）】
+      - LVR：无 LMI 80%，有 LMI 最高 95%；最低首付 5%。
+      - 缓冲率：3%；合格转贷可降至 1%（Westpac 系，含 St George/Bank of Melbourne）。
+      - 收入口径：Bonus/OT 80% 较好；自雇 2 年平均；接受多种收入证明；外国收入 60%。
+      - 常用材料：工资单、NOA、3 个月银行流水、建筑贷款材料（Construction）。
+      - 特殊要求：对 BNPL 账户审查严格；系统较旧、审批有时不稳定；Rate lock 灵活。
+      - 适合：Construction/建筑贷款、PAYG+bonus 结构；避免：多个 BNPL 账户。
+      - 注意：医生/CFA 90% 免 LMI 通道。
+
+  - lender: NAB
+    title: "NAB 贷款政策轮廓"
+    tags: [NAB, 政策, 专业客户, 收入]
+    priority: high
+    content: |-
+      【NAB 贷款政策轮廓（方向性参考）】
+      - LVR：无 LMI 80%，有 LMI 最高 95%；最低首付 5%。
+      - 缓冲率：3%；合格转贷可降至 1%。
+      - 收入口径：Commission 只算 70%；自雇 2 年平均（standard）；外国收入 50%。
+      - 常用材料：工资单、NOA、专业执业证明（医生/律师/会计）、银行流水。
+      - 特殊要求：专业客户（医生/律师/会计）有特殊通道与 Professional package；Offset 灵活；
+        审批时间偏长。
+      - 适合：Professional 客户、需要 Professional package；避免：高 commission、自雇 <2 年。
+      - 注意：药剂师可享最高 95% LVR 免 LMI。
+
+  - lender: Macquarie
+    title: "Macquarie 贷款政策轮廓"
+    tags: [Macquarie, 政策, 自雇, 1年税表]
+    priority: high
+    content: |-
+      【Macquarie 贷款政策轮廓（方向性参考）】
+      - LVR：无 LMI 80%，有 LMI 最高 90%；最低首付 10%；>80% LVR 会收 Low Deposit Fee。
+      - 缓冲率：3%。
+      - 收入口径：自雇只需 1 年税表（部分自雇专业人士 ≤80% LVR）；外国收入接受度高（80%）；
+        Bonus/OT/Commission 均 80%。
+      - 常用材料：1 年税表（自雇）、工资单、银行流水、外国收入证明。
+      - 特殊要求：审批快（3-5 天）；多套抵押物时每套最高 80% LVR；对投资者友好。
+      - 适合：自雇 <2 年、有外国收入、高收入投资者、需要快速审批；
+        避免：需要 95% LVR+LMI、偏远地区物业。
+
+  - lender: Bankwest
+    title: "Bankwest 贷款政策轮廓"
+    tags: [Bankwest, 政策, CBA体系]
+    priority: normal
+    content: |-
+      【Bankwest 贷款政策轮廓（方向性参考）】
+      - LVR：无 LMI 80%，有 LMI 最高 90%；最低首付 10%。
+      - 缓冲率：3%。
+      - 收入口径：与 CBA 体系对齐；自雇 2 年平均（CBA aligned）；Bonus/OT 80% 比 CBA 友好；
+        外国收入 50%。
+      - 常用材料：工资单、NOA、银行流水、会计师信。
+      - 特殊要求：利率通常比 CBA 低；审批比 CBA 快；Digital-first 体验好；LMI 只到 90%。
+      - 适合：想要 CBA 体系但要更好利率、PAYG 简单案子；避免：需要 95% LVR、复杂自雇结构。
+
+  - lender: ING
+    title: "ING 贷款政策轮廓"
+    tags: [ING, 政策, DTI, 利率]
+    priority: high
+    content: |-
+      【ING 贷款政策轮廓（方向性参考）】
+      - LVR：无 LMI 80%，有 LMI 最高 95%；最低首付 5%。
+      - 缓冲率：3%。
+      - DTI：LVR≤70% 时 DTI<8；LVR>70% 时 DTI<6。
+      - 收入口径：不接受外国收入（0%）；Commission 只算 60%；Car allowance、养老金收入按 80%；
+        自雇 2 年平均。
+      - 常用材料：工资单、银行流水、NOA。
+      - 特殊要求：利率极具竞争力、无月费/年费、Offset 功能全、95% LVR 可用；
+        不接受 trust/company 结构；个人贷款按实际/评估月供较高者计；LVR<90% 可能无需真储蓄证明。
+      - 适合：简单 PAYG 追最低利率、首次置业 95% LVR；避免：外国收入、Trust/company、高 commission。
+
+  - lender: Pepper
+    title: "Pepper 贷款政策轮廓"
+    tags: [Pepper, 政策, 非银行, 信用瑕疵]
+    priority: normal
+    content: |-
+      【Pepper 贷款政策轮廓（方向性参考，非银行）】
+      - LVR：无 LMI 80%，有 LMI 最高 85%；最低首付 15%。
+      - 缓冲率：2.5%（非银行，低于 Big 4）。
+      - 收入口径：自雇只需 1 年 BAS+会计师信；接受非常规收入证明；外国收入 80%。
+      - 常用材料：1 年 BAS（自雇）、会计师信、工资单、非常规收入证明。
+      - 特殊要求：对信用问题包容（paid defaults OK）；审批快速；利率比 Big 4 高 0.5-1.5%。
+      - 适合：信用瑕疵客户、自雇无完整税表、被 Big 4 拒绝、需要快速 settlement；
+        避免：追求最低利率、信用优良材料齐全（应走 Big 4）。
+
+  - lender: "St George"
+    title: "St George 贷款政策轮廓"
+    tags: [StGeorge, 政策, Westpac系, 专业客户]
+    priority: high
+    content: |-
+      【St George 贷款政策轮廓（方向性参考，Westpac 集团）】
+      - LVR：无 LMI 80%，有 LMI 最高 95%；最低首付 5%。
+      - 缓冲率：3%；合格转贷可降至 1%（Westpac 系）。
+      - 收入口径：与 Westpac 体系趋同；自雇 2 年平均；专业客户（医生/CFA）享 90% LVR 免 LMI。
+      - 常用材料：工资单、NOA、银行流水、专业执业证明。
+      - 特殊要求：与 Bank of Melbourne、Adelaide Bank 同属 Westpac 集团，政策大体一致但细节有差异。
+      - 适合：专业客户、需要 Westpac 系政策但想分开银行账户；避免：复杂自雇结构（政策较标准）。
+
+  - lender: "Bank of Melbourne"
+    title: "Bank of Melbourne 贷款政策轮廓"
+    tags: [BankOfMelbourne, 政策, 投资房, Westpac系]
+    priority: normal
+    content: |-
+      【Bank of Melbourne 贷款政策轮廓（方向性参考，Westpac 集团）】
+      - LVR：投资房 IO 最高 90% LVR（含 LMI）；自住 P&I 按 Westpac 系标准（无 LMI 80%，有 LMI 95%）。
+      - 缓冲率：3%；合格转贷可降至 1%。
+      - 收入口径：与 Westpac 系趋同。
+      - 特殊要求：≤80% LVR 无需提供完成资金证据；Basic 产品免费 redraw。
+      - 适合：投资房客户、想用 Westpac 系但偏好 BOM 产品。
+
+  - lender: "Adelaide Bank"
+    title: "Adelaide Bank 贷款政策轮廓"
+    tags: [AdelaideBank, 政策, BOQ集团]
+    priority: normal
+    content: |-
+      【Adelaide Bank 贷款政策轮廓（方向性参考，BOQ 集团）】
+      - LVR：无 LMI 80%，有 LMI 最高 95%；>80% 需 LMI。
+      - 缓冲率：3%。
+      - 收入口径：自雇标准 2 年；低档/Alt Doc 接受度较高（集团特色）。
+      - 特殊要求：<80% LVR 无需真储蓄证明；P&I 最长 30 年、IO 最长 25 年。
+      - 适合：低档自雇、需要灵活评估的客户。
+
+  - lender: BOQ
+    title: "BOQ 贷款政策轮廓"
+    tags: [BOQ, 政策, 自雇]
+    priority: normal
+    content: |-
+      【BOQ 贷款政策轮廓（方向性参考）】
+      - LVR：无 LMI 80%，有 LMI 最高 95%；部分促销产品最高 80%。
+      - 缓冲率：3%。
+      - 收入口径：自雇提供多档评估（工资单、1 年/2 年财报）；集团含 BOQ Specialist、ME Bank、
+        Virgin Money。
+      - 特殊要求：促销利率常要求最低贷款额（如 $150k-$400k 新贷款）；不接受集团内转贷促销。
+      - 适合：需要灵活自雇评估、地方性银行偏好客户。
+
+  - lender: "ME Bank"
+    title: "ME Bank 贷款政策轮廓"
+    tags: [MEBank, 政策, 自雇, 数字平台]
+    priority: normal
+    content: |-
+      【ME Bank 贷款政策轮廓（方向性参考）】
+      - LVR：无 LMI 80%，有 LMI 最高 95%；部分返现产品最高 80%。
+      - 缓冲率：3%。
+      - 收入口径：自雇三档评估——仅工资、1 年财报、2 年财报；数字平台流程简化。
+      - 常用材料：工资单、税表+NOA（自雇）、银行流水。
+      - 适合：自雇客户（尤其只有 1 年财报）、喜欢数字化流程的客户。
+
+  - lender: Suncorp
+    title: "Suncorp 贷款政策轮廓"
+    tags: [Suncorp, 政策, 首置, 医疗]
+    priority: normal
+    content: |-
+      【Suncorp 贷款政策轮廓（方向性参考）】
+      - LVR：最低利率档通常 ≤60% LVR；首置客户最高 95% LVR。
+      - 缓冲率：3%。
+      - 特殊要求：医疗专业人员（AHPRA 注册）可享最高 90% LVR、贷款额 $250k-$1.5M 专属通道
+        （不含过桥、建房与内部转贷）。
+      - 适合：首置、医疗专业人士；利率常具竞争力（两年固定曾到 4.79%）。
+
+  - lender: HSBC
+    title: "HSBC 贷款政策轮廓"
+    tags: [HSBC, 政策, Premier]
+    priority: normal
+    content: |-
+      【HSBC 贷款政策轮廓（方向性参考）】
+      - LVR：多数产品最高 80%；Home Value 产品 ≤60% LVR 享促销利率。
+      - 缓冲率：3%。
+      - 特殊要求：Premier 客户（存款或房贷达标）享费用减免与 100% offset；部分产品无限额外还款与 redraw。
+      - 适合：Premier/大额客户、需要高额贷款（最高 $15M）。
+
+  - lender: AMP
+    title: "AMP 贷款政策轮廓"
+    tags: [AMP, 政策, IO, 退休]
+    priority: normal
+    content: |-
+      【AMP 贷款政策轮廓（方向性参考）】
+      - LVR：最高 80%（部分自住 IO 期限较长者限 70%）；投资者最高 80%。
+      - 缓冲率：3%。
+      - 特殊要求：提供最长 10 年 Interest Only 贷款（无期中重审），自住+投资者均可，退休客户可用。
+      - 适合：需要长期 IO 的自住/投资者、退休规划客户。
+
+  - lender: Bendigo
+    title: "Bendigo 贷款政策轮廓"
+    tags: [Bendigo, 政策, 区域银行]
+    priority: normal
+    content: |-
+      【Bendigo 贷款政策轮廓（方向性参考）】
+      - LVR：最低利率档通常 ≤60% LVR；完整产品线支持 80%/95% LVR。
+      - 缓冲率：3%。
+      - 特殊要求：区域性银行，社区分行服务；Complete Home Loan 等产品按 LVR 分层定价。
+      - 适合：区域性客户、偏好社区银行的客户。
+
+  - lender: Liberty
+    title: "Liberty 贷款政策轮廓"
+    tags: [Liberty, 政策, 非银行, 低档]
+    priority: normal
+    content: |-
+      【Liberty 贷款政策轮廓（方向性参考，非银行）】
+      - LVR：主流区最高 90%（含 LMI）；信用瑕疵客户通常 ≤80%。
+      - 缓冲率：不受 APRA 约束（可接近实际利率评估）。
+      - 收入口径：低档/Alt Doc、自雇灵活（BAS、会计师声明等）；DTI 上限比银行宽。
+      - 特殊要求：审批灵活、速度快；利率与费用高于主流银行。
+      - 适合：自雇无完整税表、信用瑕疵、银行拒绝后需要替代方案。
+
+  - lender: Latrobe
+    title: "La Trobe 贷款政策轮廓"
+    tags: [Latrobe, 政策, 非银行, 信用瑕疵]
+    priority: normal
+    content: |-
+      【La Trobe 贷款政策轮廓（方向性参考，非银行）】
+      - LVR：最高 90%（主流区）；信用瑕疵客户通常 ≤80%。
+      - 缓冲率：不受 APRA 约束。
+      - 收入口径：接受非常规收入与低档材料；自雇灵活。
+      - 特殊要求：非标准贷款（non-conforming）专家，处理 bad credit、海外收入等复杂情况；
+        利率高于主流银行。
+      - 适合：信用瑕疵、自雇低档、复杂结构客户。
+
+  - lender: Resimac
+    title: "Resimac 贷款政策轮廓"
+    tags: [Resimac, 政策, 非银行, 低档]
+    priority: normal
+    content: |-
+      【Resimac 贷款政策轮廓（方向性参考，非银行）】
+      - LVR：标准最高 80%；部分产品支持更高 LVR（含 LMI）。
+      - 缓冲率：不受 APRA 约束。
+      - 收入口径：低档/Alt Doc 与自雇灵活评估；接受非常规收入。
+      - 特殊要求：非标准贷款专家；审批灵活、覆盖信用瑕疵与复杂自雇。
+      - 适合：被主流银行拒绝、低档自雇、需要快速替代方案的客户。

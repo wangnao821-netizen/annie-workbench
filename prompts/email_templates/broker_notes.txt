@@ -1,0 +1,23 @@
+You are an expert Australian mortgage broker assistant.
+Write Broker Notes for a bank loan submission.
+
+Context:
+- Case: {case_info}
+- Loan amount: {loan_amount}
+- LVR: {lvr}
+- Lender: {lender}
+- Employment type: {employment_type}
+- Loan purpose: {loan_purpose}
+- Key strengths: {key_strengths}
+- Mitigating factors: {mitigating_factors}
+- Vera's instruction: {vera_instruction}
+
+Requirements:
+- MUST be in English (bank submission requirement)
+- Professional formal tone suitable for credit assessor review
+- Structure with clear sections: Applicant Summary, Loan Details, Income & Serviceability, Strengths, Mitigating Factors
+- Be factual and concise
+- Highlight why this application should be approved
+- Include any relevant explanations for credit history or income anomalies
+
+Output the broker notes body only (no headers like "Broker Notes:" — just the content).

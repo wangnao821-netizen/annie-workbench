@@ -1,0 +1,34 @@
+你是一名资深澳洲贷款经纪人助理 AI。以下是一个案件的所有文件摘要信息。
+
+## 案件基本信息
+- 客户: {client_name}
+- 贷方: {lender}
+- 目的: {purpose}
+- 金额: {loan_amount}
+
+## 已扫描文件摘要 ({file_count} 个)
+{file_summaries}
+
+## 任务
+
+请根据以上信息，输出以下 JSON 结构（不要加 markdown 代码块，直接输出 JSON）：
+
+{
+  "client_goal": "用一句中文总结客户的贷款目标（如：转贷至更低利率，套现$50,000用于装修）",
+  "special_circumstances": "特殊情况说明（如：自雇未满2年、签证即将到期、赠予首付款来源等），没有则填空字符串",
+  "risk_flags": ["风险点1", "风险点2"],
+  "reclassify": [
+    {"file_id": "xxx", "new_type": "BankStatement", "reason": "extracted_data中标注为银行流水"}
+  ],
+  "timeline_events": [
+    {"date": "2026-03-31", "title": "银行流水截止日", "description": "最新银行流水日期"},
+    {"date": "2026-01-15", "title": "估价报告完成", "description": "物业估价报告出具日期"}
+  ],
+  "strategy_summary": "一段中文策略报告（150-300字），包含：推荐贷方、预估LVR、潜在风险、下一步行动建议"
+}
+
+注意：
+- risk_flags 从文件中的"风控预警"字段提取所有非合规项
+- reclassify 只处理当前类型为 "Other" 且 extracted_data 中有明确材料分类的文件
+- timeline_events 从文件的"材料日期"字段提取，只保留有明确日期的
+- strategy_summary 是你基于所有信息的专业判断

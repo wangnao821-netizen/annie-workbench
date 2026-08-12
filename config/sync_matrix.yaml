@@ -1,0 +1,35 @@
+# 同步矩阵规则配置
+version: "1.0"
+sync_matrix:
+  info_received:
+    - write_timeline
+  doc_uploaded:
+    - write_timeline
+    - update_progress
+  doc_classified:
+    - write_timeline
+    - update_progress
+  field_edited:
+    - write_timeline
+  checklist_changed:
+    - write_timeline
+    - update_progress
+  email_matched:
+    - write_timeline
+    - create_action
+  stage_advanced:
+    - write_timeline
+    - maybe_write_milestone
+  os_status_changed:
+    - write_timeline
+    - maybe_write_milestone
+  draft_generated:
+    - write_timeline
+    - create_action
+  note_added:
+    - write_timeline
+  brain_updated:
+    - write_timeline
+  settlement:
+    - write_timeline
+    - maybe_write_milestone

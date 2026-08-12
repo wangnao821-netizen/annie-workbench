@@ -1,0 +1,84 @@
+# 建议命名规则模板
+# 
+# ⚠️ V3.0 变更：这些规则不再自动执行，AI 不做文件重命名。
+# 用途：AI 在中文报告中向 Vera 建议命名，Vera 可选择性采纳。
+# 变量：{client_name}, {employer}, {date}, {bank}, {last4}, {date_range}, {lender}, {subclass}, {year}, {quarter}, {property_short}, {description}, {round}, {original_filename}
+
+rules:
+  # ===== 身份类 =====
+  Passport:
+    template: "ID Passport.pdf"
+  DriverLicense:
+    template: "ID DL.pdf"
+  Visa:
+    template: "ID Visa.pdf"
+    template_with_subclass: "ID Visa {subclass}.pdf"
+  MedicareCard:
+    template: "ID Medicare.pdf"
+  VOI:
+    template: "ID VOI.pdf"
+
+  # ===== 收入类 =====
+  Payslip:
+    template: "Income Payslip {employer} {date}.pdf"
+  TaxReturn:
+    template: "Income Tax Return {year}.pdf"
+  EmploymentLetter:
+    template: "Employment Letter - {employer} - {client_name}.pdf"
+  BAS:
+    template: "Income BAS {quarter} {year}.pdf"
+  AccountantLetter:
+    template: "Accountant Letter - {client_name}.pdf"
+
+  # ===== 资产类 =====
+  BankStatement:
+    template: "Statement{date}.pdf"
+    template_alt: "{bank} - Transactions.pdf"
+  UtilityBill:
+    template: "{client_name} utility bill address letter.pdf"
+
+  # ===== 负债类 =====
+  HomeLoanStatement:
+    template: "Liability HL {bank}xx{last4} {date_range}.pdf"
+  CreditCardStatement:
+    template: "Liability CC {bank}xx{last4} {date_range}.pdf"
+
+  # ===== 物业类 =====
+  ContractOfSale:
+    template: "Property Proposed COS.pdf"
+    template_inv: "Property Proposed COS INV.pdf"
+  CouncilRates:
+    template: "Property Rates Notice.pdf"
+  RentalAgreement:
+    template: "Rental Agreement.pdf"
+  RentalStatement:
+    template: "Rental Statement.pdf"
+  ValuationReport:
+    template: "Property Valuation result - {lender}.pdf"
+  OccupationCertificate:
+    template: "Occupation Certificate - {property_short}.pdf"
+  CompletionNotice:
+    template: "Notice of Practical Completion {description}.pdf"
+  InsurancePolicy:
+    template: "Property Insurance - {property_short}.pdf"
+  ArchitecturalPlan:
+    template: "Property Plan - {property_short}.pdf"
+  FloorPlan:
+    template: "Property Floor Plan - {property_short}.pdf"
+
+  # ===== 内部文件 =====
+  BrokerNotes:
+    template: "BROKER NOTES {client_name}.docx"
+    template_pdf: "BROKER NOTES {client_name}.pdf"
+  EquifaxScore:
+    template: "{client_name} - Equifax Apply One Score.pdf"
+  ApplicationForm:
+    template: "Application Form.pdf"
+  OutstandingQuery:
+    template: "OS{round}.docx"
+  ProductComparison:
+    template: "Products Comparison.pdf"
+
+  # ===== 兜底 =====
+  Unknown:
+    template: "UNCLASSIFIED_{original_filename}"

@@ -1,0 +1,18 @@
+You are an expert Australian mortgage broker assistant.
+Write a follow-up / chaser email to a bank regarding an outstanding matter.
+
+Context:
+- Case: {case_info}
+- Lender: {lender}
+- Days since submission: {days_waiting}
+- Outstanding items: {outstanding_items}
+- Vera's instruction: {vera_instruction}
+
+Requirements:
+- Professional but firm Australian English
+- Reference the application number if available: {reference}
+- Politely request an update or expedited processing
+- Mention any approaching deadlines: {deadline}
+- Sign off with broker name: {broker_name}
+
+Output the email body only (no subject line, no metadata).

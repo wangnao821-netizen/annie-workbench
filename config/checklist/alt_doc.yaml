@@ -1,0 +1,44 @@
+# Alt Doc 案件所需文件清单
+name: "Alt Doc"
+required:
+  identity:
+    - type: "Passport"
+      description: "Valid passport"
+    - type: "DriverLicense"
+      description: "Driver license"
+    - type: "Visa"
+      description: "Visa grant letter (non PR/citizen)"
+      conditional: true
+  income:
+    - type: "AccountantLetter"
+      description: "Accountant letter confirming income"
+    - type: "Payslip"
+      description: "Self-employed payslips (internally prepared)"
+      min_count: 2
+    - type: "BAS"
+      description: "Business Activity Statements (latest 2 quarters)"
+      min_count: 2
+    - type: "TaxReturn"
+      description: "Latest 1-2 years Tax Return"
+      min_count: 1
+      conditional: true
+  assets:
+    - type: "BankStatement"
+      description: "Latest 3-6 months bank statements"
+      max_age_days: 90
+  liabilities:
+    - type: "HomeLoanStatement"
+      description: "Existing home loan statement (if applicable)"
+      conditional: true
+    - type: "CreditCardStatement"
+      description: "Credit card statement (if applicable)"
+      conditional: true
+  property:
+    - type: "ContractOfSale"
+      description: "Contract of Sale (purchase cases)"
+      conditional: true
+    - type: "CouncilRates"
+      description: "Council Rates Notice"
+    - type: "RentalStatement"
+      description: "Rental income statement (if applicable)"
+      conditional: true

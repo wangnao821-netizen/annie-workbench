@@ -1,0 +1,41 @@
+# 收件箱邮件分类词表（邮件预审用）
+# 修改此文件即可调整 AI 可输出的分类，无需改代码
+# code 为入库值（英文），label 为前端中文标签
+
+email_categories:
+  bank_os:
+    label: "银行补件"
+    description: "银行要求补充材料/提条件（OS/MIR）"
+  bank_status:
+    label: "银行进度"
+    description: "银行进度/审批状态更新，无需操作"
+  bank_approval:
+    label: "批贷通知"
+    description: "批贷/预批/拒批等审批结果"
+  valuation:
+    label: "估值"
+    description: "估值报告、估值订单、物业评估"
+  settlement:
+    label: "结算"
+    description: "结算日、放款、交割相关"
+  client_doc:
+    label: "客户材料"
+    description: "客户发来的证明文件/材料"
+  client_reply:
+    label: "客户回复"
+    description: "客户回复邮件/咨询/确认"
+  new_lead:
+    label: "新客户询盘"
+    description: "新客户咨询/官网线索"
+  lender_bdm:
+    label: "银行BDM/产品"
+    description: "银行 BDM 会面、产品/活动推介"
+  newsletter_marketing:
+    label: "利率/营销"
+    description: "利率更新、营销邮件"
+  colleague_internal:
+    label: "内部/同事"
+    description: "公司内部、同事相关"
+  personal_junk:
+    label: "个人/垃圾"
+    description: "个人购物、物流、垃圾邮件"

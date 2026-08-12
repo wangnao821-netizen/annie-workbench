@@ -1,0 +1,295 @@
+# 文档类型注册表（Document Type Registry）
+# 这是所有文档类型的唯一真相源（Single Source of Truth）
+# prompt、naming_rules、checklist 必须与本文件一致
+#
+# 新增文档类型时只需在此处添加一条记录，其他文件自动对齐。
+
+types:
+  # ===== 身份类 =====
+  Passport:
+    category: "identity"
+    description: "护照"
+    allowed_extensions: [".pdf", ".jpg", ".jpeg", ".png"]
+    naming_key: "Passport"
+    confidence_threshold: 0.8
+    expiry_policy: "10 years from issue"
+    cloud_classification: true
+
+  DriverLicense:
+    category: "identity"
+    description: "驾照"
+    allowed_extensions: [".pdf", ".jpg", ".jpeg", ".png"]
+    naming_key: "DriverLicense"
+    confidence_threshold: 0.8
+    expiry_policy: "check expiry_date field"
+    cloud_classification: true
+
+  Visa:
+    category: "identity"
+    description: "签证授予信"
+    allowed_extensions: [".pdf", ".jpg", ".jpeg", ".png"]
+    naming_key: "Visa"
+    confidence_threshold: 0.8
+    expiry_policy: "check expiry_date field"
+    cloud_classification: true
+
+  MedicareCard:
+    category: "identity"
+    description: "Medicare 卡"
+    allowed_extensions: [".pdf", ".jpg", ".jpeg", ".png"]
+    naming_key: "MedicareCard"
+    confidence_threshold: 0.8
+    expiry_policy: "check expiry_date field"
+    cloud_classification: true
+
+  VOI:
+    category: "identity"
+    description: "身份验证文件 (Verification of Identity)"
+    allowed_extensions: [".pdf"]
+    naming_key: "VOI"
+    confidence_threshold: 0.7
+    expiry_policy: "none"
+    cloud_classification: true
+
+  # ===== 收入类 =====
+  Payslip:
+    category: "income"
+    description: "工资单"
+    allowed_extensions: [".pdf", ".jpg", ".jpeg", ".png"]
+    naming_key: "Payslip"
+    confidence_threshold: 0.85
+    expiry_policy: "max_age_days: 30"
+    cloud_classification: true
+
+  TaxReturn:
+    category: "income"
+    description: "个人/公司报税表"
+    allowed_extensions: [".pdf"]
+    naming_key: "TaxReturn"
+    confidence_threshold: 0.85
+    expiry_policy: "latest 1-2 years"
+    cloud_classification: true
+
+  EmploymentLetter:
+    category: "income"
+    description: "雇佣信/雇佣确认函"
+    allowed_extensions: [".pdf", ".docx"]
+    naming_key: "EmploymentLetter"
+    confidence_threshold: 0.85
+    expiry_policy: "max_age_days: 90"
+    cloud_classification: true
+
+  BAS:
+    category: "income"
+    description: "Business Activity Statement（季度 GST 报表）"
+    allowed_extensions: [".pdf"]
+    naming_key: "BAS"
+    confidence_threshold: 0.85
+    expiry_policy: "latest 2 quarters"
+    cloud_classification: true
+
+  AccountantLetter:
+    category: "income"
+    description: "会计确认信"
+    allowed_extensions: [".pdf", ".docx"]
+    naming_key: "AccountantLetter"
+    confidence_threshold: 0.85
+    expiry_policy: "max_age_days: 90"
+    cloud_classification: true
+
+  # ===== 资产类 =====
+  BankStatement:
+    category: "assets"
+    description: "银行账户流水"
+    allowed_extensions: [".pdf"]
+    naming_key: "BankStatement"
+    confidence_threshold: 0.85
+    expiry_policy: "max_age_days: 90"
+    cloud_classification: true
+
+  # ===== 负债类 =====
+  HomeLoanStatement:
+    category: "liability"
+    description: "房贷还款记录"
+    allowed_extensions: [".pdf"]
+    naming_key: "HomeLoanStatement"
+    confidence_threshold: 0.85
+    expiry_policy: "max_age_days: 90"
+    cloud_classification: true
+
+  CreditCardStatement:
+    category: "liability"
+    description: "信用卡账单"
+    allowed_extensions: [".pdf"]
+    naming_key: "CreditCardStatement"
+    confidence_threshold: 0.85
+    expiry_policy: "max_age_days: 90"
+    cloud_classification: true
+
+  # ===== 物业类 =====
+  ContractOfSale:
+    category: "property"
+    description: "购房合同"
+    allowed_extensions: [".pdf"]
+    naming_key: "ContractOfSale"
+    confidence_threshold: 0.8
+    expiry_policy: "none"
+    cloud_classification: true
+
+  CouncilRates:
+    category: "property"
+    description: "市政费通知 (Council Rates Notice)"
+    allowed_extensions: [".pdf"]
+    naming_key: "CouncilRates"
+    confidence_threshold: 0.8
+    expiry_policy: "latest year"
+    cloud_classification: true
+
+  RentalAgreement:
+    category: "property"
+    description: "租约"
+    allowed_extensions: [".pdf", ".docx"]
+    naming_key: "RentalAgreement"
+    confidence_threshold: 0.8
+    expiry_policy: "check expiry_date field"
+    cloud_classification: true
+
+  RentalStatement:
+    category: "property"
+    description: "租金收入证明"
+    allowed_extensions: [".pdf"]
+    naming_key: "RentalStatement"
+    confidence_threshold: 0.8
+    expiry_policy: "max_age_days: 90"
+    cloud_classification: true
+
+  ValuationReport:
+    category: "property"
+    description: "估价报告"
+    allowed_extensions: [".pdf"]
+    naming_key: "ValuationReport"
+    confidence_threshold: 0.8
+    expiry_policy: "max_age_days: 90"
+    cloud_classification: true
+
+  OccupationCertificate:
+    category: "property"
+    description: "入住许可证 (OC)"
+    allowed_extensions: [".pdf"]
+    naming_key: "OccupationCertificate"
+    confidence_threshold: 0.8
+    expiry_policy: "none"
+    cloud_classification: true
+
+  CompletionNotice:
+    category: "property"
+    description: "竣工通知"
+    allowed_extensions: [".pdf"]
+    naming_key: "CompletionNotice"
+    confidence_threshold: 0.8
+    expiry_policy: "none"
+    cloud_classification: true
+
+  InsurancePolicy:
+    category: "property"
+    description: "房屋保险单"
+    allowed_extensions: [".pdf"]
+    naming_key: "InsurancePolicy"
+    confidence_threshold: 0.8
+    expiry_policy: "check expiry_date field"
+    cloud_classification: true
+
+  # ===== 内部文件 =====
+  BrokerNotes:
+    category: "internal"
+    description: "Broker Notes（内部制作）"
+    allowed_extensions: [".pdf", ".docx"]
+    naming_key: "BrokerNotes"
+    confidence_threshold: 0.9
+    expiry_policy: "none"
+    cloud_classification: true
+
+  EquifaxScore:
+    category: "internal"
+    description: "征信报告 (Equifax)"
+    allowed_extensions: [".pdf"]
+    naming_key: "EquifaxScore"
+    confidence_threshold: 0.9
+    expiry_policy: "max_age_days: 30"
+    cloud_classification: true
+
+  UtilityBill:
+    category: "assets"
+    description: "水电煤账单（地址证明）"
+    allowed_extensions: [".pdf"]
+    naming_key: "UtilityBill"
+    confidence_threshold: 0.8
+    expiry_policy: "max_age_days: 90"
+    cloud_classification: true
+
+  # ===== 兜底类型 =====
+  Unknown:
+    category: "unclassified"
+    description: "无法识别的文件"
+    allowed_extensions: ["*"]
+    naming_key: null
+    confidence_threshold: 0
+    expiry_policy: "none"
+    cloud_classification: false
+
+  # ===== 基于真实数据补充（2026-07-01）=====
+  ApplicationForm:
+    category: "internal"
+    description: "贷款申请表"
+    allowed_extensions: [".pdf", ".docx"]
+    naming_key: "ApplicationForm"
+    confidence_threshold: 0.85
+    expiry_policy: "none"
+    cloud_classification: true
+
+  ArchitecturalPlan:
+    category: "property"
+    description: "建筑图纸/平面图（Granny Flat、加建等）"
+    allowed_extensions: [".pdf", ".jpg", ".jpeg", ".png"]
+    naming_key: "ArchitecturalPlan"
+    confidence_threshold: 0.7
+    expiry_policy: "none"
+    cloud_classification: true
+
+  OutstandingQuery:
+    category: "internal"
+    description: "银行补件问答/OS Letter"
+    allowed_extensions: [".pdf", ".docx"]
+    naming_key: "OutstandingQuery"
+    confidence_threshold: 0.85
+    expiry_policy: "none"
+    cloud_classification: true
+
+  FloorPlan:
+    category: "property"
+    description: "房产户型图"
+    allowed_extensions: [".pdf", ".jpg", ".jpeg", ".png"]
+    naming_key: "FloorPlan"
+    confidence_threshold: 0.7
+    expiry_policy: "none"
+    cloud_classification: true
+
+  ProductComparison:
+    category: "internal"
+    description: "产品对比报告"
+    allowed_extensions: [".pdf"]
+    naming_key: "ProductComparison"
+    confidence_threshold: 0.85
+    expiry_policy: "none"
+    cloud_classification: true
+
+# 所有 category 值的枚举（用于校验）
+categories:
+  - identity
+  - income
+  - assets
+  - liability
+  - property
+  - internal
+  - unclassified
+

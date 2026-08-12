@@ -1,0 +1,125 @@
+# 经验提取 Prompt 模板
+# 用于 server/services/experience_extractor.py
+# 变量占位符：{client_type}, {lender}, {case_type}, {lvr}, {loan_amount},
+#             {stage_history}, {os_records}, {knowledge_summary},
+#             {close_reason}, {close_note}
+
+templates:
+  settled: |
+    你是一个资深的贷款经纪人。这个贷款案已经成功结案（Settled）。请根据以下案件信息进行"经验固化"总结。
+
+    【案件信息】
+    - 客户类型：{client_type}
+    - 贷款产品：{lender} {case_type}，LVR {lvr}%
+    - 金额：${loan_amount}
+
+    【阶段时间线】
+    {stage_history}
+
+    【沟通历史与案情事实】
+    {knowledge_summary}
+
+    【银行退单条件 (OS Conditions) 历史】
+    {os_records}
+
+    【任务】
+    请总结：
+    1. 关键成功要素
+    2. 遇到的难点及解决方法
+    3. 对未来同类案件的建议
+
+    要求：
+    - 结合具体情节（如何解决具体问题）
+    - 保持通用性，以便在以后的类似案件中能被相似性检索到
+    - 必须是中文，长度限制在 150-300 字
+    - 如果信息太少无法总结，请直接说"该案流程正常，无特殊经验需固化。"
+
+  withdrawn: |
+    你是一个资深的贷款经纪人。这个客户最终撤回了申请。请根据以下信息生成一段反思总结。
+
+    【案件信息】
+    - 客户类型：{client_type}
+    - 贷款产品：{lender} {case_type}，LVR {lvr}%
+    - 金额：${loan_amount}
+
+    【阶段时间线】
+    {stage_history}
+
+    【沟通历史】
+    {knowledge_summary}
+
+    【客户撤回原因】
+    {close_reason}
+
+    【Vera 补充说明】
+    {close_note}
+
+    【任务】
+    请分析：
+    1. 什么类型的客户容易跑
+    2. 案件做到什么阶段客户跑的
+    3. 客户不满意的根本原因
+    4. 下次遇到同类客户如何预防
+
+    要求：中文，150-300 字，保持通用性以便被相似性检索。
+
+  declined: |
+    你是一个资深的贷款经纪人。这个案件最终被终止（银行拒绝或其他原因）。请根据以下信息生成一段失败分析。
+
+    【案件信息】
+    - 客户类型：{client_type}
+    - 贷款产品：{lender} {case_type}，LVR {lvr}%
+    - 金额：${loan_amount}
+
+    【阶段时间线】
+    {stage_history}
+
+    【沟通历史】
+    {knowledge_summary}
+
+    【银行退单条件历史】
+    {os_records}
+
+    【终止原因】
+    {close_reason}
+
+    【Vera 补充说明】
+    {close_note}
+
+    【任务】
+    请分析：
+    1. 为什么银行拒绝/为什么放弃
+    2. 银行/产品选择是否有问题
+    3. 客户条件评估是否准确
+    4. 以后同类客户应该怎么做
+
+    要求：中文，150-300 字，保持通用性以便被相似性检索。
+
+  resub: |
+    你是一个资深的贷款经纪人。这个案件因为某些原因需要换银行重新递交。请总结这次 Resub 的经验教训。
+
+    【案件信息】
+    - 客户类型：{client_type}
+    - 原银行：{lender} {case_type}，LVR {lvr}%
+    - 金额：${loan_amount}
+
+    【阶段时间线】
+    {stage_history}
+
+    【银行退单条件历史】
+    {os_records}
+
+    【换银行原因】
+    {close_reason}
+
+    【Vera 补充说明】
+    {close_note}
+
+    【任务】
+    请总结：
+    1. 为什么原银行行不通
+    2. 该银行/产品在什么情况下适用/不适用
+    3. 以后类似客户首选哪个银行方向
+    4. Resub 过程中有什么需要注意的
+
+    要求：中文，150-300 字，保持通用性以便被相似性检索。

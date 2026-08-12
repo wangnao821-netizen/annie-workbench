@@ -1,0 +1,482 @@
+# 全量清单主库（V5 三层模型 · 全集层）
+# 结构按 docs/task_workbench_design.md §4.2：
+#   全集 →（master_picker 规则+AI 硬过滤/预选）→ AI 预选 → Vera 微调
+# category 枚举: identity / income_payg / income_self_employed /
+#               bank_specific / special / property / settlement
+# applicable_when 取值为 all 或条件键（residency / employment_type /
+#               purpose / deposit_source_includes / income_sources），
+#               多键同时满足才适用。bank_specific 仅目标银行匹配时出现。
+# aliases 与 core/pipeline/classifier.py 分类标签对齐。
+
+items:
+  # ── identity 身份 ──
+  - id: passport
+    name_zh: 有效护照
+    name_en: Passport
+    category: identity
+    aliases: [passport, travel_document]
+    applicable_when: { all: true }
+
+  - id: driver_license
+    name_zh: 驾照
+    name_en: Driver Licence
+    category: identity
+    aliases: [driver_license, driverlicence, licence, drivers_licence]
+    applicable_when: { all: true }
+
+  - id: visa_grant
+    name_zh: Visa 获签信
+    name_en: Visa Grant Letter
+    category: identity
+    aliases: [visa, visa_grant, visa_grant_letter]
+    applicable_when: { residency: [TR, Visa] }
+
+  - id: medicare_card
+    name_zh: Medicare 卡
+    name_en: Medicare Card
+    category: identity
+    aliases: [medicarecard, medicare]
+    applicable_when: { all: true }
+
+  - id: voi_document
+    name_zh: 100 分身份核实文件
+    name_en: VOI (100 point ID)
+    category: identity
+    aliases: [voi, id_document, id_check]
+    applicable_when: { all: true }
+
+  - id: pr_grant_notice
+    name_zh: 永居批准信
+    name_en: PR Grant Notice
+    category: identity
+    aliases: [pr_grant, pr_letter, permanent_residency]
+    applicable_when: { residency: [PR] }
+
+  - id: name_change_certificate
+    name_zh: 改名证明
+    name_en: Change of Name Certificate
+    category: identity
+    aliases: [name_change, change_of_name]
+    applicable_when: { all: true }
+
+  # ── income_payg 收入-PAYG ──
+  - id: payslip_2
+    name_zh: 最新 2 期工资单
+    name_en: Latest 2 Payslips
+    category: income_payg
+    aliases: [payslip, pay_slip, salary_slip]
+    applicable_when: { employment_type: [PAYG, Casual] }
+    min_count: 2
+    max_age_days: 30
+
+  - id: employment_letter
+    name_zh: 雇佣确认信
+    name_en: Employment Letter
+    category: income_payg
+    aliases: [employmentletter, employment_confirmation, employment_contract]
+    applicable_when: { employment_type: [PAYG, Casual] }
+
+  - id: group_certificate
+    name_zh: 年度工资汇总表
+    name_en: Group Certificate / Payment Summary
+    category: income_payg
+    aliases: [group_certificate, payment_summary, groupcertificate]
+    applicable_when: { employment_type: [PAYG] }
+
+  - id: bonus_letter
+    name_zh: 奖金确认信
+    name_en: Bonus Letter
+    category: income_payg
+    aliases: [bonus, bonus_letter, bonus_confirmation]
+    applicable_when: { employment_type: [PAYG, Casual] }
+
+  - id: pension_statement
+    name_zh: 养老金收入证明
+    name_en: Pension Statement
+    category: income_payg
+    aliases: [pension, pension_statement]
+    applicable_when: { income_sources: [pension] }
+
+  - id: centrelink_letter
+    name_zh: Centrelink 收入信
+    name_en: Centrelink Income Letter
+    category: income_payg
+    aliases: [centrelink, centrelink_letter]
+    applicable_when: { income_sources: [centrelink] }
+
+  - id: secondary_income_letter
+    name_zh: 兼职/副业收入证明
+    name_en: Secondary Income Letter
+    category: income_payg
+    aliases: [secondary_income, second_job, side_income]
+    applicable_when: { employment_type: [PAYG, Casual] }
+
+  # ── income_self_employed 收入-自雇 ──
+  - id: accountant_letter
+    name_zh: 会计师信
+    name_en: Accountant Letter
+    category: income_self_employed
+    aliases: [accountantletter, accountant_confirmation, accountant_letter]
+    applicable_when: { employment_type: [SelfEmployed, Company] }
+
+  - id: tax_return_2yr
+    name_zh: 最近 2 年税表
+    name_en: Tax Returns (2 years)
+    category: income_self_employed
+    aliases: [taxreturn, tax_return, noa, notice_of_assessment]
+    applicable_when: { employment_type: [SelfEmployed, Company] }
+
+  - id: tax_return_1yr
+    name_zh: 最近 1 年税表（新公司）
+    name_en: Tax Return (1 year)
+    category: income_self_employed
+    aliases: [tax_return_1year, one_year_tax_return]
+    applicable_when: { employment_type: [SelfEmployed, Company] }
+
+  - id: bas_statements
+    name_zh: 最近 1 年 BAS
+    name_en: BAS Statements
+    category: income_self_employed
+    aliases: [bas, business_activity_statement]
+    applicable_when: { employment_type: [SelfEmployed, Company] }
+
+  - id: business_bank_statement
+    name_zh: 公司银行流水
+    name_en: Business Bank Statement
+    category: income_self_employed
+    aliases: [business_bank_statement, business_account_statement]
+    applicable_when: { employment_type: [SelfEmployed, Company] }
+
+  - id: asic_company_search
+    name_zh: ASIC 公司注册查询
+    name_en: ASIC Company Search
+    category: income_self_employed
+    aliases: [asic, company_search, asic_extract]
+    applicable_when: { employment_type: [SelfEmployed, Company] }
+
+  - id: profit_loss_statement
+    name_zh: 损益表
+    name_en: Profit & Loss Statement
+    category: income_self_employed
+    aliases: [profit_loss, pnl, profit_loss_statement]
+    applicable_when: { employment_type: [SelfEmployed, Company] }
+
+  - id: balance_sheet
+    name_zh: 资产负债表
+    name_en: Balance Sheet
+    category: income_self_employed
+    aliases: [balance_sheet]
+    applicable_when: { employment_type: [SelfEmployed, Company] }
+
+  - id: abn_registration
+    name_zh: ABN 注册证明
+    name_en: ABN Registration
+    category: income_self_employed
+    aliases: [abn, abn_registration, abn_certificate]
+    applicable_when: { employment_type: [SelfEmployed, Company] }
+
+  - id: accounting_financial_report
+    name_zh: 经营财务报告
+    name_en: Financial Report
+    category: income_self_employed
+    aliases: [financial_report, financials]
+    applicable_when: { employment_type: [SelfEmployed, Company] }
+
+  # ── bank_specific 银行特定 ──
+  - id: cba_application_form
+    name_zh: CBA 申请表
+    name_en: CBA Application Form
+    category: bank_specific
+    aliases: [cba_application, cba_form, applicationform]
+    applicable_when: { all: true }
+    bank_specific: CBA
+
+  - id: cba_identity_check
+    name_zh: CBA 身份核实
+    name_en: CBA Identity Check
+    category: bank_specific
+    aliases: [cba_identification, cba_id_check]
+    applicable_when: { all: true }
+    bank_specific: CBA
+
+  - id: cba_self_employed_declaration
+    name_zh: CBA 自雇声明表
+    name_en: CBA Self-Employed Declaration
+    category: bank_specific
+    aliases: [cba_declaration, cba_self_employed]
+    applicable_when: { employment_type: [SelfEmployed, Company] }
+    bank_specific: CBA
+
+  - id: cba_deposit_explanation
+    name_zh: CBA 首付来源说明
+    name_en: CBA Deposit Explanation
+    category: bank_specific
+    aliases: [cba_deposit, deposit_explanation]
+    applicable_when: { all: true }
+    bank_specific: CBA
+
+  - id: anz_application_form
+    name_zh: ANZ 申请表
+    name_en: ANZ Application Form
+    category: bank_specific
+    aliases: [anz_application, anz_form]
+    applicable_when: { all: true }
+    bank_specific: ANZ
+
+  - id: anz_payslip_verification
+    name_zh: ANZ 工资单核实
+    name_en: ANZ Payslip Verification
+    category: bank_specific
+    aliases: [anz_payslip, anz_verify_payslip]
+    applicable_when: { employment_type: [PAYG, Casual] }
+    bank_specific: ANZ
+
+  - id: anz_rental_credit
+    name_zh: ANZ 租金收入信
+    name_en: ANZ Rental Credit Letter
+    category: bank_specific
+    aliases: [anz_rental, rental_credit_letter]
+    applicable_when: { all: true }
+    bank_specific: ANZ
+
+  - id: nab_application_form
+    name_zh: NAB 申请表
+    name_en: NAB Application Form
+    category: bank_specific
+    aliases: [nab_application, nab_form]
+    applicable_when: { all: true }
+    bank_specific: NAB
+
+  - id: nab_tax_return_required
+    name_zh: NAB 自雇 2 年税表
+    name_en: NAB Tax Return (2yr)
+    category: bank_specific
+    aliases: [nab_tax_return]
+    applicable_when: { employment_type: [SelfEmployed, Company] }
+    bank_specific: NAB
+
+  - id: nab_business_verification
+    name_zh: NAB 公司流水核实
+    name_en: NAB Business Verification
+    category: bank_specific
+    aliases: [nab_business_statement]
+    applicable_when: { employment_type: [SelfEmployed, Company] }
+    bank_specific: NAB
+
+  - id: westpac_application_form
+    name_zh: Westpac 申请表
+    name_en: Westpac Application Form
+    category: bank_specific
+    aliases: [westpac_application, westpac_form]
+    applicable_when: { all: true }
+    bank_specific: Westpac
+
+  - id: westpac_income_consent
+    name_zh: Westpac 收入核实授权
+    name_en: Westpac Income Consent
+    category: bank_specific
+    aliases: [westpac_income_verification, income_verification_consent]
+    applicable_when: { all: true }
+    bank_specific: Westpac
+
+  - id: westpac_bonus_support
+    name_zh: Westpac 奖金补充证明
+    name_en: Westpac Bonus Support
+    category: bank_specific
+    aliases: [westpac_bonus, westpac_yield]
+    applicable_when: { employment_type: [PAYG, Casual] }
+    bank_specific: Westpac
+
+  - id: westpac_self_employed_declaration
+    name_zh: Westpac 自雇声明表
+    name_en: Westpac Self-Employed Declaration
+    category: bank_specific
+    aliases: [westpac_declaration]
+    applicable_when: { employment_type: [SelfEmployed, Company] }
+    bank_specific: Westpac
+
+  # ── special 特殊 ──
+  - id: gift_letter
+    name_zh: 赠予信
+    name_en: Gift Letter
+    category: special
+    aliases: [gift_letter, gift_declaration]
+    applicable_when: { deposit_source_includes: [gift] }
+
+  - id: gift_funds_statement
+    name_zh: 赠予资金到账流水
+    name_en: Gift Funds Statement
+    category: special
+    aliases: [gift_funds, donor_statement]
+    applicable_when: { deposit_source_includes: [gift] }
+
+  - id: trust_letter_document
+    name_zh: 信托相关文件
+    name_en: Trust Documents
+    category: special
+    aliases: [trust_letter, trust_document]
+    applicable_when: { deposit_source_includes: [trust] }
+
+  - id: smsf_document
+    name_zh: SMSF 自我管理养老金文件
+    name_en: SMSF Documents
+    category: special
+    aliases: [smsf, self_managed_super, smsf_statement]
+    applicable_when: { deposit_source_includes: [smsf, super] }
+
+  - id: guarantor_document
+    name_zh: 担保人文件
+    name_en: Guarantor Document
+    category: special
+    aliases: [guarantor, guarantor_document]
+    applicable_when: { all: true }
+
+  - id: existing_loan_statement
+    name_zh: 现有贷款对账单
+    name_en: Existing Loan Statement
+    category: special
+    aliases: [homeloanstatement, existing_loan, mortgage_statement]
+    applicable_when: { all: true }
+
+  - id: personal_bank_statement
+    name_zh: 近 3 个月个人银行流水
+    name_en: Bank Statement (3 months)
+    category: special
+    aliases: [bankstatement, bank_statement, personal_bank_statement]
+    applicable_when: { all: true }
+    max_age_days: 90
+
+  - id: foreign_income_proof
+    name_zh: 海外收入证明
+    name_en: Foreign Income Proof
+    category: special
+    aliases: [foreign_income, overseas_income, foreign_payslip]
+    applicable_when: { income_sources: [foreign] }
+
+  - id: crypto_transaction_ledger
+    name_zh: 加密货币交易流水
+    name_en: Crypto Transaction Ledger
+    category: special
+    aliases: [crypto, crypto_ledger, bitcoin]
+    applicable_when: { deposit_source_includes: [crypto] }
+
+  - id: child_support_letter
+    name_zh: 子女抚养收入证明
+    name_en: Child Support Letter
+    category: special
+    aliases: [child_support, child_support_documents]
+    applicable_when: { income_sources: [child_support] }
+
+  - id: boarder_income_letter
+    name_zh: 分租收入证明
+    name_en: Boarder Income Letter
+    category: special
+    aliases: [boarder_income, flatmate, room_rental]
+    applicable_when: { income_sources: [boarder] }
+
+  # ── property 房产 ──
+  - id: contract_of_sale
+    name_zh: 购房合同
+    name_en: Contract of Sale
+    category: property
+    aliases: [contractofsale, sales_contract, contract_of_sale]
+    applicable_when: { purpose: [Purchase, Investment] }
+
+  - id: council_rates_notice
+    name_zh: 市政费通知
+    name_en: Council Rates Notice
+    category: property
+    aliases: [councilrates, rates_notice, council_rates]
+    applicable_when: { all: true }
+
+  - id: valuation_report
+    name_zh: 房产估价报告
+    name_en: Valuation Report
+    category: property
+    aliases: [valuationreport, valuation, lender_valuation]
+    applicable_when: { all: true }
+
+  - id: rental_agreement
+    name_zh: 租约
+    name_en: Rental / Lease Agreement
+    category: property
+    aliases: [rentalagreement, lease_agreement, tenancy_agreement]
+    applicable_when: { purpose: [Investment, ResideAndInvest] }
+
+  - id: rental_statement
+    name_zh: 租金流水
+    name_en: Rental Statement
+    category: property
+    aliases: [rentalstatement, rental_ledger]
+    applicable_when: { purpose: [Investment, ResideAndInvest] }
+
+  - id: insurance_policy
+    name_zh: 房屋保险单
+    name_en: Home Insurance Policy
+    category: property
+    aliases: [insurancepolicy, insurance, home_insurance]
+    applicable_when: { all: true }
+
+  - id: occupation_certificate
+    name_zh: 入住许可
+    name_en: Occupation Certificate
+    category: property
+    aliases: [occupationcertificate, occupation_certificate]
+    applicable_when: { purpose: [Construction] }
+
+  - id: completion_notice
+    name_zh: 完工通知
+    name_en: Completion Notice
+    category: property
+    aliases: [completionnotice, notice_of_completion]
+    applicable_when: { purpose: [Construction] }
+
+  # ── settlement 结算 ──
+  - id: settlement_statement
+    name_zh: 结算单
+    name_en: Settlement Statement
+    category: settlement
+    aliases: [settlement_statement, settlement_letter]
+    applicable_when: { all: true }
+
+  - id: discharge_authority
+    name_zh: 解除抵押授权
+    name_en: Discharge Authority
+    category: settlement
+    aliases: [discharge, discharge_authority, payout_request]
+    applicable_when: { purpose: [Refinance, DebtConsolidation] }
+
+  - id: payout_letter
+    name_zh: 现有贷款结清报价
+    name_en: Payout Letter
+    category: settlement
+    aliases: [payout_letter, payout_quote]
+    applicable_when: { purpose: [Refinance] }
+
+  - id: title_search
+    name_zh: 产权查询
+    name_en: Title Search
+    category: settlement
+    aliases: [title_search, title_documents]
+    applicable_when: { all: true }
+
+  - id: mortgage_discharge_confirmation
+    name_zh: 原贷款解押确认
+    name_en: Mortgage Discharge Confirmation
+    category: settlement
+    aliases: [discharge_confirmation, mortgage_discharge]
+    applicable_when: { purpose: [Refinance] }
+
+  - id: power_of_attorney
+    name_zh: 授权委托书
+    name_en: Power of Attorney
+    category: settlement
+    aliases: [power_of_attorney, poa]
+    applicable_when: { all: true }
+
+  - id: trust_deed
+    name_zh: 信托设立契据
+    name_en: Trust Deed
+    category: settlement
+    aliases: [trust_deed, trust_settlement]
+    applicable_when: { deposit_source_includes: [trust] }

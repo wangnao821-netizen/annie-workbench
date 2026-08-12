@@ -1,0 +1,32 @@
+# 每个案件的标准子文件夹（固定 12 个）
+case_subfolders:
+  - "_Inbox"                  # AI 输入口：Vera 把新收到的原始文件放这里
+  - "Send to Lender"
+  - "Send to Infynity"
+  - "Don't send"
+  - "Valuation"
+  - "Approval"
+  - "Discharge"
+  - "Loan Documents"
+  - "Settlement"
+  - "To be signed"
+  - "Internal Compliance"
+  - "Post Settlement care"
+
+# AI 监听的文件夹（输入口，只读）
+ai_watch_folder: "_Inbox"
+
+# V3.0 变更：AI 不写入任何客户文件夹
+# 以下配置保留用于 checklist 比对（只读检查），AI 不做文件操作
+ai_readonly_check_folders:
+  - "Send to Lender"         # checklist 需读取已提交的文件
+  - "Don't send"             # checklist 需读取已整理的文件
+
+# AI 绝对不碰的文件夹（安全红线 — 不读不写）
+# V3.0: 其实 AI 不写任何客户文件夹，此列表仅为明确标记
+protected_folders:
+  - "Send to Lender"
+  - "Send to Infynity"
+
+# 所有客户文件夹对 AI 来说都是只读的
+# AI 只允许写入项目内 data/ 和 logs/ 目录

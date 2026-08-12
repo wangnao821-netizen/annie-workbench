@@ -1,0 +1,27 @@
+# 文件归档路由规则（需求三）
+#
+# 确认归档时决定文件移到案件文件夹内的哪个子目录。
+# - default: 绝大多数文件归到 "Don't send/"
+# - overrides: 特定类型的文件归到其他目录
+# - target: null 表示不移动（留在 _Inbox/）
+#
+# 与 document_types.yaml 的 type key 保持一致。
+# 新增文档类型时，如果需要特殊路由，在此处添加 override。
+
+routing_rules:
+  default: "Don't send"
+  overrides:
+    - document_type: "ValuationReport"
+      target: "Valuation"
+    - document_type: "ApprovalLetter"
+      target: "Approval"
+    - document_type: "ConditionalApproval"
+      target: "Approval"
+    - document_type: "UnconditionalApproval"
+      target: "Approval"
+    - document_type: "SettlementStatement"
+      target: "Settlement"
+    - document_type: "LoanDocument"
+      target: "Loan Documents"
+    - document_type: "Unknown"
+      target: null  # 不移动，留在 _Inbox

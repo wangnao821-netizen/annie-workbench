@@ -1,0 +1,65 @@
+# Checklist category → 接受的文件 assigned_type 列表
+# 用于自动勾选 checklist + 计算 gathering_progress
+#
+# 规则：一个 category 可对应多个 assigned_type（一对多）
+# AI 返回的 assigned_type 若命中此表中任何一项，则视为该 category "已收到"
+
+# Checklist category → 接受的文件 assigned_type 列表
+# 用于自动勾选 checklist + 计算 gathering_progress
+#
+# 规则：一个 category 可对应多个 assigned_type（一对多）
+# AI 返回的 assigned_type 若命中此表中任何一项，则视为该 category "已收到"
+# 注意：category 名称必须与 checklist 表中的 category 字段值完全一致
+
+identity:
+  - "Passport"
+  - "DriverLicense"
+  - "ID Document"
+  - "Visa"
+  - "MedicareCard"
+  - "VOI"
+
+payslip:
+  - "Payslip"
+
+employment_letter:
+  - "EmploymentLetter"
+
+tax_return:
+  - "TaxReturn"
+  - "BAS"
+  - "AccountantLetter"
+
+bank_statement:
+  - "BankStatement"
+  - "UtilityBill"
+
+home_loan_statement:
+  - "HomeLoanStatement"
+
+credit_card_statement:
+  - "CreditCardStatement"
+  - "Credit Card Statement"
+  - "Loan Document"
+
+council_rates:
+  - "CouncilRates"
+
+valuation_report:
+  - "ValuationReport"
+  - "Valuation Report"
+  - "ContractOfSale"
+  - "RentalAgreement"
+  - "RentalStatement"
+  - "InsurancePolicy"
+  - "OccupationCertificate"
+  - "CompletionNotice"
+  - "FloorPlan"
+  - "ArchitecturalPlan"
+
+internal:
+  - "BrokerNotes"
+  - "EquifaxScore"
+  - "ApplicationForm"
+  - "OutstandingQuery"
+  - "ProductComparison"

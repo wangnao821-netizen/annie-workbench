@@ -1,0 +1,42 @@
+# Full Doc 案件所需文件清单
+name: "Full Doc"
+required:
+  identity:
+    - type: "Passport"
+      description: "Valid passport"
+    - type: "DriverLicense"
+      description: "Driver license"
+    - type: "Visa"
+      description: "Visa grant letter (non PR/citizen)"
+      conditional: true
+  income:
+    - type: "Payslip"
+      description: "Latest 2 payslips"
+      min_count: 2
+      max_age_days: 30
+    - type: "EmploymentLetter"
+      description: "Employment confirmation letter"
+    - type: "TaxReturn"
+      description: "Latest 1-2 years Tax Return"
+      min_count: 1
+      conditional: true
+  assets:
+    - type: "BankStatement"
+      description: "Latest 3 months bank statements"
+      max_age_days: 90
+  liabilities:
+    - type: "HomeLoanStatement"
+      description: "Existing home loan statement (if applicable)"
+      conditional: true
+    - type: "CreditCardStatement"
+      description: "Credit card statement (if applicable)"
+      conditional: true
+  property:
+    - type: "ContractOfSale"
+      description: "Contract of Sale (purchase cases)"
+      conditional: true
+    - type: "CouncilRates"
+      description: "Council Rates Notice"
+    - type: "ValuationReport"
+      description: "Property valuation"
+      conditional: true

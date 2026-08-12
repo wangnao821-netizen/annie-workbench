@@ -1,0 +1,32 @@
+# Lite Doc 案件所需文件清单
+name: "Lite Doc"
+required:
+  identity:
+    - type: "Passport"
+      description: "Valid passport"
+    - type: "DriverLicense"
+      description: "Driver license"
+    - type: "Visa"
+      description: "Visa grant letter (non PR/citizen)"
+      conditional: true
+  income:
+    - type: "AccountantLetter"
+      description: "Accountant letter confirming income"
+    - type: "BAS"
+      description: "Business Activity Statements (latest 2 quarters)"
+      min_count: 2
+      conditional: true
+  assets:
+    - type: "BankStatement"
+      description: "Latest 3 months bank statements"
+      max_age_days: 90
+  liabilities:
+    - type: "HomeLoanStatement"
+      description: "Existing home loan statement (if applicable)"
+      conditional: true
+  property:
+    - type: "ContractOfSale"
+      description: "Contract of Sale (purchase cases)"
+      conditional: true
+    - type: "CouncilRates"
+      description: "Council Rates Notice"

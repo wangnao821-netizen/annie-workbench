@@ -1,0 +1,89 @@
+# 阶段信号 → CaseStage 映射配置
+# Phase 2A: Layer 1 仅做信号提取和存储
+# Phase 2B: Layer 2 将使用此配置驱动阶段推进建议
+#
+# target_stage 值必须与 server/schemas.py CaseStage 枚举的 value 完全一致
+
+stage_signals:
+  application_submitted:
+    target_stage: "已递交(等银行)"
+    description: "检测到贷款申请已递交银行"
+    confidence_threshold: 0.8
+    keywords:
+      - "submitted"
+      - "lodged"
+      - "已递交"
+      - "application received"
+
+  bank_mir:
+    target_stage: "银行补件"
+    description: "检测到银行要求补充材料"
+    confidence_threshold: 0.7
+    keywords:
+      - "additional information required"
+      - "outstanding conditions"
+      - "further documentation"
+      - "补件"
+      - "MIR"
+
+  valuation_ordered:
+    target_stage: "估值中"
+    description: "检测到银行已下单估值"
+    confidence_threshold: 0.7
+    keywords:
+      - "valuation ordered"
+      - "valuation booked"
+      - "property inspection"
+      - "估值"
+
+  approved:
+    target_stage: "已批准"
+    description: "检测到银行批准（有条件/无条件）"
+    confidence_threshold: 0.8
+    keywords:
+      - "approved"
+      - "formal approval"
+      - "conditional approval"
+      - "unconditional approval"
+      - "批准"
+
+  settlement_booked:
+    target_stage: "结算中"
+    description: "检测到结算日已预约"
+    confidence_threshold: 0.8
+    keywords:
+      - "settlement booked"
+      - "settlement date"
+      - "ready for settlement"
+      - "结算"
+
+  settled:
+    target_stage: "已结算"
+    description: "检测到已完成结算"
+    confidence_threshold: 0.9
+    keywords:
+      - "settled"
+      - "settlement confirmed"
+      - "funds disbursed"
+      - "已结算"
+
+  declined:
+    target_stage: "已终止"
+    description: "检测到申请被拒/撤回"
+    confidence_threshold: 0.9
+    keywords:
+      - "declined"
+      - "rejected"
+      - "withdrawn"
+      - "拒绝"
+      - "撤回"
+
+  on_hold:
+    target_stage: "暂停中"
+    description: "检测到案件需暂停"
+    confidence_threshold: 0.7
+    keywords:
+      - "on hold"
+      - "paused"
+      - "suspended"
+      - "暂停"

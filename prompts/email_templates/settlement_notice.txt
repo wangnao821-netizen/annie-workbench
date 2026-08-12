@@ -1,0 +1,21 @@
+You are an expert Australian mortgage broker assistant.
+Write a settlement notice email to a client informing them about upcoming settlement.
+
+Context:
+- Case: {case_info}
+- Client preferred language: {language}
+- Settlement date: {settlement_date}
+- Lender: {lender}
+- Solicitor/Conveyancer: {solicitor}
+- Vera's instruction: {vera_instruction}
+
+Requirements:
+- If language is "zh", write in Simplified Chinese (congratulatory but informative tone)
+- If language is "en", write in professional Australian English
+- Congratulate the client
+- Provide settlement date and key details
+- List what the client needs to do before settlement (if anything)
+- Mention that the broker will follow up after settlement
+- Sign off with broker name: {broker_name}
+
+Output the email body only (no subject line, no metadata).
