@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy.orm import Session
 
 from core.ai.case_context import build_case_context
@@ -34,6 +34,9 @@ from server.api.schemas import (
     CaseResponse,
     ContextEventRequest,
     ContextEventResponse,
+    ParseFileResponse,
+    ParseTextRequest,
+    PreFillResponse,
     StageAdvanceRequest,
     SubmissionCheckResponse,
     SupersedeEventRequest,
@@ -315,6 +318,11 @@ def create_case(req: CaseCreateRequest, db: Session = Depends(get_db)):  # noqa:
         submission_platform=req.submission_platform,
         client_goal=req.client_goal,
         special_circumstances=req.special_circumstances,
+        property_value=req.property_value,
+        employment_type=req.employment_type,
+        residency=req.residency,
+        interest_rate=req.interest_rate,
+        is_imported=req.is_imported,
     )
     # ── 其余字段落 Case 表对应列（core 只读不改） ──
     if req.property_value is not None:
@@ -340,6 +348,51 @@ def create_case(req: CaseCreateRequest, db: Session = Depends(get_db)):  # noqa:
     db.commit()
     db.refresh(case)
     return _to_case_detail(case)
+
+
+@router.post("/parse-text", response_model=PreFillResponse)
+def parse_case_text(req: ParseTextRequest, db: Session = Depends(get_db)) -> PreFillResponse:  # noqa: B008
+    """一段话识别预填：返回建档字段 + 规则事实（不建案）。"""
+    from core.facts.prefill import build_prefill_from_text
+    data = build_prefill_from_text(req.raw_text, db)
+    return PreFillResponse(**data)
+
+
+@router.post("/parse-file", response_model=ParseFileResponse)
+async def parse_case_file(
+    file: UploadFile = File(...),  # noqa: B008
+    db: Session = Depends(get_db),  # noqa: B008
+) -> ParseFileResponse:
+    """按需文件提取：Vera 上传单个文件 → 本地解析 → 脱敏提取 → 预填字段。
+
+    红线：文件临时保存到系统临时目录，处理后立即删除；不建索引、不留全量文件数据（#16）。
+    """
+    from core.facts.prefill import build_prefill_from_text
+
+    tmp_path = None
+    try:
+        import tempfile
+        from pathlib import Path
+
+        from core.pipeline.parser import parse_file
+        suffix = Path(file.filename or "upload").suffix or ".pdf"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            tmp.write(await file.read())
+            tmp_path = Path(tmp.name)
+        result = parse_file(tmp_path)
+        text = result.text or ""
+        data = build_prefill_from_text(text[:8000], db)
+        return ParseFileResponse(
+            filename=file.filename or "upload",
+            text_preview=text[:200],
+            prefilled=data["prefilled"],
+            facts=data["facts"],
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"文件解析失败：{exc}") from exc
+    finally:
+        if tmp_path and tmp_path.exists():
+            tmp_path.unlink(missing_ok=True)
 
 
 @router.get("/{case_id}/submission-check", response_model=SubmissionCheckResponse)

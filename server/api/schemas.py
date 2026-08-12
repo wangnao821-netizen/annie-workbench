@@ -131,15 +131,34 @@ class CaseCreateRequest(BaseModel):
     client_phone: str = ""
     raw_text: str = ""
     # ── V5 新增字段（前端 12-4 已扩展） ──
-    property_value: float | None = None          # 房产总价值
+    property_value: float | None = None          # 已有（V5），确认保留
     income_description: str | None = None        # 年收入与职业属性描述
     submission_platform: str | None = None       # 递交平台
-    interest_rate: float | None = None           # 贷款利率 %
+    interest_rate: float | None = None           # 已有，确认透传
     finance_clause_date: str | None = None       # Finance Clause 截止日期（ISO 字符串）
     client_goal: str | None = None               # 客户目标（core 已支持）
     special_circumstances: str | None = None     # 特殊情况（core 已支持）
     is_force_new_client: bool = False            # 同名客户强制新建
     linked_client_id: str | None = None          # 关联历史客户 ID
+    employment_type: str | None = None           # 新增：PAYG | 自雇 | 公司 | 董事
+    residency: str | None = None                 # 新增：citizen | PR | temp_visa | other
+    is_imported: bool = False                    # 新增：存量壳标记（#15）
+
+
+class ParseTextRequest(BaseModel):
+    raw_text: str = Field(..., min_length=1)
+
+
+class PreFillResponse(BaseModel):
+    prefilled: dict = {}   # CaseCreateRequest 字段名 → 值（前端预填表单）
+    facts: list[dict] = [] # 规则锚定事实（bank.lender / stage.current）
+
+
+class ParseFileResponse(BaseModel):
+    filename: str
+    text_preview: str      # 解析文本前 200 字（仅预览，含脱敏后内容）
+    prefilled: dict = {}
+    facts: list[dict] = []
 
 
 class StageAdvanceRequest(BaseModel):

@@ -24,6 +24,7 @@ import re
 import uuid
 from pathlib import Path
 
+import yaml
 from sqlalchemy.orm import Session
 
 from core.logger import get_logger
@@ -36,6 +37,39 @@ def generate_case_id() -> str:
 
 
 logger = get_logger(__name__)
+
+
+# 清单主库 id → category（config/checklist_master.yaml，只读懒加载）
+_MASTER_CATEGORIES: dict[str, str] = {}
+
+
+def _load_master_categories() -> dict[str, str]:
+    """从 config/checklist_master.yaml 按 id 查 category（只读 yaml，不做复杂解析）。"""
+    if not _MASTER_CATEGORIES:
+        path = Path(__file__).resolve().parent.parent / "config" / "checklist_master.yaml"
+        try:
+            data = yaml.safe_load(path.read_text(encoding="utf-8"))
+            _MASTER_CATEGORIES.update(
+                {it["id"]: it.get("category") or "general" for it in data["items"]}
+            )
+        except Exception as exc:  # noqa: BLE001 — 分类映射缺失不阻断建档
+            logger.warning("Failed to load master categories: %s", exc)
+    return _MASTER_CATEGORIES
+
+
+def _map_picked_to_checklist(item: dict) -> dict:
+    """pick_checklist 输出 → save_confirmed_checklist 输入。
+
+    pick: {"id","name_zh","required","reason"}；save: {"item_name","category","is_required","ai_suggestion"}。
+    category 从 config/checklist_master.yaml 按 id 查（item.get("category") 兜底，缺省 "general"）。
+    """
+    category = item.get("category") or _load_master_categories().get(item.get("id")) or "general"
+    return {
+        "item_name": item.get("name_zh") or item.get("item_name"),
+        "category": category,
+        "is_required": bool(item.get("required", True)),
+        "ai_suggestion": item.get("reason"),
+    }
 
 
 # 标准子目录结构（Vera 的工作流要求，固定 12 个）
@@ -92,7 +126,7 @@ def _get_client_files_root(db: Session) -> Path:
         setting = db.query(SystemSetting).filter(SystemSetting.key == "client_files_root").first()
         if setting and setting.value:
             return Path(setting.value)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         logger.debug("Failed to read client_files_root from DB: %s", exc)
 
     root = os.getenv("CLIENT_FILES_ROOT", "")
@@ -167,6 +201,11 @@ def create_case_from_source(
     submission_platform: str | None = None,
     client_goal: str | None = None,
     special_circumstances: str | None = None,
+    property_value: float | None = None,
+    employment_type: str | None = None,
+    residency: str | None = None,
+    interest_rate: float | None = None,
+    is_imported: bool = False,
 ) -> Case:
     """统一建案入口 — 所有建案流程汇入此处。"""
     # 1. Generate case_id
@@ -226,13 +265,14 @@ def create_case_from_source(
         client_phone=client_phone,
         broker_name=broker_name,
         loan_amount=loan_amount,
-        property_value=0,
-        lvr=0,
+        property_value=property_value or 0,
+        lvr=round(loan_amount / property_value * 100, 1)
+            if (loan_amount and property_value) else 0,
         purpose=purpose,
         lender=lender,
         lender_ref=lender_ref,
-        employment_type=None,
-        residency=None,
+        employment_type=employment_type,
+        residency=residency,
         stage="收集资料",
         folder_path=folder_path,
         is_urgent=0,
@@ -240,6 +280,8 @@ def create_case_from_source(
         submission_platform=submission_platform,
         client_goal=client_goal,
         special_circumstances=special_circumstances,
+        interest_rate=str(interest_rate) if interest_rate is not None else None,
+        is_imported=is_imported,
     )
     db.add(case)
 
@@ -263,14 +305,31 @@ def create_case_from_source(
             msg.assigned_by = "vera"
 
     db.commit()
+
+    # 建档即预选清单（#13 配套②）：银行+收入类型 → pick_checklist（规则预选，不调 LLM）
+    try:
+        from core.checklist.generator import save_confirmed_checklist
+        from core.checklist.master_picker import pick_checklist
+        picked = pick_checklist(
+            {"lender": lender or "CBA", "employment_type": employment_type or "PAYG",
+             "residency": residency or "PR", "purpose": purpose or "Purchase"},
+            db,
+            use_ai=False,
+        )
+        if picked:
+            mapped = [_map_picked_to_checklist(it) for it in picked]
+            save_confirmed_checklist(case_id, mapped, db)
+    except Exception as exc:  # noqa: BLE001 — 清单预选失败不阻断建档
+        logger.warning("Checklist pre-selection failed for %s: %s (non-fatal)", case_id, exc)
+
     db.refresh(case)
 
     # 7. Store in Mem0 (desensitized by remember()) — non-fatal
     if raw_text:
         try:
             # TODO: memory 接口对齐 # remember
-            remember(case_id, raw_text, db)
-        except Exception as exc:
+            remember(case_id, raw_text, db)  # noqa: F821
+        except Exception as exc:  # noqa: BLE001
             logger.warning("Mem0 storage failed for %s: %s (non-fatal)", case_id, exc)
 
     # 8. AI prefill Case Brain (non-blocking)
@@ -278,7 +337,7 @@ def create_case_from_source(
         try:
             from core.ai.context_builder import prefill_case_brain_from_text
             prefill_case_brain_from_text(case_id, raw_text, db)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             logger.warning("AI prefill case brain failed for %s: %s (non-fatal)", case_id, exc)
 
     logger.info(
