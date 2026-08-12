@@ -13,8 +13,8 @@
 | F-1 | 三栏骨架：左栏案件列表 + 中栏 BrainChat + 右栏客户全景，AI 从悬浮球变主角 | ✅ 已交付（vera-工作台 (24)），待真机运行验收 |
 | F-2 | 中栏实化：确认记录交互（低置信确认卡 + "已记录 N 条 [查看]" + 逐条撤销） | ✅ 已交付（vera-工作台 (25)），待真机运行验收 |
 | F-2b | 中栏：草稿卡 + 递交模式横幅（依赖后端对话协议 WO-16） | 待出 |
-| F-3 | 右栏实化：事实卡（BrainFact）/补全进度灰提示/track 切换（依赖 WO-15 ✅） | 已出（下文） |
-| F-3b | 右栏待办卡（任务引擎待办 + AI 建议待确认，依赖 tasks 端点契约确认） | 待出 |
+| F-3 | 右栏实化：事实卡（BrainFact）/补全进度灰提示（依赖 WO-15 ✅） | 已出（下文） |
+| F-3b | 右栏：递交模式联动外线视图 + 待办卡（依赖模式状态 store / tasks 契约） | 待出 |
 | F-4 | Apple 风格动画与材质打磨 + 次级入口收尾 | 待出 |
 
 > ✅ **已定稿（2026-08-12）**：在现有 `ui/vera-工作台 (23)` 基础上**增量改造**（换壳不换内脏）——
@@ -286,21 +286,25 @@ src/stores/uiStore.ts
 
 ---
 
-## 批 F-3：右栏客户全景实化（事实卡 + 补全进度 + track 切换）
+## 批 F-3：右栏客户全景实化（事实卡 + 补全进度）
 
-> 配对后端 **WO-15 BrainFact**（GET /api/cases/{id}/facts 已就绪）。待办卡（任务引擎 + AI 建议）拆到 F-3b（需先确认 tasks 端点契约），本批不做。
+> 配对后端 **WO-15 BrainFact**（GET /api/cases/{id}/facts 已就绪）。待办卡拆到 F-3b（需先确认 tasks 端点契约）；**递交模式联动外线视图拆到 F-3b**（需模式状态 store，F-2b 建立）——右栏 V1 固定内线视图，不做常驻内外线切换（#9 定稿：内外线是**中栏递交模式**的横幅交互，不是右栏手动切换）。
 
 ### 提示词正文（复制给 AI Studio）
 
 ```
-# 任务：Vera Workbench — F-3 右栏客户全景实化（事实卡 + 补全进度 + track 切换）
+# 任务：Vera Workbench — F-3 右栏客户全景实化（事实卡 + 补全进度）
 
 ## 背景
 在 F-1/F-2（ui/vera-工作台 (25)）基础上，实化右栏 CasePanorama：
 ① 从 GET /api/cases/{id}/facts 加载当前有效 BrainFact，按类别分组渲染为事实卡；
-② 顶部加 internal/external 双线切换（切换时 context 与 facts 同步重拉）；
-③ 显示"补全进度"灰提示（缺收入/就业/负债/身份等关键类时，灰色一行，不打扰）。
+② 显示"补全进度"灰提示（缺收入/就业/负债/身份等关键类时，灰色一行，不打扰）。
 时间线、记一笔、刷新按钮保留（复用现有 OverviewTimeline / context 加载逻辑）。
+
+## 内外线说明（重要）
+右栏 V1 **固定内线视图**（track="internal"，只显示真实情况），不做常驻内外线切换按钮。
+递交模式（外线视图）由**中栏 BrainChat 的递交模式横幅**（F-2b）激活后联动切换，本批不做。
+API 的 track 参数保留（listBrainFacts 已支持），为 F-3b 联动预留，本批调用时固定传 internal。
 
 ## 技术约束
 - 前端：TypeScript strict / React 18 / Vite / Tailwind CSS / motion/react（现有版本）
@@ -317,7 +321,7 @@ src/stores/uiStore.ts
 | src/services/api/cases.ts | 修改：新增 listBrainFacts |
 | src/components/brain/FactCard.tsx | 新建：单条事实卡 |
 | src/components/brain/CompletionHint.tsx | 新建：补全进度灰提示 |
-| src/components/brain/CasePanorama.tsx | 修改：事实卡区 + track 切换 + 补全进度挂载 |
+| src/components/brain/CasePanorama.tsx | 修改：事实卡区 + 补全进度挂载（track 固定 internal） |
 
 ⚠️ 严禁修改上表以外的文件。严禁删除/重命名现有文件。严禁改动后端。
 
@@ -354,8 +358,7 @@ src/stores/uiStore.ts
    - props: `{ missingCategories: string[] }`
    - 无缺失 → 渲染 null；有缺失 → 一行灰色提示："补全进度：还缺 收入、签证、负债"（muted 小字，非红色、不弹窗、可点击展开说明）
 5. CasePanorama.tsx 修改（只加不改既有逻辑）：
-   - 新增 `const [track, setTrack] = useState<'internal' | 'external'>('internal')`；顶部渲染双线切换（两个 pill 按钮：内线 / 递交线，选中态 accent）
-   - track 变化时：context 加载（现有 getCaseContext）与 facts 加载（listBrainFacts(caseId, {track})）同步重拉
+   - **不做内外线切换 UI**：本批 track 固定 `'internal'`（context 走现有 getCaseContext 默认值，facts 调 `listBrainFacts(caseId, { track: 'internal' })`）；注释标明"递交模式联动外线视图留 F-3b（模式状态 store 就绪后接入）"
    - 事实卡区：facts 按 category 分组，组标题用中文映射：
      identity→身份 / income→收入 / employment→就业 / property→房产 / loan→贷款 /
      liability→负债 / bank→银行 / stage→阶段 / commitment→承诺 / disclosure→披露 / special→特殊情况
@@ -379,7 +382,7 @@ src/stores/uiStore.ts
 - [ ] 新建 src/components/brain/CompletionHint.tsx（契约第 4 条）
 
 ### Step 4：CasePanorama 实化
-- [ ] src/components/brain/CasePanorama.tsx：track 状态 + 切换 UI + 事实分组 + 补全进度挂载（契约第 5 条）
+- [ ] src/components/brain/CasePanorama.tsx：事实分组 + 补全进度挂载（track 固定 internal，不做切换 UI）（契约第 5 条）
 
 ### Step 5：验证
 - [ ] npx tsc --noEmit → 零错误
@@ -389,7 +392,7 @@ src/stores/uiStore.ts
 1. 打开某案件 → 右栏显示事实卡分组（银行/阶段/收入等按需），无空组
 2. 有冲突事实 → 该卡片显示 ⚠️ 角标
 3. 缺收入/负债的客户 → 顶部一行灰色"补全进度：还缺 收入、负债"（不红、不弹窗）
-4. 切换"内线/递交线" → 事实卡与摘要（memory）同步切换，external 下不出现 internal_notes 类内容
+4. 右栏**无内外线切换按钮**（V1 固定内线视图）；external 内容不出现在右栏（红线）
 5. 全局咨询（无案件）→ 右栏空态，不报错
 6. mock 分支：显示 2-3 张事实卡（含 1 张冲突）+ 补全提示
 7. 折叠按钮仍可用；动画顺滑可中断；prefers-reduced-motion 生效
