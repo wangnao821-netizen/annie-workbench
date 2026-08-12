@@ -92,6 +92,7 @@
   - **撤销/纠正** → 不物理删除（账本不可变红线），写 superseded 事件指向旧事件；新事实替代旧事实，旧事实可审计可恢复；
   - **status 与 track 正交**：pending/confirmed 跟随 internal/external 双线；
   - 蒸馏/全景/BrainFact 只从 confirmed 事件重建，pending 不参与（隔离"AI 猜测"与"Vera 确认的事实"）。
+- **✅ 施工完成（2026-08-12，WO-14）**：迁移 `b4e1c9d2f7a3`（case_context_events 加 status/superseded_by/supersede_reason，历史行默认 confirmed）；蒸馏只从 confirmed 重建；3 端点（列表 status/track 过滤、confirm 幂等、supersede 审计撤销，404/409/422 全覆盖）；全量 pytest **464 passed**（基线 455 + 新增 9，零回归）。
 
 ### 7. 对话记录 ↔ 事实的衍生关系
 
