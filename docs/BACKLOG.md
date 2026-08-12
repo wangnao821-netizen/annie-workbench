@@ -81,6 +81,7 @@
 - 收口：22 项缺口 + 微信通道（#23）全部定稿（2026-08-12，见 docs/CASE大脑_V1缺口与待讨论清单.md）
 - git：D:\vera-workbench 已初始化 + 基线提交 `1e2b10a`（435 文件）✅；前端交付流程 = commit + diff 对比
 - 双 data 目录：`core/data/assistant.db` 唯一真源 ✅（测试库已快照归档 `core/data/backups/legacy/`；根库原文件待后端重启后归档）
+- 后端：**WO-13 收口施工单 ✅**（统计时区 Australia/Sydney + alembic URL `%(here)s` 加固 + 双库启动自检；env.py 日志器隐患修复；pytest 455/0）
 - 前端：批 1-12 + 批 A/B/C/C-2/C-3/D-1/D-2/E-1 全部完成 + **F-1 三栏骨架已交付（ui/vera-工作台 (24)，2026-08-12，待真机验收）**（AI Studio 线维护）
 - 联调：后端 + 前端已在本地跑通（8000/3000）；已修复：id/case_id、datetime naive、SSE payload、草稿 404、设置页离线误报、案件下拉遮挡、邮件附件预览、客户全景同源
 
@@ -153,9 +154,9 @@
 - **onboarding 三处降级**：✅ 已补齐（core/context/accumulator.py + core/ai/knowledge_base.py + core/strategy/strategy.py）
 - **alembic 迁移链**：✅ 基线迁移已建（core/migrations/versions/21c956b3c777）；create_all 作为空库/异常兜底保留
 - **alembic 双保险清理**：✅ 已收口（create_all 兜底移除，alembic 唯一建表路径；遗留库 stamp head；_sync_missing_columns 保留为兼容层）
-- **统计时区（#17）**：UTC → Australia/Sydney（bucketing 配置化 + 跨日边界测试）——施工单
-- **根 alembic.ini（#20）**：`sqlalchemy.url` 改指 core 库，避免 `alembic upgrade head` 误迁根库——施工单
-- **启动自检（#20）**：init_sa_tables 检测双库并存/路径漂移 → 警告——施工单
+- **统计时区（#17）**：✅ WO-13 完成——UTC → Australia/Sydney（ANALYTICS_TZ 可覆盖 + 跨日边界测试）
+- **根 alembic.ini / core/alembic.ini（#20）**：✅ WO-13 完成——`%(here)s` 加固，URL 不依赖 CWD，均指向 core 库
+- **启动自检（#20）**：✅ WO-13 完成——init_sa_tables 检测双库并存/路径漂移 → 警告；附修复 env.py `disable_existing_loggers` 生产隐患
 - **根库归档（#20 执行中）**：后端重启后把根 data/assistant.db + wal/shm 移入 core/data/backups/legacy/（届时提醒）
 - **附录 A（#5）**：BrainFact 词表 43 key 草案待 Vera 过目确认
 - **POST /api/tasks/ 是联调临时端点**：正式任务创建应由业务流触发（WO-09 建案→首批任务卡），届时评估保留/移除

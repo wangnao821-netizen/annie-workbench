@@ -248,6 +248,7 @@
 - **✅ 已定稿（2026-08-12）— 直接修 Australia/Sydney，配置化**：
   - 统计分桶时区改为 Australia/Sydney（bucketing 层配置项，不硬编码）；补跨日边界测试（悉尼 0 点 vs UTC 14:00）；
   - 低成本高价值，并入后端施工单。
+- **✅ 施工完成（2026-08-12，WO-13）**：bucketing 已改 Australia/Sydney（`ANALYTICS_TZ` 可覆盖），跨日边界断言实测一致；全量 pytest **455 passed**（基线 450 + 新增 5）。
 
 ---
 
@@ -297,8 +298,9 @@
 - **✅ 执行状态（2026-08-12）**：
   - 测试数据快照已归档：`core/data/backups/legacy/root_data_assistant_test_2026-08-12.db`（1 案件 + 2 action + 1 事件 + 1 pii_map，已验证可恢复）；
   - `run_backend.py` 已修正 → `LOAN_ASSISTANT_DB_PATH = core/data/assistant.db`（下次重启后端生效；core 库沙箱外实测可正常打开 27 表）；
-  - 根库原文件（assistant.db/wal/shm）当前被运行中的后端占用，**待下次重启后移入 `core/data/backups/legacy/`**（届时提醒）；
+  - 根库原文件（assistant.db/wal/shm）已移入 `core/data/backups/legacy/`（连同快照，双重保留可恢复）；
   - 施工单：启动自检（双库并存 → 警告）+ 根 `alembic.ini` url 改指 core 库。
+- **✅ 施工完成（2026-08-12，WO-13）**：根 `alembic.ini` / `core/alembic.ini` 已用 `%(here)s` 加固（URL 不再依赖 CWD）；启动自检 `_warn_on_dual_data_dirs` 已落地；附带修复 `env.py` `disable_existing_loggers` 生产隐患（alembic 曾禁用全部应用 logger）；全量 pytest **455 passed**。根库原文件已随后端停机归档完成。
 
 ### 21. 验收指标怎么测
 
