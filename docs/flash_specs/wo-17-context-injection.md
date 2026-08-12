@@ -262,8 +262,8 @@ def get_usage(db: Session, granularity: str) -> dict:
     """当前 vs 上期两桶用量聚合（#21 质量信号：corrected_count = superseded 事件数）。"""
     a, b = buckets_since(granularity, 2)
     return {
-        "current": _period(db, a),
-        "previous": _period(db, b),
+        "current": _period(db, b),    # buckets_since 返回旧→新，末尾=当前周期
+        "previous": _period(db, a),
     }
 
 
