@@ -62,7 +62,8 @@ def _to_local(dt: datetime, tz: str | None = None) -> datetime:
 
 1. `period_key(dt, granularity)`：第一行 `dt = _set_utc(dt)` → `dt = _to_local(dt)`；docstring"naive 时间按 UTC 处理"改为"naive 时间按 UTC 解释后转换到 ANALYTICS_TZ（默认 Australia/Sydney）"。
 2. `_bucket_start(dt, granularity)`：第一行 `dt = _set_utc(dt)` → `dt = _to_local(dt)`；docstring"（UTC，日级午夜对齐）"改为"（本地时区，日级午夜对齐）"。
-3. `buckets_since(granularity, n, now=None)`：`first = _bucket_start(_set_utc(now or datetime.now(UTC)), granularity)` → `first = _bucket_start(_to_local(now or datetime.now(UTC)), granularity)`。
+3. `buckets_since(granularity, n, now=None)`：`first = _bucket_start(_set_utc(now or datetime.now(UTC)), granularity)` → `first = _bucket_start(now or datetime.now(UTC), granularity)`。
+   > ⚠️ 注意：**不要**在传给 `_bucket_start` 前预转换 `_to_local(...)`——`_bucket_start` 内部已做时区转换，预转换会造成"双重转换"（悉尼本地时间再被当 UTC 平移 +10h，跨到次日），导致 `test_buckets_since_uses_sydney_midnight` 失败。正确语义：`_bucket_start` 接收原始 now（naive 按 UTC 解释 / aware 直接转换），在本地时区上做午夜对齐。
 4. 文件顶部 docstring"时间分桶助手 — 天 / 周 / 月分组（UTC）"改为"时间分桶助手 — 天 / 周 / 月分组（默认 Australia/Sydney，ANALYTICS_TZ 可覆盖）"。
 5. `_shift` 与 `_bucket_start` 其余逻辑**零改动**（`_shift` 在本地 naive 时间上做日历运算，语义不变）。
 
