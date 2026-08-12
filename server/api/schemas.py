@@ -170,13 +170,23 @@ class BossReplyRequest(BaseModel):
     note: str = ""
 
 
+class ToolCard(BaseModel):
+    """结构化工具卡（前端只渲染，不执行）。"""
+    type: Literal["record_confirm", "draft", "submission_suggest", "flow"]
+    title: str
+    payload: dict  # 结构见契约说明
+
+
 class ChatRequest(BaseModel):
     message: str
     case_id: str | None = None
+    track: Literal["internal", "external"] = "internal"  # 对话轨道（递交模式=external）
 
 
 class ChatResponse(BaseModel):
     reply: str
+    tool_cards: list[ToolCard] = []
+    recorded_facts: list[dict] = []        # [{event_id, content, status:"confirmed"}]
     suggested_actions: list[str] = []
 
 

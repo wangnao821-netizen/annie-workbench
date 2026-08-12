@@ -1,0 +1,99 @@
+"""对话工具白名单 — V1 两个工具：record_fact / suggest_submission。"""
+
+from __future__ import annotations
+
+from sqlalchemy.orm import Session
+
+from core.context.accumulator import append_context_event
+from core.logger import get_logger
+
+logger = get_logger(__name__)
+
+TOOL_SCHEMAS: list[dict] = [
+    {
+        "type": "function",
+        "function": {
+            "name": "record_fact",
+            "description": (
+                "把用户确认的事实记录进案件账本。"
+                "金额/日期/银行名/明确姓名等无歧义信息 confidence=high 直接记录；"
+                "判断性、模糊或需要 VERA 确认的信息 confidence=low 进入待确认。"
+                "只在案件对话中使用。"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "content": {"type": "string", "description": "要记录的事实原文（中文）"},
+                    "confidence": {"type": "string", "enum": ["high", "low"]},
+                },
+                "required": ["content", "confidence"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "suggest_submission",
+            "description": "检测到用户要写银行邮件/递交材料/翻译外线内容时调用，提示进入递交模式。",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+]
+
+
+def execute_tool(
+    name: str,
+    arguments: dict,
+    case_id: str,
+    track: str,
+    db: Session,
+) -> dict:
+    """白名单工具执行（V1 只允许 TOOL_SCHEMAS 内名称）。
+
+    Args:
+        name: 工具名（record_fact | suggest_submission）。
+        arguments: 工具参数（LLM 生成，已处脱敏环境）。
+        case_id: 案件 ID（全局对话为空串）。
+        track: internal | external。
+        db: SQLAlchemy session。
+
+    Returns:
+        结构化结果（回注给 LLM / 生成卡片）。
+    """
+    if name == "record_fact":
+        return _record_fact(arguments, case_id, track, db)
+    if name == "suggest_submission":
+        return {"suggest": True}
+    return {"ok": False, "error": f"unknown tool: {name}"}
+
+
+def _record_fact(arguments: dict, case_id: str, track: str, db: Session) -> dict:
+    """record_fact 实现：高置信直接 confirmed，低置信 pending（#6）。"""
+    if not case_id:
+        return {"ok": False, "error": "全局对话禁止写事实"}
+    content = str(arguments.get("content", "")).strip()
+    if not content:
+        return {"ok": False, "error": "content 不能为空"}
+    confidence = arguments.get("confidence", "low")
+    status = "confirmed" if confidence == "high" else "pending"
+    try:
+        event = append_context_event(
+            case_id=case_id,
+            source_type="manual_note",
+            content=content,
+            db=db,
+            trigger_distill=status == "confirmed",
+            track=track,
+            status=status,
+        )
+        return {
+            "ok": True,
+            "event_id": event.id,
+            "status": event.status,
+            "content": event.content,
+            "source_type": event.source_type,
+            "track": event.track,
+        }
+    except Exception as exc:  # noqa: BLE001 — 工具失败不阻断对话
+        logger.warning("record_fact failed: %s", exc)
+        return {"ok": False, "error": str(exc)}
