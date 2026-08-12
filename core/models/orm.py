@@ -689,3 +689,24 @@ class ImportRecord(Base):  # type: ignore[misc]
     started_at = Column(DateTime, nullable=True)
     finished_at = Column(DateTime, nullable=True)
     note = Column(Text, nullable=True)
+
+
+class AiUsageLog(Base):  # type: ignore[misc]
+    """AI 调用用量日志（#8 测量工具：token/费用/延迟/缓存命中率）。"""
+
+    __tablename__ = "ai_usage_log"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    case_id = Column(String, nullable=True, index=True)   # 全局对话为 NULL
+    scope = Column(String, nullable=False, default="case")  # case | global
+    track = Column(String, nullable=False, default="internal")  # internal | external
+    provider = Column(String, nullable=False)               # deepseek | gemini | ...
+    model = Column(String, nullable=True)
+    prompt_tokens = Column(Integer, default=0)
+    completion_tokens = Column(Integer, default=0)
+    prompt_cache_hit_tokens = Column(Integer, default=0)    # DeepSeek usage.prompt_cache_hit_tokens
+    prompt_cache_miss_tokens = Column(Integer, default=0)
+    cost_usd = Column(Float, default=0.0)
+    latency_ms = Column(Integer, default=0)
+    layer_names = Column(Text, nullable=True)               # JSON 数组，如 ["role","case_brain","team","live","dialogue"]
+    created_at = Column(DateTime, default=datetime.utcnow)

@@ -23,8 +23,8 @@ from openai import (
 
 from core.config import ConfigLoader
 from core.logger import get_logger
-from core.pii.leak_detector import PiiLeakDetector
 from core.models.types import DesensitizedText
+from core.pii.leak_detector import PiiLeakDetector
 
 logger = get_logger(__name__)
 
@@ -39,6 +39,8 @@ class ApiCallResult:
     latency_ms: int
     provider_used: str = ""
     tool_calls: list[dict] | None = None    # 新增：LLM 返回的 function calls
+    prompt_cache_hit_tokens: int = 0        # 新增：DeepSeek 缓存命中输入 token
+    prompt_cache_miss_tokens: int = 0       # 新增：未命中输入 token
 
 
 _USAGE = {"calls": 0, "prompt_tokens": 0, "completion_tokens": 0, "cost_usd": 0.0}
@@ -95,6 +97,14 @@ class ApiGateway:
                 # Fallback key missing — not fatal, just no fallback available
                 logger.warning("Fallback provider unavailable: %s", e)
 
+        self._providers: dict[str, tuple] = {
+            self._primary_name: (self._primary_client, self._primary_model, self._primary_name),
+        }
+        if self._fallback_client:
+            self._providers[self._fallback_name] = (
+                self._fallback_client, self._fallback_model, self._fallback_name,
+            )
+
     def _build_client(self, provider_config) -> tuple[OpenAI, str, str]:
         """Create an OpenAI-compatible client for a provider config.
 
@@ -137,6 +147,7 @@ class ApiGateway:
         system_prompt: str = "You are a helpful assistant.",
         tools: list[dict] | None = None,        # <-- 新增
         tool_choice: str | None = None,          # <-- 新增 "auto" | "none" | "required"
+        prefer_provider: str | None = None,      # 新增：模型路由（#10）优先 provider
     ) -> ApiCallResult:
         """Call the LLM with strict safety checks and automatic fallback.
 
@@ -173,13 +184,7 @@ class ApiGateway:
             raise SafetyViolationError("Payload contains PII") from e
 
         # Try primary, then fallback on retriable errors
-        providers = [
-            (self._primary_client, self._primary_model, self._primary_name),
-        ]
-        if self._fallback_client:
-            providers.append(
-                (self._fallback_client, self._fallback_model, self._fallback_name)
-            )
+        providers = self._ordered_providers(prefer_provider)
 
         last_error: Exception | None = None
         for client, model, provider_name in providers:
@@ -204,12 +209,20 @@ class ApiGateway:
                 )
                 last_error = e
                 continue
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — provider 失败进入下一个 fallback
                 logger.error("Unexpected error from %s: %s", provider_name, e)
                 last_error = e
                 continue
 
         raise LLMError(f"All providers failed. Last error: {last_error}") from last_error
+
+    def _ordered_providers(self, prefer_provider: str | None) -> list[tuple]:
+        """模型路由（#10）：prefer 的 provider 排最前，其余按原序作 fallback。"""
+        if not prefer_provider or prefer_provider not in self._providers:
+            return list(self._providers.values())
+        preferred = self._providers[prefer_provider]
+        others = [v for k, v in self._providers.items() if k != prefer_provider]
+        return [preferred, *others]
 
     def _do_call(
         self,
@@ -246,6 +259,9 @@ class ApiGateway:
         # Default usage if none provided by API
         p_tokens = usage.prompt_tokens if usage else 0
         c_tokens = usage.completion_tokens if usage else 0
+
+        p_cache_hit = int(getattr(usage, "prompt_cache_hit_tokens", 0) or 0)
+        p_cache_miss = int(getattr(usage, "prompt_cache_miss_tokens", 0) or 0)
 
         # Simple cost estimation (approximate tier pricing)
         # Gemini Flash: ~$0.075/1M input, ~$0.30/1M output
@@ -284,4 +300,6 @@ class ApiGateway:
             latency_ms=latency_ms,
             provider_used=provider_name,
             tool_calls=parsed_calls,
+            prompt_cache_hit_tokens=p_cache_hit,
+            prompt_cache_miss_tokens=p_cache_miss,
         )

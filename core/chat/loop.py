@@ -6,11 +6,12 @@ import json
 
 from sqlalchemy.orm import Session
 
-from core.ai.context_builder import assemble_context
-from core.ai.gateway import ApiGateway
+from core.ai.gateway import ApiCallResult, ApiGateway
+from core.chat.context import build_chat_layers
 from core.chat.tools import TOOL_SCHEMAS, execute_tool
 from core.config import get_config
 from core.logger import get_logger
+from core.models.orm import AiUsageLog
 from core.models.types import DesensitizedText
 from core.pii.gateway import desensitize, rehydrate
 
@@ -37,20 +38,16 @@ def run_chat_with_tools(
     """
     scope = case_id or "system"
     safe_message = desensitize(message, scope, db)
-    if case_id:
-        ctx = assemble_context(case_id, "case_chat", db, extra_data=safe_message)
-        base_prompt = (
-            f"{ctx.role_prompt}\n\n【团队经验】\n{ctx.team_experience}\n\n"
-            f"【案件大脑】\n{ctx.case_brain}\n\n【实时数据】\n{ctx.live_data}"
-        )
-    else:
-        base_prompt = _SYSTEM_PROMPT
+    layers = build_chat_layers(case_id, safe_message, track, db)
+    base_prompt = "\n\n".join(f"【{layer}】\n{text}" for layer, text in ((l["layer"], l["text"]) for l in layers))
 
     tool_choice = "auto" if case_id else "none"
     messages: list[dict] = []          # 追加轮次的对话消息（tool 回注）
     tool_cards: list[dict] = []
     recorded_facts: list[dict] = []
     gw = ApiGateway(get_config())
+    prefer_provider = "gemini" if track == "external" else None   # 递交模式英文草稿 Gemini 优先
+    layer_names = [l["layer"] for l in layers]
 
     for _round in range(MAX_TOOL_ROUNDS):
         prompt = base_prompt + "\n\n" + _format_tool_round(messages)
@@ -60,7 +57,9 @@ def run_chat_with_tools(
             system_prompt=_SYSTEM_PROMPT,
             tools=TOOL_SCHEMAS if case_id else None,
             tool_choice=tool_choice,
+            prefer_provider=prefer_provider,
         )
+        _log_usage(db, case_id, track, result, layer_names)
         if not result.tool_calls:
             reply = rehydrate(result.response_text, scope, db)
             return {"reply": reply, "tool_cards": tool_cards, "recorded_facts": recorded_facts}
@@ -76,6 +75,28 @@ def run_chat_with_tools(
         "tool_cards": tool_cards,
         "recorded_facts": recorded_facts,
     }
+
+
+def _log_usage(db, case_id, track, result: ApiCallResult, layer_names: list[str]) -> None:
+    """写 ai_usage_log（token/费用/延迟/缓存命中率）。失败仅 warning，不阻断对话。"""
+    try:
+        db.add(AiUsageLog(
+            case_id=case_id,
+            scope="case" if case_id else "global",
+            track=track,
+            provider=result.provider_used,
+            model=getattr(result, "model_used", None),
+            prompt_tokens=result.prompt_tokens,
+            completion_tokens=result.completion_tokens,
+            prompt_cache_hit_tokens=result.prompt_cache_hit_tokens,
+            prompt_cache_miss_tokens=result.prompt_cache_miss_tokens,
+            cost_usd=result.cost_usd,
+            latency_ms=result.latency_ms,
+            layer_names=json.dumps(layer_names, ensure_ascii=False),
+        ))
+        db.commit()
+    except Exception:  # 用量记录失败不阻断对话
+        logger.warning("failed to write ai_usage_log", exc_info=True)
 
 
 def _format_tool_round(messages: list[dict]) -> str:

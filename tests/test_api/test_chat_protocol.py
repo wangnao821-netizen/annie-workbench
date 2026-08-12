@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 from fastapi.testclient import TestClient
 
 from core.ai.gateway import ApiCallResult, ApiGateway
-from core.models.orm import Case, CaseChatMessage, CaseContextEvent
+from core.models.orm import AiUsageLog, Case, CaseChatMessage, CaseContextEvent
 from server.deps import get_db
 from server.main import app
 
@@ -185,3 +187,31 @@ class TestToolLoop:
         assert [r.role for r in rows] == ["user", "assistant"]
         assert rows[0].content == "你好"
         assert rows[1].content == "案件对话回复。"
+
+    def test_chat_writes_usage_log(self, client, test_db, monkeypatch):
+        _add_case(test_db, "UL-1")
+        _install_fake(monkeypatch, [
+            ApiCallResult(
+                response_text="案件对话回复。",
+                prompt_tokens=120,
+                completion_tokens=40,
+                cost_usd=0.001,
+                latency_ms=321,
+                provider_used="deepseek",
+                prompt_cache_hit_tokens=90,
+                prompt_cache_miss_tokens=30,
+            ),
+        ])
+        resp = client.post("/api/chat", json={"case_id": "UL-1", "message": "你好"})
+        assert resp.status_code == 200
+        rows = test_db.query(AiUsageLog).filter(AiUsageLog.case_id == "UL-1").all()
+        assert len(rows) == 1
+        row = rows[0]
+        assert row.scope == "case"
+        assert row.track == "internal"
+        assert row.provider == "deepseek"
+        assert row.prompt_tokens == 120
+        assert row.completion_tokens == 40
+        assert row.prompt_cache_hit_tokens == 90
+        assert row.prompt_cache_miss_tokens == 30
+        assert json.loads(row.layer_names) == ["role", "case_brain", "team", "live", "dialogue"]

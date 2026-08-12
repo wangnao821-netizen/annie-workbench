@@ -377,3 +377,20 @@ class AnalyticsEfficiencyResponse(BaseModel):
     granularity: Literal["day", "week", "month"]
     current: AnalyticsEfficiencyMetrics
     previous: AnalyticsEfficiencyMetrics
+
+
+class UsagePeriod(BaseModel):
+    calls: int = 0
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    prompt_cache_hit_tokens: int = 0
+    prompt_cache_miss_tokens: int = 0
+    cache_hit_rate: float | None = None
+    cost_usd: float = 0.0
+    avg_latency_ms: float | None = None
+    corrected_count: int = 0
+
+
+class AnalyticsUsageResponse(BaseModel):
+    current: UsagePeriod
+    previous: UsagePeriod

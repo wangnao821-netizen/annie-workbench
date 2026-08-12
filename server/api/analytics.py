@@ -3,18 +3,23 @@
 - overview / efficiency：current vs previous 周期对比
 - pipeline：趋势序列（含 commission / amount）
 - lenders：当前周期银行维度统计
+- usage：AI 用量测量（token/费用/延迟/缓存命中率）
 所有统计复用 core.analytics 纯查询逻辑，无副作用。
 """
+
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from core.analytics import get_efficiency, get_lenders, get_overview, get_pipeline
+from core.analytics.usage import get_usage
 from server.api.schemas import (
     AnalyticsEfficiencyResponse,
     AnalyticsLendersResponse,
     AnalyticsOverviewResponse,
     AnalyticsPipelineResponse,
+    AnalyticsUsageResponse,
 )
 from server.deps import get_db
 
@@ -82,3 +87,13 @@ def analytics_efficiency(
     """最近两个周期（current / previous）的作业效率对比。"""
     _check_granularity(granularity)
     return AnalyticsEfficiencyResponse(**get_efficiency(db, granularity))
+
+
+@router.get("/usage", response_model=AnalyticsUsageResponse)
+def analytics_usage(
+    granularity: Literal["day", "week", "month"] = "day",
+    db: Session = Depends(get_db),  # noqa: B008
+) -> AnalyticsUsageResponse:
+    """AI 用量测量（当前 vs 上期；含缓存命中率与纠正次数）。"""
+    data = get_usage(db, granularity)
+    return AnalyticsUsageResponse(**data)
