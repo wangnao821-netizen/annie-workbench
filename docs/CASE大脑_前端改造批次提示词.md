@@ -12,7 +12,7 @@
 |------|------|------|
 | F-1 | 三栏骨架：左栏案件列表 + 中栏 BrainChat + 右栏客户全景，AI 从悬浮球变主角 | ✅ 已交付（vera-工作台 (24)），待真机运行验收 |
 | F-2 | 中栏实化：确认记录交互（低置信确认卡 + "已记录 N 条 [查看]" + 逐条撤销） | ✅ 已交付（vera-工作台 (25)），待真机运行验收 |
-| F-2b | 中栏：草稿卡 + 递交模式横幅（依赖后端对话协议 WO-16） | 待出 |
+| F-2b | 中栏：递交模式横幅 + 建议卡 + 草稿卡骨架（依赖 WO-16 ✅；draft 真实数据等 WO-18） | 已出（下文） |
 | F-3 | 右栏实化：事实卡（BrainFact）/补全进度灰提示（依赖 WO-15 ✅） | ✅ 已交付（vera-工作台 (26)），待真机运行验收 |
 | F-3b | 右栏：递交模式联动外线视图 + 待办卡（依赖模式状态 store / tasks 契约） | 待出 |
 | F-4 | Apple 风格动画与材质打磨 + 次级入口收尾 | 待出 |
@@ -283,6 +283,143 @@ src/stores/uiStore.ts
 - **F-4**：Apple 风格打磨——毛玻璃材质/弹簧动画细节/空态插画/reduced-motion 复查；旧页面入口收尾
 
 > 注：F-2b~F-4 的具体提示词待对应批次验收后按实际代码结构撰写。
+
+---
+
+## 批 F-2b：中栏递交模式 + 草稿卡骨架
+
+> 配对后端 **WO-16**（submission_suggest 卡 + ChatRequest.track 已就绪）。本批：递交模式横幅（中栏常驻 + 手动切换）、建议卡（点进入递交模式）、草稿卡组件骨架（mock 渲染，payload 契约对齐 WO-18 预留）。同时建立 `modeStore`（全局递交模式状态，供 F-3b 右栏联动）。
+
+### 提示词正文（复制给 AI Studio）
+
+```
+# 任务：Vera Workbench — F-2b 中栏递交模式 + 草稿卡骨架
+
+## 背景
+在 F-1~F-3（ui/vera-工作台 (26)）基础上：
+① 中栏 BrainChat 增加"递交模式"横幅（#9：手动切换为主、黄色横幅常驻、AI 建议进入）；
+② 对话流渲染 submission_suggest 工具卡（点 [进入递交模式] → 切模式）；
+③ 草稿卡组件骨架（DraftCard，mock 渲染，payload 契约对齐后端 WO-18 预留）；
+④ 新建全局 modeStore（zustand）——递交模式状态，供右栏 F-3b 联动预留。
+
+## 技术约束
+- 前端：TypeScript strict / React 18 / Vite / Tailwind CSS / motion/react / zustand（现有版本）
+- 图标：lucide-react（现有）；Toast：useToastStore（现有）
+- 禁止：引入任何新的 npm 依赖；禁止修改后端；禁止改动现有页面逻辑
+- 样式：一律使用项目现有 CSS 变量（var(--bg-app)/var(--bg-panel)/var(--bg-card)/var(--border)/var(--text-primary)/var(--text-muted)/var(--accent) 等），不新增配色；递交横幅黄色用 amber（现有 amber-500 系，禁止引入新色板）
+- 动画：motion/react spring（damping 1.0 / response 0.3-0.4），可中断；遵守 prefers-reduced-motion
+
+## 改动范围（严禁超出）
+
+| 文件 | 操作 |
+|------|------|
+| src/stores/modeStore.ts | 新建：全局递交模式状态 |
+| src/types/api.ts | 修改：ToolCard / DraftPayload / SubmissionSuggestPayload 类型 |
+| src/services/api/chat.ts | 修改：sendChat 支持 track 参数 |
+| src/components/brain/SubmissionBanner.tsx | 新建：递交模式横幅 |
+| src/components/brain/DraftCard.tsx | 新建：草稿卡骨架（mock 渲染） |
+| src/components/brain/BrainChat.tsx | 修改：挂横幅 + 建议卡 + 草稿卡 + 发送带 track |
+
+⚠️ 严禁修改上表以外的文件。严禁删除/重命名现有文件。严禁改动后端。
+
+## 接口契约
+
+1. modeStore.ts（zustand）：
+   ```typescript
+   interface ModeState {
+     mode: 'internal' | 'external';              // 默认 'internal'
+     setMode: (m: 'internal' | 'external') => void;
+   }
+   export const useModeStore = create<ModeState>()(...);
+   ```
+2. types/api.ts 新增（对齐后端 ToolCard / WO-18 预留）：
+   ```typescript
+   export interface ToolCard {
+     type: 'record_confirm' | 'draft' | 'submission_suggest' | 'flow';
+     title: string;
+     payload: Record<string, unknown>;
+   }
+   export interface DisclosureItem { fact_key: string; text: string; disclosed: boolean; }
+   export interface DraftPayload {
+     subject?: string;
+     body: string;
+     disclosure: { needs_review: boolean; items: DisclosureItem[] };
+   }
+   export interface SubmissionSuggestPayload { message: string; }
+   ```
+3. services/api/chat.ts：`sendChat({ message, case_id, track })`，`track?: 'internal' | 'external'`（追加到现有 body，默认 internal，不破坏既有调用）。
+4. SubmissionBanner.tsx：
+   - props 无（读 useModeStore）；mode==='external' 时渲染黄色横幅（amber 底 + 边框）：
+     "🟡 递交模式：AI 只引用已披露/外线内容" + 右侧 [退出递交] 按钮（setMode('internal')）
+   - mode==='internal' → 渲染 null
+   - 横幅顶部一行、可关闭（退出即 internal）；spring 上下滑入/滑出（可中断）
+5. DraftCard.tsx：
+   - props: `{ draft: DraftPayload; clientName: string; lender: string }`
+   - 渲染：标题（subject 或 "邮件草稿"）+ body（多行可展开）+ 披露清单区：
+     - needs_review=true 且存在 disclosed=false 项 → 黄色提示"以下信息未标记可披露：fact_key 列表"（amber，不弹窗）
+     - 全部披露 → 绿色小标"✅ 披露检查通过"
+   - 底部操作按钮（V1 占位）：[翻译英文] [复制] → Toast"WO-18 后可用"（真实逻辑等后端 draft_email）
+   - 客户名确认行（#9 外线强制确认）："收件客户：{clientName}（{lender}）" 常驻显示
+6. BrainChat.tsx 修改（只加不改既有逻辑）：
+   - 引入 useModeStore：发送时 `sendChat({ message: text, case_id: caseId ?? undefined, track: mode })`
+   - 顶部（header 之下）挂 `<SubmissionBanner />`；**仅 caseId 非空时渲染**（全局对话无外线草稿，#2）
+   - 对话流渲染 tool_cards：
+     - type==='submission_suggest' → 建议卡：payload.message + [进入递交模式]（→ setMode('external') + Toast"已进入递交模式"）
+     - type==='draft' → `<DraftCard draft={payload} clientName={...} lender={...} />`（从当前案件取 clientName/lender；无案件不渲染）
+   - mock 分支：MOCK_TOOL_CARDS = 1 张 submission_suggest + 1 张 draft（draft payload 含 needs_review=true + 1 条 disclosed=false）
+   - 无案件（caseId=null）→ 不渲染横幅、不渲染 draft 卡；suggest 卡 mock 也不显示
+
+## 实施步骤
+
+### Step 1：store + 类型 + API
+- [ ] src/stores/modeStore.ts（契约 1）
+- [ ] src/types/api.ts：ToolCard / DraftPayload / SubmissionSuggestPayload（契约 2）
+- [ ] src/services/api/chat.ts：sendChat 加 track（契约 3）
+
+### Step 2：SubmissionBanner
+- [ ] 新建 src/components/brain/SubmissionBanner.tsx（契约 4）
+
+### Step 3：DraftCard
+- [ ] 新建 src/components/brain/DraftCard.tsx（契约 5）
+
+### Step 4：BrainChat 挂载
+- [ ] src/components/brain/BrainChat.tsx：横幅 + 建议卡 + 草稿卡 + track 发送（契约 6）
+
+### Step 5：验证
+- [ ] npx tsc --noEmit → 零错误
+- [ ] npm run build → 成功
+
+## 验收标准（手动）
+1. 打开某案件 → 中栏顶部**无**递交横幅（默认内线）；点左栏案件正常
+2. mock 分支：对话流出现"要进入递交模式吗？"建议卡 → 点 [进入递交模式] → 顶部出现黄色横幅"递交模式：AI 只引用已披露/外线内容"
+3. 横幅 [退出递交] → 横幅消失、恢复内线
+4. 递交模式下发送消息 → 网络请求 body 含 `track: "external"`（可 DevTools 验证）
+5. mock 分支：建议卡下方出现一张草稿卡（含未披露黄色提示 + 客户名确认行 + [翻译英文][复制] 占位 Toast）
+6. 全局咨询（无案件）→ 无横幅、无建议卡、无草稿卡
+7. 切换案件/刷新 → mode 保持（zustand 内存态即可，V1 不持久化）
+8. 动画 spring 可中断；prefers-reduced-motion 生效
+
+⚠️ 执行纪律：
+1. 只修改改动范围表中的文件，绝不碰其他文件
+2. 接口名/props/字段名严格按契约，一个字符不改
+3. 不引入新依赖；不改动现有页面内部逻辑
+4. 每完成一步运行验证；失败先报告，不自作主张修计划外代码
+5. 动画一律 spring（damping 1.0 / response 0.3-0.4），可中断，遵守 prefers-reduced-motion
+```
+
+### 上传给 AI Studio 的参考文件（最小集）
+
+```
+src/stores/uiStore.ts
+src/stores/caseStore.ts
+src/types/api.ts
+src/services/api/chat.ts
+src/components/brain/BrainChat.tsx
+src/components/brain/ConfirmCard.tsx
+src/components/brain/FactCard.tsx
+src/components/brain/RecordedEventsDrawer.tsx
+src/components/layout/AppShell.tsx
+```
 
 ---
 
