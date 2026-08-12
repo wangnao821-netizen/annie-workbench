@@ -50,7 +50,7 @@ def _get_checklist_types() -> set[str]:
     for checklist_file in checklist_dir.glob("*.yaml"):
         data = _load_yaml(f"checklist/{checklist_file.name}")
         required = data.get("required", {})
-        for _category, items in required.items():
+        for items in required.values():
             for item in items:
                 item_type = item.get("type")
                 if item_type:
@@ -203,3 +203,26 @@ class TestConfigLoaderIntegration:
         assert "Passport" in types
         assert "Unknown" in types
         assert len(types) >= 20  # We have 20+ document types registered
+
+
+# ---------------------------------------------------------------------------
+# fact_schema.yaml ↔ 附录 A（BrainFact 受控词表，WO-15）
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.safety
+def test_fact_schema_matches_appendix_a_count() -> None:
+    """fact_schema.yaml 总 key 数 == 42；关键 key 不得遗漏（防止转译遗漏）。"""
+    data = _load_yaml("fact_schema.yaml")
+    keys = {f"{c}.{k}" for c, v in data["categories"].items() for k in v}
+    assert len(keys) == 42
+    for required in [
+        "identity.full_name",
+        "income.monthly_payg",
+        "liability.debt",
+        "bank.lender",
+        "stage.current",
+    ]:
+        assert required in keys, f"词表缺少关键 key: {required}"
+    anchors = {v[k]["anchor"] for c, v in data["categories"].items() for k in v}
+    assert anchors <= {"rule", "llm", "llm+rule"}

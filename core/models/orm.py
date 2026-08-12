@@ -581,6 +581,32 @@ class CaseContextEvent(Base):  # type: ignore[misc]
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class BrainFact(Base):  # type: ignore[misc]
+    """结构化事实（从 confirmed 事件派生，可查询 KV；#5/#7）。
+
+    派生规则：
+    - 只从 status='confirmed' 的 CaseContextEvent 提取；
+    - 同 (case_id, key, track, event_id) 幂等不重复写；
+    - 同 (case_id, key, track) 新值替换旧值 → 旧行 superseded_by=新 id + conflict=True；
+    - 来源事件被撤销（superseded）→ 其派生事实 valid_to=now（不再参与全景，不物理删除）。
+    """
+
+    __tablename__ = "brain_facts"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    case_id = Column(String, nullable=False, index=True)
+    key = Column(String, nullable=False)        # category.key，词表内
+    value = Column(Text, nullable=False)
+    category = Column(String, nullable=False)
+    track = Column(String, nullable=False, default="internal")  # internal | external
+    event_id = Column(Integer, nullable=False)  # 来源事件 id（confirmed）
+    superseded_by = Column(Integer, nullable=True)
+    conflict = Column(Boolean, default=False)
+    valid_from = Column(DateTime, default=datetime.utcnow)
+    valid_to = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class CaseChatMessage(Base):  # type: ignore[misc]
     """AI conversation message persistence per case."""
 

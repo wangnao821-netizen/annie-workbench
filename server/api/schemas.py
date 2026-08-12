@@ -104,6 +104,22 @@ class SupersedeEventRequest(BaseModel):
     replacement_event_id: int | None = None          # 可选：纠正时指向替代事件
 
 
+class BrainFactResponse(BaseModel):
+    id: int
+    case_id: str
+    key: str
+    value: str
+    category: str
+    track: str
+    event_id: int
+    superseded_by: int | None = None
+    conflict: bool = False
+    valid_to: datetime | None = None
+    created_at: datetime | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class CaseCreateRequest(BaseModel):
     client_name: str = Field(..., min_length=1)
     source: str = "manual"

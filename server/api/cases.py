@@ -15,7 +15,9 @@ from core.checklist.matcher import CaseNotFoundError, check_completeness
 from core.constants import TERMINAL_STAGES
 from core.context.accumulator import append_context_event, get_context_events
 from core.events.timeline import get_timeline
+from core.facts.extract import sync_brain_facts
 from core.models.orm import (
+    BrainFact,
     Case,
     CaseChecklist,
     CaseContextEvent,
@@ -25,6 +27,7 @@ from core.models.orm import (
 )
 from server.api.schemas import (
     ArchivedCaseResponse,
+    BrainFactResponse,
     CaseContextResponse,
     CaseCreateRequest,
     CaseDetailResponse,
@@ -268,6 +271,30 @@ def supersede_context_event(
     db.commit()
     db.refresh(event)
     return ContextEventResponse.model_validate(event)
+
+
+@router.get("/{case_id}/facts", response_model=list[BrainFactResponse])
+def list_brain_facts(
+    case_id: str,
+    db: Session = Depends(get_db),  # noqa: B008
+    track: str | None = Query(default=None, pattern="^(internal|external)$"),
+) -> list[BrainFactResponse]:
+    """当前有效 BrainFact 列表（valid_to IS NULL；含 conflict 标记），供全景事实卡。"""
+    _get_case_or_404(case_id, db)
+    query = db.query(BrainFact).filter(
+        BrainFact.case_id == case_id, BrainFact.valid_to.is_(None)
+    )
+    if track is not None:
+        query = query.filter(BrainFact.track == track)
+    return [BrainFactResponse.model_validate(f) for f in query.order_by(BrainFact.category, BrainFact.key).all()]
+
+
+@router.post("/{case_id}/facts/sync", response_model=dict)
+def sync_case_brain_facts(case_id: str, db: Session = Depends(get_db)) -> dict:  # noqa: B008
+    """全量重建该案件 BrainFact（幂等；pending 不参与；返回写入行数）。"""
+    _get_case_or_404(case_id, db)
+    written = sync_brain_facts(case_id, db)
+    return {"case_id": case_id, "written": written}
 
 
 @router.post("/", response_model=CaseDetailResponse)

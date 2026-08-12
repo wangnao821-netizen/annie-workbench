@@ -1,0 +1,65 @@
+# BrainFact 受控词表 v1（CASE 大脑 #5，2026-08-12 Vera 确认"按草案走"）
+# 结构：category → key → { label, type, anchor }
+# anchor: rule = 规则锚定（金额/日期/银行/阶段） | llm = LLM 提取 | llm+rule = 两者
+# 新 key 必须走施工单，AI 禁止自造；词表外概念存 unclassified
+version: 1
+categories:
+  identity:
+    full_name: { label: "客户姓名", type: "string", anchor: "llm+rule" }
+    residency: { label: "居住/签证", type: "enum", anchor: "llm" }
+    dependents: { label: "抚养人数", type: "int", anchor: "llm" }
+    preferred_language: { label: "偏好语言", type: "enum", anchor: "llm" }
+  income:
+    monthly_payg: { label: "PAYG 月收入", type: "amount", anchor: "rule" }
+    yearly_payg: { label: "PAYG 年收入", type: "amount", anchor: "rule" }
+    self_employed: { label: "自雇/ABN 收入", type: "amount", anchor: "rule" }
+    other: { label: "其他收入（租金/投资）", type: "amount", anchor: "llm" }
+    source: { label: "收入来源说明", type: "text", anchor: "llm" }
+    stability: { label: "收入稳定性/试用期", type: "text", anchor: "llm" }
+  employment:
+    type: { label: "就业类型", type: "enum", anchor: "llm" }
+    duration: { label: "任职时长/ABN 年限", type: "text", anchor: "llm" }
+    employer: { label: "雇主名称", type: "string", anchor: "llm" }
+    occupation: { label: "职业", type: "string", anchor: "llm" }
+  property:
+    value: { label: "房价/估值", type: "amount", anchor: "rule" }
+    address: { label: "房产地址", type: "string", anchor: "llm" }
+    purpose: { label: "用途", type: "enum", anchor: "llm" }
+    deposit_source: { label: "首付来源", type: "text", anchor: "llm" }
+    deposit_amount: { label: "首付金额", type: "amount", anchor: "rule" }
+    lvr: { label: "LVR", type: "percent", anchor: "rule" }
+  loan:
+    amount: { label: "贷款额", type: "amount", anchor: "rule" }
+    term: { label: "贷款年限", type: "int", anchor: "llm" }
+    rate: { label: "利率", type: "percent", anchor: "rule" }
+    type: { label: "产品类型", type: "string", anchor: "llm" }
+    goal: { label: "客户目标", type: "text", anchor: "llm" }
+    finance_due: { label: "Finance 条款截止日", type: "date", anchor: "rule" }
+    settlement_date: { label: "结算日", type: "date", anchor: "llm" }
+  liability:
+    debt: { label: "现有负债总额", type: "amount", anchor: "rule" }
+    existing_loans: { label: "现有贷款明细", type: "text", anchor: "llm" }
+    credit_cards: { label: "信用卡/循环额度", type: "text", anchor: "llm" }
+  bank:
+    lender: { label: "银行", type: "enum", anchor: "rule" }
+    product: { label: "产品线", type: "string", anchor: "llm" }
+    os_condition: { label: "OS 条件", type: "text", anchor: "llm" }
+    response: { label: "银行反馈/进度", type: "text", anchor: "llm" }
+  stage:
+    current: { label: "当前阶段", type: "enum", anchor: "rule" }
+    updated_at: { label: "阶段更新时间", type: "date", anchor: "rule" }
+    next_step: { label: "下一步动作", type: "text", anchor: "llm" }
+  commitment:
+    content: { label: "承诺内容", type: "text", anchor: "llm" }
+    deadline: { label: "承诺截止日", type: "date", anchor: "rule" }
+  disclosure:
+    external_version: { label: "递交画像版本", type: "text", anchor: "llm" }
+    undisclosed: { label: "未披露事项", type: "text", anchor: "llm" }
+  special:
+    circumstances: { label: "特殊情况/风险", type: "text", anchor: "llm" }
+
+# ── 使用规则 ──
+# 1. 金额/日期/银行名/阶段 = rule 锚定（正则/枚举），LLM 只做兜底；
+# 2. 姓名/职业/地址 = llm 提取 + Vera 确认后入账本；
+# 3. 词表外 key → unclassified 区，不丢弃、不入正式索引；
+# 4. 新 key 走施工单，进本表 + 测试钉住。
