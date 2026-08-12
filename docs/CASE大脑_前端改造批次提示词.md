@@ -14,7 +14,7 @@
 | F-2 | 中栏实化：确认记录交互（低置信确认卡 + "已记录 N 条 [查看]" + 逐条撤销） | ✅ 已交付（vera-工作台 (25)），待真机运行验收 |
 | F-2b | 中栏：递交模式横幅 + 建议卡 + 草稿卡骨架（依赖 WO-16 ✅；draft 真实数据等 WO-18） | 已出（下文） |
 | F-3 | 右栏实化：事实卡（BrainFact）/补全进度灰提示（依赖 WO-15 ✅） | ✅ 已交付（vera-工作台 (26)），待真机运行验收 |
-| F-3b | 右栏：递交模式联动外线视图 + 待办卡（依赖模式状态 store / tasks 契约） | 待出 |
+| F-3b | 右栏重构：案件指挥中心（待办卡/风险/时间线/事实折叠，移除记一笔）+ 老看板入口收进"更多" | 已出（下文） |
 | F-5 | 全局咨询右栏：统计分析面板（概览 + 趋势 + AI 用量） | 已出（下文） |
 | F-4 | Apple 风格动画与材质打磨 + 次级入口收尾 | 待出 |
 
@@ -284,6 +284,116 @@ src/stores/uiStore.ts
 - **F-4**：Apple 风格打磨——毛玻璃材质/弹簧动画细节/空态插画/reduced-motion 复查；旧页面入口收尾
 
 > 注：F-2b~F-4 的具体提示词待对应批次验收后按实际代码结构撰写。
+
+---
+
+## 批 F-3b：右栏重构为"案件指挥中心"
+
+> 依据 2026-08-12 定稿（#15 三件事：卡在哪一步/下一步/有没有坑；#4 待办；#11 全景待办卡；#1 右栏=AI 知道什么）。右栏从"事实看板"改为"指挥中心"：待办最优先 → 风险/坑 → 时间线 → 补全进度 → 事实折叠；**移除记一笔**；老 Kanban 案件看板入口收进"更多"。递交模式联动外线视图仍留后续（依赖 WO-18 后）——本批右栏固定内线。
+
+### 提示词正文（复制给 AI Studio）
+
+```
+# 任务：Vera Workbench — F-3b 右栏重构为"案件指挥中心"
+
+## 背景
+在 F-1~F-3（ui/vera-工作台 (26)）基础上重构右栏 CasePanorama。产品定稿：右栏是"AI 知道什么"的可视化，
+但 Vera 每天打开案件第一眼要的是——现在卡在哪一步、下一步该干什么、有没有坑（#15），不是事实明细。
+新结构（自上而下）：
+① 客户名 + 阶段 + 一句话摘要（卡在哪一步）→ ② 待办/下一步（最核心）→ ③ 风险/坑 → ④ 最近时间线（压缩）→ ⑤ 补全进度灰提示 → ⑥ "查看全部事实"折叠区。
+同时：移除右栏"记一笔"（对话里直接说）；老"案件看板"入口从主 Tab 收进"更多"。
+
+## 技术约束
+- 前端：TypeScript strict / React 18 / Vite / Tailwind CSS / motion/react / zustand（现有版本）
+- 图标：lucide-react（现有）；Toast：useToastStore（现有）
+- 禁止：引入任何新的 npm 依赖；禁止修改后端；禁止改动现有页面逻辑（Analytics/TaskWorkbench 等只读）
+- 样式：一律使用项目现有 CSS 变量（var(--bg-app)/var(--bg-panel)/var(--bg-card)/var(--border)/var(--text-primary)/var(--text-muted)/var(--accent) 等），不新增配色；优先级色用现有语义（urgent=red/amber，high=amber，normal=默认）
+- 动画：motion/react spring（damping 1.0 / response 0.3-0.4），可中断；遵守 prefers-reduced-motion
+
+## 改动范围（严禁超出）
+
+| 文件 | 操作 |
+|------|------|
+| src/components/brain/TodoCard.tsx | 新建：单条待办卡 |
+| src/components/brain/RiskSection.tsx | 新建：风险/坑区 |
+| src/components/brain/CasePanorama.tsx | 修改：重排为指挥中心结构 + 事实折叠 + 移除记一笔 + 待办加载 |
+| src/components/brain/CaseListSidebar.tsx | 修改：案件看板入口从主 Tab 收进"更多" |
+
+⚠️ 严禁修改上表以外的文件。严禁删除/重命名现有文件。严禁改动后端。
+
+## 接口契约
+
+1. TodoCard.tsx：
+   - props: `{ task: TaskResponse; onOpen: (taskId: number) => void }`（TaskResponse 用现有 types/api.ts 类型）
+   - 渲染：标题（task.title）+ priority 徽章（urgent→红/high→琥珀/normal→默认 muted）+ deadline（"8/18 到期"或"已逾期 N 天"红字）+ suggested_action 摘要（单行截断）
+   - 点击 → onOpen(task.id)；hover 抬升（transform + shadow，spring 可中断）
+2. RiskSection.tsx：
+   - props: `{ risks: string[]; specialCircumstances?: string; hasUndisclosed: boolean }`
+   - 渲染：标题"风险与注意事项"；risks 逐条（AlertCircle 图标，红/琥珀）；specialCircumstances 非空时追加一条（信息图标，muted）；hasUndisclosed=true 时顶部 amber 小条"⚠️ 含未披露事项（递交前需确认）"
+   - risks 与 special 均空且无未披露 → 渲染 null（不占位）
+3. CasePanorama.tsx 重构（保留折叠/宽度动画/context 加载/刷新逻辑）：
+   - **新结构顺序**：
+     1. 顶部客户名 + 阶段徽章 + 一句话摘要（context.memory 或 summary，单行截断）——保留现状
+     2. "下一步"区：标题 + 待办列表（TodoCard）；数据 = getTasks({ filter: 'all' }) 后按 task.case_id === caseId 过滤，取前 5 条；无待办 → 空态小字"暂无待办"；加载骨架 2 行；mock 分支 MOCK_TASKS（2 条，1 条 urgent 逾期）
+     3. RiskSection（数据 = context.risk + context.facts.special_circumstances + hasUndisclosed=BrainFact 存在 category==='disclosure' 且 key 含 undisclosed）
+     4. "最近动态"时间线（现有 OverviewTimeline，压缩显示，保持原逻辑）
+     5. 补全进度灰提示（现有 CompletionHint，保留）
+     6. "查看全部事实"折叠区（AnimatePresence）：默认收起，点开展示现有事实分组（FactCard 列表）；展开/收起 spring 可中断
+   - **移除**：右栏"记一笔"输入区及其 createContextEvent 调用（对话里记录）
+   - 无案件（caseId=null）→ 保持空态（全局统计面板由 AppShell 处理，不在本组件）
+4. CaseListSidebar.tsx：
+   - BOTTOM_TABS 移除 `{ id: 'cases', label: '案件看板', icon: Briefcase }`（Briefcase import 一并删除）
+   - MORE_ITEMS 开头加入 `{ id: 'cases' as ViewId, label: '案件看板', icon: Briefcase }`（icon 复用，若已删 import 则加回）
+   - 其余 Tab/更多项不动
+
+## 实施步骤
+
+### Step 1：TodoCard + RiskSection
+- [ ] 新建 src/components/brain/TodoCard.tsx（契约 1）
+- [ ] 新建 src/components/brain/RiskSection.tsx（契约 2）
+
+### Step 2：CasePanorama 重构
+- [ ] src/components/brain/CasePanorama.tsx：按契约 3 重排（保留折叠/context/刷新/时间线/补全进度；移除记一笔；加待办加载 + 事实折叠）
+
+### Step 3：看板入口收进"更多"
+- [ ] src/components/brain/CaseListSidebar.tsx：BOTTOM_TABS 移除 cases、MORE_ITEMS 加入 cases（契约 4）
+
+### Step 4：验证
+- [ ] npx tsc --noEmit → 零错误
+- [ ] npm run build → 成功
+
+## 验收标准（手动）
+1. 打开某案件 → 右栏自上而下：客户名/阶段/摘要 → "下一步"待办 → 风险 → 最近动态 → 补全进度 → 事实折叠
+2. 待办卡显示 priority 徽章 + 截止日；逾期任务红字"已逾期 N 天"；无待办显示"暂无待办"
+3. 有未披露事实（mock）→ 风险区顶部 amber 提示"含未披露事项"
+4. 事实区默认收起；点"查看全部事实" → 展开事实分组；再点收起，动画顺滑可中断
+5. 右栏**不再有"记一笔"输入框**
+6. 左栏底部主 Tab 无"案件看板"；点"更多" → 列表里有"案件看板"可进入旧页
+7. 折叠右栏仍可用；无案件空态正常；后端未启动（真实分支失败）→ Toast + mock 兜底不崩溃
+
+⚠️ 执行纪律：
+1. 只修改改动范围表中的文件，绝不碰其他文件
+2. 接口名/props/字段名严格按契约，一个字符不改
+3. 不引入新依赖；不改动现有页面内部逻辑（时间线/刷新/折叠/context 加载保持原样）
+4. 每完成一步运行验证；失败先报告，不自作主张修计划外代码
+5. 动画一律 spring（damping 1.0 / response 0.3-0.4），可中断，遵守 prefers-reduced-motion
+```
+
+### 上传给 AI Studio 的参考文件（最小集）
+
+```
+src/types/api.ts
+src/services/api/tasks.ts
+src/services/api/cases.ts
+src/components/brain/CasePanorama.tsx
+src/components/brain/CaseListSidebar.tsx
+src/components/brain/FactCard.tsx
+src/components/brain/CompletionHint.tsx
+src/components/cases/overview/OverviewTimeline.tsx
+src/stores/taskStore.ts
+src/stores/caseStore.ts
+src/stores/toastStore.ts
+```
 
 ---
 
