@@ -159,7 +159,7 @@
 - **根 alembic.ini / core/alembic.ini（#20）**：✅ WO-13 完成——`%(here)s` 加固，URL 不依赖 CWD，均指向 core 库
 - **启动自检（#20）**：✅ WO-13 完成——init_sa_tables 检测双库并存/路径漂移 → 警告；附修复 env.py `disable_existing_loggers` 生产隐患
 - **根库归档（#20 执行中）**：后端重启后把根 data/assistant.db + wal/shm 移入 core/data/backups/legacy/（届时提醒）
-- **附录 A（#5）**：✅ 已确认（43 key 按草案 v1，配置驱动可迭代）
+- **附录 A（#5）**：✅ 已确认（42 key 按草案 v1，2026-08-12 实测修正；配置驱动可迭代）
 - **POST /api/tasks/ 是联调临时端点**：正式任务创建应由业务流触发（WO-09 建案→首批任务卡），届时评估保留/移除
 - **知识中心/草稿箱/档案/导入后端端点**：GET /api/drafts 列表、已归档案件端点、导入记录表 + 端点、knowledge CRUD 端点
 - **版本号三处同步**：pyproject / 前端 package.json / server main.py 的 /version（当前 2.0.0，需保持）

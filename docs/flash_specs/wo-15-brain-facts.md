@@ -1,6 +1,6 @@
 # WO-15：BrainFact + fact_schema 词表 + 提取（#5 定稿落地）
 
-> 来源：CASE 大脑 V1 收口 #5（受控词表：config/fact_schema.yaml 配置驱动；AI 只映射词表内 key，词表外 → unclassified；金额/日期/银行/阶段规则锚定）+ #7（派生层只重建、矛盾 → supersede + conflict）。词表 43 key 已获 Vera 确认（2026-08-12 按草案走）。执行方：opencode。检查方：Codex。
+> 来源：CASE 大脑 V1 收口 #5（受控词表：config/fact_schema.yaml 配置驱动；AI 只映射词表内 key，词表外 → unclassified；金额/日期/银行/阶段规则锚定）+ #7（派生层只重建、矛盾 → supersede + conflict）。词表 42 key 已获 Vera 确认（2026-08-12 按草案走；实测修正，原 43 为笔误）。执行方：opencode。检查方：Codex。
 > 前置依赖：WO-14 已交付（case_context_events.status 状态机，蒸馏只吃 confirmed）。本单只从 **confirmed** 事件提取。
 
 ## 技术约束
@@ -9,13 +9,13 @@
 - 禁止：引入任何新的 pip 依赖；禁止创建本表以外的文件；禁止修改本表以外的文件
 - 禁止：改动既有迁移 revision（只允许**新建**一个，down_revision = `b4e1c9d2f7a3`）
 - 禁止：把 BrainFact 表/字段塞进 WO-14 的 revision——新建独立 revision
-- 词表来源唯一：`docs/CASE大脑_V1缺口与待讨论清单.md` 附录 A（43 key 全量转译，**不得增删 key**）
+- 词表来源唯一：`docs/CASE大脑_V1缺口与待讨论清单.md` 附录 A（**42 key** 全量转译，不得增删 key）
 
 ## 改动范围（严禁超出）
 
 | 文件 | 操作 | 锚点 |
 |------|------|------|
-| `config/fact_schema.yaml` | **新建** | 43 key 全量转译自附录 A（结构见一） |
+| `config/fact_schema.yaml` | **新建** | 42 key 全量转译自附录 A（结构见一） |
 | `core/migrations/versions/xxxx_add_brain_facts.py` | **新建** | down_revision=`b4e1c9d2f7a3`，建 `brain_facts` 表 |
 | `core/models/orm.py` | 修改 | `class CaseContextEvent` 之后新增 `class BrainFact` |
 | `core/facts/__init__.py` | **新建** | 空文件（或一行 docstring） |
@@ -30,7 +30,7 @@
 
 ---
 
-## 一、config/fact_schema.yaml（43 key 全量转译）
+## 一、config/fact_schema.yaml（42 key 全量转译）
 
 ### 结构契约
 
@@ -47,7 +47,7 @@ categories:
 ```
 
 ### 转译要求
-1. 打开 `docs/CASE大脑_V1缺口与待讨论清单.md` 文末附录 A，**逐行**转译全部 11 个 category（identity/income/employment/property/loan/liability/bank/stage/commitment/disclosure/special）共 43 个 key；
+1. 打开 `docs/CASE大脑_V1缺口与待讨论清单.md` 文末附录 A，**逐行**转译全部 11 个 category（identity/income/employment/property/loan/liability/bank/stage/commitment/disclosure/special）共 **42** 个 key；
 2. `type` 映射：string / enum / int / amount / percent / date / text 照抄附录 A"类型"列（amount→amount，enum→enum，其余 string/int/date/text）；
 3. `anchor` 映射：附录 A"锚定"列 `rule`→`rule`、`llm`→`llm`、`llm+rule`→`llm+rule`；
 4. `label` 用附录 A"标签"列原文；
@@ -55,7 +55,7 @@ categories:
 6. 文件末尾追加使用规则注释（unclassified 说明 + 新 key 走施工单）。
 
 ### 验证
-`python -c "import yaml; d=yaml.safe_load(open(r'config/fact_schema.yaml',encoding='utf-8')); ks=[f'{c}.{k}' for c,v in d['categories'].items() for k in v]; print(len(ks), len(set(ks)))"` → `43 43`；锚定值只含 rule/llm/llm+rule。
+`python -c "import yaml; d=yaml.safe_load(open(r'config/fact_schema.yaml',encoding='utf-8')); ks=[f'{c}.{k}' for c,v in d['categories'].items() for k in v]; print(len(ks), len(set(ks)))"` → `42 42`；锚定值只含 rule/llm/llm+rule。
 
 ---
 
@@ -305,8 +305,8 @@ class TestRuleAnchors:
     def test_amount_tokens_returned(self): ...
 
 class TestFactSchema:
-    def test_schema_has_43_unique_keys(self):
-        # yaml 读取：总 key 数 == 43，且无重复
+    def test_schema_has_42_unique_keys(self):
+        # yaml 读取：总 key 数 == 42，且无重复
     def test_anchor_values_valid(self):
         # 全部 anchor ∈ {rule, llm, llm+rule}
 
@@ -335,7 +335,7 @@ class TestSync:
 
 ```python
 def test_fact_schema_matches_appendix_a_count():
-    # fact_schema.yaml 总 key 数 == 43；且含 identity.full_name / income.monthly_payg /
+    # fact_schema.yaml 总 key 数 == 42；且含 identity.full_name / income.monthly_payg /
     # liability.debt / bank.lender / stage.current 等关键 key（防止转译遗漏）
 ```
 
@@ -358,7 +358,7 @@ ruff check core/facts/ core/models/orm.py server/api/schemas.py server/api/cases
 
 ⚠️ 执行纪律（每一条都必须遵守）：
 1. 只修改"改动范围"表中列出的 10 个文件，绝不碰其他文件
-2. 词表 43 key 从附录 A **逐行转译**，key 名一字不差；严禁增删
+2. 词表 42 key 从附录 A **逐行转译**，key 名一字不差；严禁增删
 3. 所有函数名/变量名/字段名/断言严格按"接口契约"定义，一个字符都不能改
 4. 每完成一节立即运行该节验证命令；失败先报告，不自作主张修计划外代码
 5. 不引入新依赖；不创建改动范围表以外的新文件（迁移 revision 除外）
