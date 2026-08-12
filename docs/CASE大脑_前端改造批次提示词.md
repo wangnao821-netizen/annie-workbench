@@ -11,8 +11,9 @@
 | 批次 | 内容 | 状态 |
 |------|------|------|
 | F-1 | 三栏骨架：左栏案件列表 + 中栏 BrainChat + 右栏客户全景，AI 从悬浮球变主角 | ✅ 已交付（vera-工作台 (24)），待真机运行验收 |
-| F-2 | 中栏实化：工具卡（确认记录/草稿卡/递交模式横幅） | 待出 |
-| F-3 | 右栏实化：事实卡/时间线/待办/统计入口交互 | 待出 |
+| F-2 | 中栏实化：确认记录交互（低置信确认卡 + "已记录 N 条 [查看]" + 逐条撤销） | 已出（下文） |
+| F-2b | 中栏：草稿卡 + 递交模式横幅（依赖后端对话协议 WO-16） | 待出 |
+| F-3 | 右栏实化：事实卡（BrainFact）/补全进度/待办（依赖 WO-15） | 待出 |
 | F-4 | Apple 风格动画与材质打磨 + 次级入口收尾 | 待出 |
 
 > ✅ **已定稿（2026-08-12）**：在现有 `ui/vera-工作台 (23)` 基础上**增量改造**（换壳不换内脏）——
@@ -145,10 +146,139 @@ src/types/navigation.ts
 
 ---
 
+## 批 F-2：确认记录交互（中栏）
+
+> 配对后端 **WO-14 确认闸门**（pending→confirmed→superseded 状态机）。BrainChat 实化：低置信确认卡 + 对话尾部"📌 已记录 N 条 [查看]" + 逐条撤销。草稿卡/递交模式横幅归 F-2b（等后端对话协议）。
+
+### 提示词正文（复制给 AI Studio）
+
+```
+# 任务：Vera Workbench — F-2 确认记录交互（中栏 BrainChat 实化）
+
+## 背景
+在 F-1 三栏骨架（ui/vera-工作台 (24)）基础上，实化中栏的"确认闸门"交互：
+① 低置信事实以确认卡出现在对话流；② 对话尾部常驻"📌 已记录 N 条 [查看]"；
+③ 点击 [查看] 打开抽屉，列出已确认事件，可逐条撤销（supersede，不物理删除）。
+
+## 技术约束
+- 前端：TypeScript strict / React 18 / Vite / Tailwind CSS / motion/react（现有版本）
+- 图标：lucide-react（现有）；状态：zustand（现有）；Toast：useToastStore（现有）
+- 禁止：引入任何新的 npm 依赖；禁止修改后端；禁止改动现有页面逻辑（TaskWorkbench 等只读）
+- 样式：一律使用项目现有 CSS 变量（var(--bg-app)/var(--bg-panel)/var(--bg-card)/var(--border)/var(--text-primary)/var(--text-muted)/var(--accent) 等），不新增配色
+- 动画：motion/react spring（damping 1.0 / response 0.3-0.4）；展开/收起可中断；遵守 prefers-reduced-motion
+
+## 改动范围（严禁超出）
+
+| 文件 | 操作 |
+|------|------|
+| src/types/api.ts | 修改：ContextEvent 类型加 status/superseded_by/supersede_reason |
+| src/services/api/cases.ts | 修改：新增 listContextEvents / confirmContextEvent / supersedeContextEvent |
+| src/components/brain/ConfirmCard.tsx | 新建：低置信确认卡 |
+| src/components/brain/RecordedEventsDrawer.tsx | 新建："已记录 N 条 [查看]" 抽屉 |
+| src/components/brain/BrainChat.tsx | 修改：挂载确认卡 + 已记录指示 + 抽屉 |
+
+⚠️ 严禁修改上表以外的文件。严禁删除/重命名现有文件。严禁改动后端。
+
+## 接口契约
+
+1. ContextEvent 类型（types/api.ts，对齐后端 ContextEventResponse）：
+   ```typescript
+   export interface ContextEvent {
+     id: number;
+     case_id: string;
+     source_type: string;
+     content: string;
+     track: 'internal' | 'external';
+     status: 'pending' | 'confirmed' | 'superseded';
+     superseded_by: number | null;
+     supersede_reason: string | null;
+     created_at: string | null;
+   }
+   ```
+2. services/api/cases.ts 新增 3 个方法（沿用现有 http 封装，VITE_USE_MOCK 分支由调用方处理）：
+   ```typescript
+   export function listContextEvents(
+     caseId: string,
+     params?: { status?: 'pending' | 'confirmed' | 'superseded'; track?: 'internal' | 'external'; limit?: number },
+   ): Promise<ContextEvent[]>;
+
+   export function confirmContextEvent(caseId: string, eventId: number): Promise<ContextEvent>;
+
+   export function supersedeContextEvent(caseId: string, eventId: number, reason: string): Promise<ContextEvent>;
+   ```
+3. ConfirmCard.tsx：
+   - props: `{ event: ContextEvent; onConfirm: (id: number) => void; onDismiss: (id: number) => void }`
+   - 渲染：卡片边框（var(--border)）+ 标题"待确认记录" + event.content（截断 3 行可展开）+ 来源徽章（source_type）+ 两个按钮：[确认]（primary，调 onConfirm）/ [稍后]（次级，onDismiss，仅本地关闭不调后端）
+   - 入场动画：spring 上滑淡入（可中断）
+4. RecordedEventsDrawer.tsx：
+   - props: `{ open: boolean; onClose: () => void; events: ContextEvent[]; onRevoke: (id: number) => void }`
+   - 右侧滑出抽屉（宽 360px，spring，可中断）；标题"已记录 N 条"（N=events.length）
+   - 列表：每行 content + 时间 + 撤销按钮（垃圾桶图标，点击 onRevoke 前弹确认："撤销后该记录不再参与摘要，可审计恢复。撤销？[撤销][取消]"）
+   - 空态："暂无已确认记录"
+5. BrainChat.tsx 修改（只加不改逻辑）：
+   - 对话流内：当 VITE_USE_MOCK !== 'false' 或真实返回含 pending 事件时，在消息流尾部渲染 ConfirmCard 列表（每事件一张，[确认] 调 confirmContextEvent 后刷新）
+   - 对话尾部常驻指示：confirmed 事件数 > 0 时显示 "📌 已记录 N 条 [查看]"，点击打开 RecordedEventsDrawer
+   - 数据加载：caseId 存在时调 listContextEvents(caseId, {status:'pending'}) + listContextEvents(caseId, {status:'confirmed'})；mock 分支用 MOCK_EVENTS（2 条 pending + 3 条 confirmed）
+   - 撤销成功后：Toast 提示"已撤销"，刷新列表；被撤销事件移出 confirmed 列表
+   - 无案件（全局咨询）时不加载、不显示这两块
+
+## 实施步骤
+
+### Step 1：类型 + API
+- [ ] src/types/api.ts：新增 ContextEvent 接口（契约第 1 条）
+- [ ] src/services/api/cases.ts：新增 3 个方法（契约第 2 条），严格按 GET/POST 路径拼接，不引入新依赖
+
+### Step 2：ConfirmCard
+- [ ] 新建 src/components/brain/ConfirmCard.tsx（契约第 3 条）
+
+### Step 3：RecordedEventsDrawer
+- [ ] 新建 src/components/brain/RecordedEventsDrawer.tsx（契约第 4 条）
+
+### Step 4：BrainChat 挂载
+- [ ] src/components/brain/BrainChat.tsx：按契约第 5 条挂载（mock/真实双分支保留）
+
+### Step 5：验证
+- [ ] npx tsc --noEmit → 零错误
+- [ ] npm run build → 成功
+
+## 验收标准（手动）
+1. 打开某案件对话 → 对话尾部出现"📌 已记录 N 条 [查看]"（有 confirmed 事件时）
+2. 点击 [查看] → 抽屉列出已确认记录，每行有撤销按钮
+3. 撤销 → 弹确认 → 确认后 Toast"已撤销"、该条移出列表
+4. mock 分支：对话流尾部出现 2 张"待确认记录"卡片；点 [确认] → 卡片消失、已记录数 +1；点 [稍后] → 卡片本地关闭
+5. 全局咨询（无案件）→ 不显示确认卡与已记录指示
+6. 动画：卡片/抽屉展开收起顺滑可中断；prefers-reduced-motion 时退化为淡变
+7. 切换案件 → 数据随案件刷新，不串案
+8. 后端未启动（真实分支报错）→ Toast 提示，页面不崩溃
+
+⚠️ 执行纪律：
+1. 只修改改动范围表中的文件，绝不碰其他文件
+2. 接口名/props/字段名严格按契约，一个字符不改
+3. 不引入新依赖；不改动现有页面内部逻辑
+4. 每完成一步运行验证；失败先报告，不自作主张修计划外代码
+5. 动画一律 spring（damping 1.0 / response 0.3-0.4），可中断，遵守 prefers-reduced-motion
+```
+
+### 上传给 AI Studio 的参考文件（最小集）
+
+```
+src/types/api.ts
+src/services/api/cases.ts
+src/services/http.ts
+src/components/brain/BrainChat.tsx
+src/components/brain/CaseListSidebar.tsx
+src/components/layout/AppShell.tsx
+src/stores/caseStore.ts
+src/stores/toastStore.ts
+src/stores/uiStore.ts
+```
+
+---
+
 ## 后续批次（待出）
 
-- **F-2**：中栏 BrainChat 实化——工具卡渲染（确认记录/草稿卡/递交模式横幅）；后端工具执行协议对接
-- **F-3**：右栏全景实化——事实卡可折叠/时间线加载/待办与承诺/统计入口；双线 track 切换
+- **F-2b**：草稿卡 + 递交模式横幅（依赖后端对话协议 WO-16）
+- **F-3**：右栏全景实化——事实卡（BrainFact）/补全进度灰提示/待办与承诺（依赖 WO-15）
 - **F-4**：Apple 风格打磨——毛玻璃材质/弹簧动画细节/空态插画/reduced-motion 复查；旧页面入口收尾
 
-> 注：F-2~F-4 的具体提示词待 F-1 验收后按实际代码结构撰写。
+> 注：F-2b~F-4 的具体提示词待对应批次验收后按实际代码结构撰写。
