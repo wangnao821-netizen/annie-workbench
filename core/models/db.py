@@ -165,6 +165,32 @@ def get_sa_session_factory(db_path: Path | None = None) -> sessionmaker[Session]
 
 
 
+def _warn_on_dual_data_dirs(db_path: Path, legacy_path: Path | None = None) -> None:
+    """启动自检：检测另一 data 目录的遗留库，防止读错库（#20）。
+
+    仅当生效库为默认库（core/data/assistant.db）时检查；测试/显式 override
+    路径跳过，避免误报。发现遗留库（非空）→ logger.warning，不阻断启动。
+
+    Args:
+        db_path: 已解析的生效数据库路径。
+        legacy_path: 遗留库候选路径，默认 PROJECT_ROOT.parent/data/assistant.db。
+    """
+    if db_path != DB_PATH:
+        return
+    legacy = legacy_path or (PROJECT_ROOT.parent / "data" / "assistant.db")
+    try:
+        if legacy.exists() and legacy.stat().st_size > 0:
+            logger.warning(
+                "检测到遗留数据库 %s（%s 字节）；当前使用 %s。"
+                "如确认无用，请归档到 core/data/backups/legacy/",
+                legacy,
+                legacy.stat().st_size,
+                DB_PATH,
+            )
+    except OSError:
+        logger.warning("无法检查遗留数据库路径 %s", legacy)
+
+
 def init_sa_tables(db_path: Path | None = None) -> None:
     """Alembic 唯一建表路径（移除 create_all 兜底）。
 
@@ -179,6 +205,7 @@ def init_sa_tables(db_path: Path | None = None) -> None:
     """
     global _alembic_running
     db_path = _effective_db_path(db_path)
+    _warn_on_dual_data_dirs(db_path)
     if _alembic_running:
         return
     _alembic_running = True

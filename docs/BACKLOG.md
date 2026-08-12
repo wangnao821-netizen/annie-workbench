@@ -81,7 +81,7 @@
 - 收口：22 项缺口 + 微信通道（#23）全部定稿（2026-08-12，见 docs/CASE大脑_V1缺口与待讨论清单.md）
 - git：D:\vera-workbench 已初始化 + 基线提交 `1e2b10a`（435 文件）✅；前端交付流程 = commit + diff 对比
 - 双 data 目录：`core/data/assistant.db` 唯一真源 ✅（测试库已快照归档 `core/data/backups/legacy/`；根库原文件待后端重启后归档）
-- 前端：批 1-12 + 批 A/B/C/C-2/C-3/D-1/D-2/E-1 全部完成（AI Studio 线维护）
+- 前端：批 1-12 + 批 A/B/C/C-2/C-3/D-1/D-2/E-1 全部完成 + **F-1 三栏骨架已交付（ui/vera-工作台 (24)，2026-08-12，待真机验收）**（AI Studio 线维护）
 - 联调：后端 + 前端已在本地跑通（8000/3000）；已修复：id/case_id、datetime naive、SSE payload、草稿 404、设置页离线误报、案件下拉遮挡、邮件附件预览、客户全景同源
 
 ---

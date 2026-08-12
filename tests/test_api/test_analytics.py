@@ -1,6 +1,6 @@
 """Analytics 4 端点测试 — 天/周/月聚合、跨期、空库、非法参数。"""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -39,10 +39,22 @@ def _n(dt):
 
 class TestBucketing:
     def test_period_key_rules(self):
-        dt = datetime(2026, 8, 12, 15, 0, 0)
-        assert period_key(dt, "day") == "2026-08-12"
+        dt = datetime(2026, 8, 12, 15, 0, 0)  # naive → UTC → Sydney 2026-08-13 01:00
+        assert period_key(dt, "day") == "2026-08-13"
         assert period_key(dt, "week") == "2026-W33"
         assert period_key(dt, "month") == "2026-08"
+
+    def test_sydney_cross_day_boundary(self):
+        # 悉尼 0 点 = UTC 前一日 14:00（AEST +10）——"今天"按澳洲日历日
+        assert period_key(datetime(2026, 8, 12, 14, 0, tzinfo=UTC), "day") == "2026-08-13"
+        assert period_key(datetime(2026, 8, 12, 13, 59, tzinfo=UTC), "day") == "2026-08-12"
+
+    def test_buckets_since_uses_sydney_midnight(self):
+        # 悉尼 8/12 23:59 仍属 8/12；悉尼 8/13 00:00 属 8/13
+        before = buckets_since("day", 1, now=datetime(2026, 8, 12, 13, 59, tzinfo=UTC))
+        after = buckets_since("day", 1, now=datetime(2026, 8, 12, 14, 0, tzinfo=UTC))
+        assert before[-1][2] == "2026-08-12"
+        assert after[-1][2] == "2026-08-13"
 
     def test_buckets_old_to_new_contiguous(self):
         buckets = buckets_since("month", 3)

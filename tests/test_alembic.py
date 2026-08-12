@@ -152,3 +152,38 @@ def test_alembic_failure_raises_runtime_error(tmp_path, monkeypatch):
             init_sa_tables(db_path)
     finally:
         reset_engine()
+
+
+def test_alembic_ini_urls_resolve_to_core_db():
+    import configparser
+
+    def url(p: Path) -> str:
+        cp = configparser.ConfigParser(
+            interpolation=configparser.BasicInterpolation(),
+            defaults={"here": str(p.parent)},
+        )
+        cp.read(p, encoding="utf-8")
+        return cp.get("alembic", "sqlalchemy.url").replace("\\", "/")
+
+    assert url(PROJECT_ROOT / "alembic.ini").endswith("core/data/assistant.db")
+    assert url(PROJECT_ROOT / "core" / "alembic.ini").endswith("core/data/assistant.db")
+
+
+def test_dual_data_dir_warning_when_legacy_exists(tmp_path, caplog):
+    from core.models.db import DB_PATH, _warn_on_dual_data_dirs
+
+    legacy = tmp_path / "legacy.db"
+    legacy.write_bytes(b"x" * 128)
+    with caplog.at_level("WARNING", logger="core.models.db"):
+        _warn_on_dual_data_dirs(DB_PATH, legacy_path=legacy)
+    assert any("遗留数据库" in r.message for r in caplog.records)
+
+
+def test_dual_data_dir_no_warning_on_override_path(tmp_path, caplog):
+    from core.models.db import _warn_on_dual_data_dirs
+
+    legacy = tmp_path / "legacy.db"
+    legacy.write_bytes(b"x" * 128)
+    with caplog.at_level("WARNING", logger="core.models.db"):
+        _warn_on_dual_data_dirs(tmp_path / "other.db", legacy_path=legacy)
+    assert not any("遗留数据库" in r.message for r in caplog.records)
