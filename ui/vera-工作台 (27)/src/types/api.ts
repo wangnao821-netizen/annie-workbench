@@ -167,13 +167,27 @@ export interface DraftVersionResponse {
 export interface DraftRefineRequest { instruction: string }
 
 // AI 对话（chat）
-export interface ChatRequest { message: string; case_id?: string }
-export interface ChatResponse { reply: string; suggested_actions: string[] }
+export interface ToolCard {
+  type: 'record_confirm' | 'draft' | 'submission_suggest' | 'flow';
+  title: string;
+  payload: Record<string, unknown>;
+}
+export interface DisclosureItem { fact_key: string; text: string; disclosed: boolean; }
+export interface DraftPayload {
+  subject?: string;
+  body: string;
+  disclosure: { needs_review: boolean; items: DisclosureItem[] };
+}
+export interface SubmissionSuggestPayload { message: string; }
+
+export interface ChatRequest { message: string; case_id?: string; track?: 'internal' | 'external' }
+export interface ChatResponse { reply: string; suggested_actions: string[]; tool_cards?: ToolCard[] }
 export interface ChatMessageResponse {
   id: string;
   role: "user" | "assistant";
   content: string;
   suggested_actions?: string[];
+  tool_cards?: ToolCard[];
   created_at: string;
 }
 
@@ -311,4 +325,22 @@ export interface AnalyticsEfficiency {
   ai_adoption_count: EfficiencyMetricItem;
   avg_client_response_days: EfficiencyMetricItem;
 }
+
+export interface UsagePeriod {
+  calls: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  prompt_cache_hit_tokens: number;
+  prompt_cache_miss_tokens: number;
+  cache_hit_rate: number | null;
+  cost_usd: number;
+  avg_latency_ms: number | null;
+  corrected_count: number;
+}
+
+export interface AnalyticsUsage {
+  current: UsagePeriod;
+  previous: UsagePeriod;
+}
+
 

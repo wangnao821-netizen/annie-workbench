@@ -23,6 +23,7 @@ import { useCaseStore } from '../../stores/caseStore';
 import { CaseListSidebar } from '../brain/CaseListSidebar';
 import { BrainChat } from '../brain/BrainChat';
 import { CasePanorama } from '../brain/CasePanorama';
+import { GlobalStatsPanel } from '../brain/GlobalStatsPanel';
 
 export function AppShell() {
   const [view, setView] = useState<ViewId>("brain");
@@ -54,11 +55,15 @@ export function AppShell() {
             caseId={currentCase?.caseId ?? null}
             onTogglePanorama={() => setPanoramaCollapsed(!panoramaCollapsed)}
           />
-          <CasePanorama
-            caseId={currentCase?.caseId ?? null}
-            collapsed={panoramaCollapsed}
-            onToggle={() => setPanoramaCollapsed(!panoramaCollapsed)}
-          />
+          {currentCase ? (
+            <CasePanorama
+              caseId={currentCase.caseId}
+              collapsed={panoramaCollapsed}
+              onToggle={() => setPanoramaCollapsed(!panoramaCollapsed)}
+            />
+          ) : (
+            <GlobalStatsPanel onNavigate={(v) => setView(v)} />
+          )}
         </div>
       ) : (
         /* Legacy Sub-views Layout with Left Sidebar */

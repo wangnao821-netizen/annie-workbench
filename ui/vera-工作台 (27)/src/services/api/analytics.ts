@@ -5,6 +5,7 @@ import {
   AnalyticsPipeline,
   AnalyticsLenders,
   AnalyticsEfficiency,
+  AnalyticsUsage,
 } from '../../types/api';
 
 export type { Granularity };
@@ -146,3 +147,89 @@ export async function getEfficiency(granularity: Granularity): Promise<Analytics
     return mockEfficiency[granularity];
   }
 }
+
+const mockUsage: Record<Granularity, AnalyticsUsage> = {
+  day: {
+    current: {
+      calls: 38,
+      prompt_tokens: 125000,
+      completion_tokens: 18400,
+      prompt_cache_hit_tokens: 90000,
+      prompt_cache_miss_tokens: 35000,
+      cache_hit_rate: 0.72,
+      cost_usd: 2.45,
+      avg_latency_ms: 1200,
+      corrected_count: 3,
+    },
+    previous: {
+      calls: 28,
+      prompt_tokens: 92000,
+      completion_tokens: 14000,
+      prompt_cache_hit_tokens: 60000,
+      prompt_cache_miss_tokens: 32000,
+      cache_hit_rate: 0.65,
+      cost_usd: 1.95,
+      avg_latency_ms: 1350,
+      corrected_count: 5,
+    },
+  },
+  week: {
+    current: {
+      calls: 240,
+      prompt_tokens: 850000,
+      completion_tokens: 120000,
+      prompt_cache_hit_tokens: 637500,
+      prompt_cache_miss_tokens: 212500,
+      cache_hit_rate: 0.75,
+      cost_usd: 16.8,
+      avg_latency_ms: 1150,
+      corrected_count: 14,
+    },
+    previous: {
+      calls: 195,
+      prompt_tokens: 680000,
+      completion_tokens: 95000,
+      prompt_cache_hit_tokens: 476000,
+      prompt_cache_miss_tokens: 204000,
+      cache_hit_rate: 0.70,
+      cost_usd: 13.9,
+      avg_latency_ms: 1280,
+      corrected_count: 20,
+    },
+  },
+  month: {
+    current: {
+      calls: 980,
+      prompt_tokens: 3500000,
+      completion_tokens: 480000,
+      prompt_cache_hit_tokens: 2730000,
+      prompt_cache_miss_tokens: 770000,
+      cache_hit_rate: 0.78,
+      cost_usd: 68.5,
+      avg_latency_ms: 1100,
+      corrected_count: 42,
+    },
+    previous: {
+      calls: 810,
+      prompt_tokens: 2900000,
+      completion_tokens: 390000,
+      prompt_cache_hit_tokens: 2030000,
+      prompt_cache_miss_tokens: 870000,
+      cache_hit_rate: 0.70,
+      cost_usd: 57.2,
+      avg_latency_ms: 1220,
+      corrected_count: 58,
+    },
+  },
+};
+
+export async function getUsage(granularity: Granularity): Promise<AnalyticsUsage> {
+  const isMock = import.meta.env.VITE_USE_MOCK !== 'false';
+  if (isMock) return mockUsage[granularity];
+  try {
+    return await request<AnalyticsUsage>(`/api/analytics/usage?granularity=${granularity}`);
+  } catch {
+    return mockUsage[granularity];
+  }
+}
+

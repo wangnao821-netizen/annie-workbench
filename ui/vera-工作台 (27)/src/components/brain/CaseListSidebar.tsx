@@ -16,12 +16,12 @@ interface CaseListSidebarProps {
 
 const BOTTOM_TABS = [
   { id: 'tasks' as ViewId, label: '任务工作台', icon: CheckSquare },
-  { id: 'cases' as ViewId, label: '案件看板', icon: Briefcase },
   { id: 'knowledge' as ViewId, label: '知识中心', icon: Brain },
   { id: 'analytics' as ViewId, label: '统计分析', icon: BarChart2 },
 ];
 
 const MORE_ITEMS = [
+  { id: 'cases' as ViewId, label: '案件看板', icon: Briefcase },
   { id: 'settings' as ViewId, label: '系统设置', icon: Settings },
   { id: 'drafts' as ViewId, label: '草稿箱', icon: FileText },
   { id: 'archive' as ViewId, label: '档案库', icon: Archive },
@@ -155,10 +155,10 @@ export function CaseListSidebar({ activeView, onNavigate }: CaseListSidebarProps
           </motion.button>
           <AnimatePresence>
             {moreOpen && (
-              <motion.div initial={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.95, y: -10 }}
-                animate={{ opacity: 1, scale: 1, y: -120 }} exit={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.95, y: -10 }}
+              <motion.div initial={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }} exit={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.95, y: 10 }}
                 transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-                className="absolute bottom-full left-0 z-50 w-44 p-1.5 rounded-xl border flex flex-col space-y-0.5 shadow-xl"
+                className="absolute bottom-full left-0 z-50 w-44 mb-2 p-1.5 rounded-xl border flex flex-col space-y-0.5 shadow-xl"
                 style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}>
                 {MORE_ITEMS.map((item) => {
                   const Icon = item.icon;

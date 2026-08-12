@@ -3,12 +3,15 @@ import { motion } from 'motion/react';
 import { Sparkles, Send, Brain, Bot, User, PanelRightClose, Plus } from 'lucide-react';
 import { getChatHistory, sendChat } from '../../services/api/chat';
 import { listContextEvents, confirmContextEvent, supersedeContextEvent } from '../../services/api/cases';
-import { ChatMessageResponse, ContextEvent } from '../../types/api';
+import { ChatMessageResponse, ContextEvent, ToolCard, DraftPayload, SubmissionSuggestPayload } from '../../types/api';
 import { useToastStore } from '../../stores/toastStore';
 import { useCaseStore } from '../../stores/caseStore';
 import { useUiStore } from '../../stores/uiStore';
+import { useModeStore } from '../../stores/modeStore';
 import { ConfirmCard } from './ConfirmCard';
 import { RecordedEventsDrawer } from './RecordedEventsDrawer';
+import { SubmissionBanner } from './SubmissionBanner';
+import { DraftCard } from './DraftCard';
 
 interface BrainChatProps {
   caseId: string | null;
@@ -17,7 +20,35 @@ interface BrainChatProps {
 
 const MOCK_MESSAGES: ChatMessageResponse[] = [
   { id: 'msg-1', role: 'user', content: '请帮我核对客户的收入和补件清单要求。', created_at: '10 分钟前' },
-  { id: 'msg-2', role: 'assistant', content: '已对齐银行最新政策：客户 PAYG 净收入符合 LVR 标准，尚缺 2025 年 NOA 及买卖合同签署件。', suggested_actions: ['发送催件邮件', '提醒账户补件', '标记优先跟进'], created_at: '9 分钟前' },
+  {
+    id: 'msg-2',
+    role: 'assistant',
+    content: '已对齐银行最新政策：客户 PAYG 净收入符合 LVR 标准，尚缺 2025 年 NOA 及买卖合同签署件。',
+    suggested_actions: ['发送催件邮件', '提醒账户补件', '标记优先跟进'],
+    tool_cards: [
+      {
+        type: 'submission_suggest',
+        title: '进入递交模式建议',
+        payload: { message: '已为您整理补件回复摘要，建议进入递交模式生成对外邮件草稿。' },
+      },
+      {
+        type: 'draft',
+        title: '对外补件邮件草稿',
+        payload: {
+          subject: 'Re: CBA 贷款补件材料递交 - PERSON_1',
+          body: '尊敬的审贷团队：\n\n您好！针对贵行关于客户 PERSON_1 的自住购房贷款补件要求，现提供以下补充材料：\n1. 最新两期 PAYG 工资单及雇主推荐信；\n2. 2025 年 NOA 税单复印件。\n\n请查收，如有任何疑问请随时联系。',
+          disclosure: {
+            needs_review: true,
+            items: [
+              { fact_key: 'income.payslip', text: '近两期 Payslip 收入', disclosed: true },
+              { fact_key: 'internal_notes.rate_pref', text: '客户敏感利率偏好 (5.99%)', disclosed: false },
+            ],
+          },
+        },
+      },
+    ],
+    created_at: '9 分钟前',
+  },
 ];
 
 const MOCK_PENDING_EVENTS: ContextEvent[] = [
@@ -42,6 +73,9 @@ export function BrainChat({ caseId, onTogglePanorama }: BrainChatProps) {
 
   const { cases, currentCase } = useCaseStore();
   const setNewCaseOpen = useUiStore((s) => s.setNewCaseOpen);
+  const mode = useModeStore((s) => s.mode);
+  const setMode = useModeStore((s) => s.setMode);
+
   const activeCaseInfo = caseId ? (cases.find((c) => c.caseId === caseId) || currentCase) : null;
 
   const fetchContextEventsData = useCallback(async () => {
@@ -94,18 +128,50 @@ export function BrainChat({ caseId, onTogglePanorama }: BrainChatProps) {
     setSending(true);
 
     if (import.meta.env.VITE_USE_MOCK !== 'false') {
+      const mockToolCards: ToolCard[] = caseId ? [
+        {
+          type: 'submission_suggest',
+          title: '进入递交模式建议',
+          payload: { message: '已为您整理补件回复摘要，建议进入递交模式生成对外邮件草稿。' },
+        },
+        {
+          type: 'draft',
+          title: '对外补件邮件草稿',
+          payload: {
+            subject: 'Re: CBA 贷款补件材料递交 - PERSON_1',
+            body: '尊敬的审贷团队：\n\n您好！针对贵行关于客户 PERSON_1 的自住购房贷款补件要求，现提供以下补充材料：\n1. 最新两期 PAYG 工资单及雇主推荐信；\n2. 2025 年 NOA 税单复印件。\n\n请查收，如有任何疑问请随时联系。',
+            disclosure: {
+              needs_review: true,
+              items: [
+                { fact_key: 'income.payslip', text: '近两期 Payslip 收入', disclosed: true },
+                { fact_key: 'internal_notes.rate_pref', text: '客户敏感利率偏好 (5.99%)', disclosed: false },
+              ],
+            },
+          },
+        },
+      ] : [];
+
       setMessages((prev) => [...prev, {
         id: `ast-${Date.now()}`, role: 'assistant',
-        content: `已接收指令："${text}"。Vera AI 已根据 ${activeCaseInfo ? `案件 [${activeCaseInfo.clientName}]` : '全局模式'} 分析完毕。`,
-        suggested_actions: ['发送催件邮件', '生成回复草稿', '派单给团队'], created_at: '刚刚',
+        content: `已接收指令："${text}"。Vera AI 已根据 ${activeCaseInfo ? `案件 [${activeCaseInfo.clientName}] (${mode === 'external' ? '递交模式' : '内线模式'})` : '全局模式'} 分析完毕。`,
+        suggested_actions: ['发送催件邮件', '生成回复草稿', '派单给团队'],
+        tool_cards: mockToolCards,
+        created_at: '刚刚',
       }]);
       setSending(false);
       return;
     }
 
     try {
-      const res = await sendChat({ message: text, case_id: caseId ?? undefined });
-      setMessages((prev) => [...prev, { id: `ast-${Date.now()}`, role: 'assistant', content: res.reply, suggested_actions: res.suggested_actions, created_at: '刚刚' }]);
+      const res = await sendChat({ message: text, case_id: caseId ?? undefined, track: mode });
+      setMessages((prev) => [...prev, {
+        id: `ast-${Date.now()}`,
+        role: 'assistant',
+        content: res.reply,
+        suggested_actions: res.suggested_actions,
+        tool_cards: res.tool_cards,
+        created_at: '刚刚',
+      }]);
     } catch {
       useToastStore.getState().showToast('error', '发送消息失败，请重试');
     } finally {
@@ -179,6 +245,9 @@ export function BrainChat({ caseId, onTogglePanorama }: BrainChatProps) {
         )}
       </div>
 
+      {/* Submission Mode Banner (Only rendered when caseId is selected) */}
+      {caseId && <SubmissionBanner />}
+
       {/* 2. Chat Stream */}
       <div className="p-4 space-y-3 flex-1 overflow-y-auto no-scrollbar">
         {!activeCaseInfo && messages.length === 0 ? (
@@ -208,6 +277,57 @@ export function BrainChat({ caseId, onTogglePanorama }: BrainChatProps) {
                 style={m.role === 'user' ? { backgroundColor: 'var(--accent)' } : { backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
                 {m.content}
               </div>
+
+              {/* Tool Cards */}
+              {m.role === 'assistant' && m.tool_cards && m.tool_cards.length > 0 && caseId !== null && (
+                <div className="w-full max-w-[85%] space-y-2 pt-1">
+                  {m.tool_cards.map((card, idx) => {
+                    if (card.type === 'submission_suggest') {
+                      const suggestPayload = card.payload as unknown as SubmissionSuggestPayload;
+                      return (
+                        <div
+                          key={idx}
+                          className="p-3 rounded-2xl border bg-amber-500/10 border-amber-500/20 text-amber-900 dark:text-amber-200 text-xs space-y-2"
+                          id={`submission-suggest-card-${idx}`}
+                        >
+                          <div className="flex items-center space-x-2 font-bold text-amber-800 dark:text-amber-300">
+                            <Sparkles className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                            <span>{card.title || '建议进入递交模式'}</span>
+                          </div>
+                          <p className="leading-relaxed text-[11px] opacity-90">
+                            {suggestPayload.message || '系统检测到对外沟通需求，建议切换至递交模式。'}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMode('external');
+                              useToastStore.getState().showToast('success', '已进入递交模式');
+                            }}
+                            className="px-3 py-1.5 rounded-xl font-bold text-[11px] text-white cursor-pointer hover:opacity-90 transition-opacity flex items-center space-x-1 shadow-xs"
+                            style={{ backgroundColor: 'var(--accent)' }}
+                            id="enter-submission-mode-btn"
+                          >
+                            <span>进入递交模式</span>
+                          </button>
+                        </div>
+                      );
+                    }
+                    if (card.type === 'draft') {
+                      return (
+                        <DraftCard
+                          key={idx}
+                          draft={card.payload as unknown as DraftPayload}
+                          clientName={activeCaseInfo?.clientName || '客户'}
+                          lender={activeCaseInfo?.lender || ''}
+                        />
+                      );
+                    }
+                    return null;
+                  })}
+                </div>
+              )}
+
+              {/* Suggested Actions */}
               {m.role === 'assistant' && m.suggested_actions && m.suggested_actions.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 pt-1">
                   {m.suggested_actions.map((act, idx) => (
