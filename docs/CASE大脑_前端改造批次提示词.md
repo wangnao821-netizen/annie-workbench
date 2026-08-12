@@ -16,7 +16,7 @@
 | F-3 | 右栏实化：事实卡（BrainFact）/补全进度灰提示（依赖 WO-15 ✅） | ✅ 已交付（vera-工作台 (26)），待真机运行验收 |
 | F-3b | 右栏重构：案件指挥中心（待办卡/风险/时间线/事实折叠，移除记一笔）+ 老看板入口收进"更多" | ✅ 已交付（vera-工作台 (27)），待真机运行验收 |
 | F-5 | 全局咨询右栏：统计分析面板（概览 + 趋势 + AI 用量） | ✅ 已交付（vera-工作台 (27)），待真机运行验收 |
-| F-4 | Apple 风格动画与材质打磨 + 次级入口收尾 | 待出 |
+| F-4 | Apple 风格打磨——玻璃材质/排版层级/动效/微交互/空态/旧页面视觉统一（已读 apple-design 规范） | 已出（下文） |
 
 > ✅ **已定稿（2026-08-12）**：在现有 `ui/vera-工作台 (23)` 基础上**增量改造**（换壳不换内脏）——
 > 保留 services/types/stores/themes/已验证组件，换 AppShell 外壳 + 新增 `src/components/brain/` 目录；
@@ -284,6 +284,142 @@ src/stores/uiStore.ts
 - **F-4**：Apple 风格打磨——毛玻璃材质/弹簧动画细节/空态插画/reduced-motion 复查；旧页面入口收尾
 
 > 注：F-2b~F-4 的具体提示词待对应批次验收后按实际代码结构撰写。
+
+---
+
+## 批 F-4：Apple 风格视觉打磨（全项目统一）
+
+> 依据项目 `apple-design` skill（WWDC 流体界面/材质/排版规范）。目标：去掉"临时感"——建立材质层次、排版层级、统一动效与微交互，并把旧页面（任务工作台/看板/统计/设置）统一进同一视觉语言。**只改视觉与交互，不改任何业务逻辑与接口。**
+
+### 提示词正文（复制给 AI Studio）
+
+```
+# 任务：Vera Workbench — F-4 Apple 风格视觉打磨（全项目统一）
+
+## 背景
+当前界面"临时感"来自：平铺卡片+细边框无层次、字号几乎全是 text-xs 无层级、动效参数不统一、
+hover/按压/焦点态缺失、空态只有文字、旧页面与新三栏风格混搭。本次按 Apple 设计规范统一：
+① 材质层次（玻璃/阴影/层次）② 排版层级（光学字号/字距/行高）③ 动效（临界阻尼 spring、可中断、进出同路径）
+④ 微交互（pointer-down 反馈、hover 抬升、焦点环）⑤ 空态插画 ⑥ 旧页面视觉统一。
+
+## 技术约束
+- 前端：TypeScript strict / React 18 / Vite / Tailwind CSS / motion/react（现有版本）
+- 禁止：引入任何新的 npm 依赖（空态插画用 lucide-react 图标组合 + 渐变，不引入图片/插画库）
+- 禁止：修改任何业务逻辑、接口、props 契约、页面路由；只改 className/样式/动画/文案层级
+- 颜色：一律从现有 CSS 变量派生（--bg-app/--bg-panel/--bg-card/--border/--text-primary/--text-muted/--accent 等），可在 tokens.css 新增**材质/层级变量**（玻璃背景、阴影、模糊），禁止引入新色板
+- 字体：系统字体栈（现有），不引入新字体
+- 动效：统一 motion/react spring——默认 **damping 1.0 / response 0.3-0.4（临界阻尼，无过冲）**；抽屉/弹层/拖拽释放等动量交互 **damping 0.8 / response 0.3**；全部可中断、从当前值继续；遵守 prefers-reduced-motion（退化为 opacity 交叉淡变）
+
+## 改动范围（严禁超出）
+
+| 文件 | 操作 |
+|------|------|
+| src/themes/tokens.css | 修改：新增材质/层级/焦点变量（玻璃、阴影阶梯、blur、ring） |
+| src/index.css | 修改：排版基础（系统字体、字距/行高工具、焦点可见性、reduced-motion/transparency/contrast 媒体查询） |
+| src/components/layout/AppShell.tsx | 修改：三栏层次 + 玻璃顶栏 + 滚动边缘渐变（只改样式） |
+| src/components/brain/CaseListSidebar.tsx | 修改：玻璃材质 + hover/press/焦点态 + 文字层级 |
+| src/components/brain/BrainChat.tsx | 修改：消息气泡层次、输入条玻璃、工具卡/横幅材质、按压反馈 |
+| src/components/brain/CasePanorama.tsx | 修改：分区层级、待办卡/风险卡 hover、事实折叠动效（spring 统一） |
+| src/components/brain/GlobalStatsPanel.tsx | 修改：数字卡层级/间距/趋势条视觉 |
+| src/components/brain/SubmissionBanner.tsx | 修改：横幅材质（amber 玻璃）与进出动效（同路径） |
+| src/components/brain/DraftCard.tsx · ConfirmCard.tsx · RecordedEventsDrawer.tsx · TodoCard.tsx · RiskSection.tsx · FactCard.tsx · CompletionHint.tsx | 修改：统一材质/层级/hover/按压（每个组件只改样式） |
+| src/pages/TaskWorkbench.tsx · CaseBoard.tsx · Analytics.tsx · Settings.tsx | 修改：顶栏/卡片/按钮统一到新视觉语言（**只改样式，零逻辑**） |
+| src/components/ui/Toast.tsx | 修改：Toast 玻璃材质 + 进出动效（同路径、可中断） |
+| src/components/cases/NewCaseModal.tsx | 修改：sheet 玻璃材质 + 弹簧上滑（damping 0.8 / response 0.3）+ 遮罩渐变 |
+
+⚠️ 严禁修改上表以外的文件。严禁改动任何业务逻辑、接口、props、路由。严禁删除/重命名现有文件。
+
+## 设计规范（必须遵守，来自 apple-design skill）
+
+### 材质与层次（§12）
+1. **中栏保持实底浅色**（信息密集区，避免玻璃干扰阅读）；**左/右栏与顶栏、弹层、抽屉、Toast 用玻璃**：`backdrop-filter: blur(20px) saturate(180%)` + 半透明背景（从现有色板派生，如 `rgba(var(--bg-panel-rgb), 0.6)`）
+2. **材质重量编码层级**：结构性区域（侧栏）用较重玻璃；交互元素（按钮/卡片）用轻表面；**禁止浅玻璃叠浅玻璃**（可读性崩塌）
+3. **大表面更厚**：弹层/抽屉 blur 更强 + 阴影更深；上下文感知阴影（浮在内容上阴影重，浮在空白上阴影轻）
+4. **滚动边缘效果替代硬分割线**：粘性头/浮动条与内容交接处用渐变遮罩（模糊/渐隐），不是 1px 边框
+5. **材质化而不是纯淡入**：玻璃表面进出时 blur 半径与 scale 一起动（像真实材质到达），不是单纯 opacity
+6. 玻璃上文字：更高对比、略重字重、+0.01em 字距（vibrancy 保可读）
+
+### 排版（§15）
+7. 层级用**字重+字号+行高组合**，不单靠字号：标题（font-extrabold + 负字距 -0.01~-0.02em + 行高 1.1-1.2）；正文（默认字重 + 字距 0 + 行高 1.5-1.6）；小字/标签（font-medium + 字距 +0.01~0.02em）
+8. 字号阶梯收敛为 3-4 档（如 13/14/15/20），删除零散 text-[10px]/[11px]（muted 标签除外）
+9. 尊重用户文本大小（尽量 rem/em，不用纯 px 撑布局）
+
+### 动效与微交互（§1/§3/§7）
+10. **反馈在 pointer-down**：可点元素 `:active { transform: scale(0.97) }`（100ms ease-out）；hover 抬升（translateY(-1px) + 阴影加深，spring 可中断）
+11. 弹层/抽屉/横幅：**进出同路径**（从右滑入 → 向右滑出；从下上滑 → 向下退出）；锚定触发源（transform-origin 指向触发按钮）
+12. 默认 spring 临界阻尼（damping 1.0 / response 0.3-0.4）；抽屉/sheet/Toast 动量交互 damping 0.8 / response 0.3；全部可中断、从当前 on-screen 值继续
+13. 焦点可见性：键盘焦点有清晰 ring（2px accent + offset 2px），不破坏视觉
+
+### 可访问性（§14）
+14. `@media (prefers-reduced-motion: reduce)` → 滑动/弹簧退化为 200ms opacity 交叉淡变，禁弹性过冲
+15. `@media (prefers-reduced-transparency: reduce)` → 玻璃退化为实底（背景不透明、去 blur）
+16. `@media (prefers-contrast: more)` → 近实底背景 + 明确对比边框
+
+### 空态（无新依赖）
+17. 三个空态（全局咨询/无案件全景/无待办）升级：lucide 图标组合（大图标 + 渐变圆底）+ 主文案（bold）+ 副文案（muted）+ 主操作按钮，居中、间距平衡
+
+## 实施步骤
+
+### Step 1：基础令牌
+- [ ] src/themes/tokens.css：新增材质/阴影/ring 变量（玻璃背景、--shadow-1/2/3、--blur-glass、--ring）
+- [ ] src/index.css：排版基础 + 焦点可见性 + 3 组媒体查询（reduced-motion/transparency/contrast）
+
+### Step 2：三栏骨架材质
+- [ ] AppShell/CaseListSidebar/BrainChat/CasePanorama：按规范 1-6、10-13 应用材质/层次/微交互（只改样式）
+
+### Step 3：组件统一
+- [ ] 其余 brain 组件 + Toast + NewCaseModal：材质/动效统一（规范 1-13）
+
+### Step 4：旧页面视觉统一
+- [ ] TaskWorkbench/CaseBoard/Analytics/Settings：顶栏/卡片/按钮对齐新视觉语言（只改样式）
+
+### Step 5：空态 + 验证
+- [ ] 三个空态按规范 17 升级
+- [ ] npx tsc --noEmit → 零错误；npm run build → 成功
+
+## 验收标准（手动）
+1. 左/右栏与顶栏呈玻璃质感（背景内容模糊透出），中栏清晰实底；无"浅玻璃叠浅玻璃"
+2. 标题/正文/标签字距行高有明确层级；无零散 text-[10px]
+3. 按钮按压瞬间有 scale 反馈；hover 有抬升；键盘 Tab 有焦点环
+4. 抽屉/横幅/Toast 进出同路径、可中途反方向抓回；默认无过冲（弹层/抽屉有轻微回弹可接受）
+5. 开启系统"减少动态效果" → 全部退化为淡变；"降低透明度" → 玻璃变实底
+6. 三个空态有图标插画 + 层级文案，不丑不空
+7. 旧页面（任务工作台/看板/统计/设置）顶栏卡片与三栏视觉一致，不突兀
+8. 暗色/亮色主题切换后玻璃材质正常（变量派生，不破色）
+
+⚠️ 执行纪律：
+1. 只修改改动范围表中的文件，绝不碰其他文件
+2. **严禁改动任何业务逻辑、接口、props、路由**——本次是纯视觉/交互层
+3. 不引入新依赖（尤其不引入插画/图表/字体库）
+4. 颜色只用现有变量派生；每步完成运行验证；失败先报告
+5. 动效统一 spring（默认 damping 1.0 / response 0.3-0.4；抽屉/弹层 0.8 / 0.3），可中断，遵守 reduced-motion
+```
+
+### 上传给 AI Studio 的参考文件（最小集）
+
+```
+src/themes/tokens.css
+src/index.css
+src/components/layout/AppShell.tsx
+src/components/brain/CaseListSidebar.tsx
+src/components/brain/BrainChat.tsx
+src/components/brain/CasePanorama.tsx
+src/components/brain/GlobalStatsPanel.tsx
+src/components/brain/SubmissionBanner.tsx
+src/components/brain/DraftCard.tsx
+src/components/brain/ConfirmCard.tsx
+src/components/brain/RecordedEventsDrawer.tsx
+src/components/brain/TodoCard.tsx
+src/components/brain/RiskSection.tsx
+src/components/brain/FactCard.tsx
+src/components/brain/CompletionHint.tsx
+src/components/ui/Toast.tsx
+src/components/cases/NewCaseModal.tsx
+src/pages/TaskWorkbench.tsx
+src/pages/CaseBoard.tsx
+src/pages/Analytics.tsx
+src/pages/Settings.tsx
+```
 
 ---
 
