@@ -18,6 +18,7 @@
 | F-5 | 全局咨询右栏：统计分析面板（概览 + 趋势 + AI 用量） | ✅ 已交付（vera-工作台 (27)），待真机运行验收 |
 | F-4 | Apple 风格打磨——玻璃材质/排版层级/动效/微交互/空态/旧页面视觉统一（已读 apple-design 规范） | 已出（下文） |
 | F-6 | 首页（今日工作台）界面设计——应用框架感 + 今日概览/待办/提醒/快捷操作/对话入口（自由发挥，功能要求到位） | 已出（下文） |
+| F-6c | 首页融合 + 侧栏布局修整——原型设计模式 × 主前端真实数据（固定顶栏/Bento 小组件/待办 tabs/侧栏分区） | 已出（下文） |
 
 > ✅ **已定稿（2026-08-12）**：在现有 `ui/vera-工作台 (23)` 基础上**增量改造**（换壳不换内脏）——
 > 保留 services/types/stores/themes/已验证组件，换 AppShell 外壳 + 新增 `src/components/brain/` 目录；
@@ -285,6 +286,118 @@ src/stores/uiStore.ts
 - **F-4**：Apple 风格打磨——毛玻璃材质/弹簧动画细节/空态插画/reduced-motion 复查；旧页面入口收尾
 
 > 注：F-2b~F-4 的具体提示词待对应批次验收后按实际代码结构撰写。
+
+---
+
+## 批 F-6c：首页融合（原型设计 × 主前端数据）+ 侧栏布局修整
+
+> 参考独立原型 `ui/vera-workbench-—-今日工作台`（固定顶栏、Bento 统计卡、快捷看板、专家贴士、待办筛选 tabs、底部 4 入口），把它的**设计模式**融合进主前端 `ui/vera-工作台 (29)`（已接真实 store/接口），并修整侧栏布局。**只借鉴设计与组件模式，不复制其单文件 store/写死颜色/硬编码日期；数据一律走主前端现有服务层。**
+
+### 提示词正文（复制给 AI Studio）
+
+```
+# 任务：Vera Workbench — 首页融合 + 侧栏布局修整（F-6c）
+
+## 背景
+主前端（ui/vera-工作台 (29)）已有 HomePage（接真实数据：taskStore / getOverview / caseStore / sendChat）和左栏 4 入口（待办·看板·统计·设置），但：
+① 没有固定顶栏 → 仍是"网页感"；② 首页缺信息密度与小组件；③ 侧栏布局拥挤、无分区、入口层级混乱。
+另有一个独立设计原型 `ui/vera-workbench-—-今日工作台`，其固定顶栏、Bento 统计卡、快捷看板、专家贴士、待办筛选 tabs、底部导航分组值得借鉴。
+本次：把原型的设计模式**融合**进主前端，并修整侧栏布局。**只借鉴设计与组件模式；不复制原型的 store 单文件结构、写死颜色或硬编码日期；所有数据走主前端现有服务层。**
+
+## 技术约束
+- TypeScript strict / React 18 / Vite / Tailwind CSS / motion/react / zustand（现有技术栈）
+- **不引入任何新的 npm 依赖**（图标用现有 lucide-react；不引入图表/插画库）
+- 不修改后端、不新增接口；数据只用现有：`useTaskStore`（待办）、`getOverview`（统计数字）、`useCaseStore`（案件）、`sendChat`（对话）
+- 颜色从现有 CSS 变量派生（--bg-app/--bg-panel/--bg-card/--border/--text-primary/--text-muted/--accent 等）；可在 tokens.css 补材质变量，禁止新色板；**不用原型里的写死色（bg-gray-100 等）**
+- 动效：motion/react spring，默认阻尼 1.0 / response 0.3-0.4，可中断；遵守 prefers-reduced-motion / prefers-reduced-transparency
+- 固定栏可用玻璃材质（backdrop-filter）增强应用感，注意可读性
+- 保留现有三栏（案件对话 + 客户全景 + 全局咨询 + 统计面板）全部可用
+
+## 一、固定顶栏（新增，解决"网页感"）
+
+新建 `src/components/layout/TopNavBar.tsx`，AppShell 顶部固定（h-14，玻璃：`backdrop-blur` + 半透明背景，z 高于内容；主内容区在顶栏下方滚动）：
+- 左侧：品牌区——AI 圆标（渐变）+ 应用名 "Vera Workbench"（点击回首页 home）
+- 中部：全局搜索框（可搜索案件/客户，回车跳对应案件对话；V1 本地过滤案件列表即可）
+- 右侧：通知铃铛（未读数角标；点开下拉面板：通知列表 + 全部已读；无通知显示空态）——数据可先用现有 useNotifications/taskStore 推导或 mock 分支
+- 主题切换（亮/暗）、用户信息（Vera 头像 + 名称）
+- 折叠/移动端不处理（桌面优先）
+
+## 二、首页融合（改造现有 HomePage.tsx，保留真实数据）
+
+结构自上而下：
+1. **到期/逾期提醒条**（保留现有）：琥珀/红、脉冲点、"查看逾期待办"、可关闭
+2. **日期 + 业务概览行**（保留现有）：今天日期 + "今天 N 个待办 · N 个到期/逾期 · 银行回复待处理"
+3. **快捷操作**（保留现有 3 个）：新建案件（主按钮）/ 写邮件（预填对话）/ 统计视图
+4. **Bento 统计数字卡**（对齐原型样式）：4 卡——活跃案件 / 本月新增 / 已递交 / 预估佣金；label 大写 tracking、数值 2xl bold、hover 阴影（数据 getOverview）
+5. **主内容区（Bento 双栏）**：
+   - 左栏（span 2）**今日待办**：筛选 tabs（全部 / 逾期 / AI 建议，带数量）+ 排序（逾期→优先级→截止日，已完成沉底）+ 行设计（逾期红标"已逾期 N 天"/AI 建议蓝标/常规灰标 + 标题 + 客户·银行·说明 + 截止日 + 优先级色）；点击 → 跳对应案件对话（setCurrentCase + view=brain）；空态（图标 + 主副文案）
+   - 右栏（span 1）**Bento 小组件**：
+     - **快捷看板**：案件按阶段分组（资料收集/银行递交/预批批复/待结算）进度条（数量 + 百分比条，来自 useCaseStore 案件 stage 统计）+"进入完整看板 →"按钮
+     - **Vera 专家小贴士**：渐变高亮卡（indigo），AI 建议一句（可先用现有 AI 建议文案/mock 占位，标注 TODO 接真实建议）
+6. **首页对话入口**（保留现有 handleStartChat → 预填 pendingChatPrompt → 跳 brain）
+
+## 三、侧栏布局修整（CaseListSidebar.tsx）
+
+目标：分区清晰、入口分组、间距舒适、风格统一：
+1. **品牌行**（顶部）：Vera Workbench + 折叠按钮（保留）
+2. **案件区**（独立分组，加小标题"案件"）：
+   - 筛选 tabs：全部 / 紧急 / 递交中（本地过滤，选中态 accent）
+   - 搜索框 + 新案件按钮（保留现有）
+   - 案件卡片列表（保留现有：客户名/银行/阶段/清单进度条）
+3. **底部固定导航区**（分隔线以上，两小组）：
+   - 组 1（对话/首页）：🏠 今日工作台 · 💬 全局咨询
+   - 分隔线
+   - 组 2（系统）：待办 · 看板 · 统计 · 设置（4 入口）
+   - 更多功能 ▾（知识中心/草稿箱/档案库/导入历史/数据迁移）
+4. **统一细节**：全部图标用 lucide（去掉 🏠/💬 emoji 前缀）；间距放宽（p-2.5/p-3、space-y-1）；选中态 accent-soft + 左侧 3px 指示条；折叠态（60px）只留图标 + title tooltip，底部导航图标居中
+
+## 产出物
+- 新建 src/components/layout/TopNavBar.tsx；AppShell 挂载（home 与 brain 视图共用）
+- 改造 src/components/brain/HomePage.tsx（保留真实数据，补 Bento/小组件/tabs）
+- 改造 src/components/brain/CaseListSidebar.tsx（分区 + 分组 + 去 emoji + 间距 + 折叠态）
+- 需要时可补 tokens.css 材质/指示条变量
+
+## 验证
+- npx tsc --noEmit → 零错误；npm run build → 成功
+- 后端未启动/接口失败 → 页面不崩溃，合理降级（沿用现有 mock 兜底）
+
+## 验收参考（手动）
+1. 打开软件 → 固定顶栏（玻璃）存在，品牌/搜索/通知/主题/用户齐全；主内容在顶栏下方滚动
+2. 首页：提醒条 + 日期概览 + 快捷操作 + 4 统计卡 + 今日待办（tabs 可切换、逾期红、点击跳案件对话）+ 快捷看板进度条 + 专家贴士 + 底部对话可开聊
+3. 侧栏：案件区独立分组（标题 + 筛选 tabs）；底部导航分两小组（首页/全局 + 待办/看板/统计/设置）；无 emoji 混搭；间距舒适
+4. 折叠侧栏 → 图标 + tooltip 正常；展开/折叠动画顺滑可中断
+5. 点击通知 → 下拉面板；主题切换正常；reduced-motion 生效
+6. 旧三栏（案件对话/全景/全局咨询/统计面板）不受影响
+
+⚠️ 执行纪律：
+1. 只修改上表/产出物提到的文件；严禁改动其他文件（业务逻辑/接口/路由不动）
+2. 不引入新依赖；不复制原型写死色/硬编码日期/mock 单文件 store
+3. 数据一律走主前端现有 store/services；每步完成运行验证；失败先报告
+4. 动效统一 spring（damping 1.0 / response 0.3-0.4），可中断，遵守 reduced-motion
+```
+
+### 上传给 AI Studio 的参考文件（最小集）
+
+```
+src/App.tsx
+src/components/layout/AppShell.tsx
+src/components/brain/HomePage.tsx
+src/components/brain/CaseListSidebar.tsx
+src/components/brain/BrainChat.tsx
+src/components/brain/CasePanorama.tsx
+src/components/brain/GlobalStatsPanel.tsx
+src/stores/caseStore.ts
+src/stores/taskStore.ts
+src/stores/uiStore.ts
+src/stores/modeStore.ts
+src/services/api/tasks.ts
+src/services/api/analytics.ts
+src/services/api/chat.ts
+src/types/api.ts
+src/themes/tokens.css
+```
+
+> 另附参考：独立原型 `ui/vera-workbench-—-今日工作台` 的 `src/components/TopNavBar.tsx`、`src/components/brain/HomePage.tsx`、`src/components/LeftSidebar.tsx`（仅作设计参考，不照抄代码）。
 
 ---
 
