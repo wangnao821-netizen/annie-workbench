@@ -21,6 +21,7 @@
 | `core/models/db.py` | 修改 | 新增 `_warn_on_dual_data_dirs`（建议放在 `init_sa_tables` 之前）+ `init_sa_tables` 内调用 |
 | `tests/test_api/test_analytics.py` | 修改 | `TestBucketing` 类内更新 1 个用例 + 新增 2 个用例 |
 | `tests/test_alembic.py` | 修改 | 文件末尾新增 2 个用例 |
+| `core/migrations/env.py` | 修改（执行中追加授权） | L24 `fileConfig(config.config_file_name)` → `fileConfig(config.config_file_name, disable_existing_loggers=False)` |
 
 ⚠️ 严禁修改上表以外的任何文件（含 server/、core/ 其他模块、前端）。严禁重命名/移动/删除现有文件。
 
@@ -207,6 +208,8 @@ def test_dual_data_dir_no_warning_on_override_path(tmp_path, caplog):
 ```
 
 失败标准：以上用例通过；`test_legacy_db_no_alembic_version_stamp_and_upgrade` 等既有用例不回归。
+
+> ⚠️ 执行中追加（2026-08-12 Codex 授权）：**根因修正**——`test_dual_data_dir_warning_when_legacy_exists` 全文件顺序运行失败，根因是 `core/migrations/env.py` 的 `fileConfig` 默认 `disable_existing_loggers=True`，先跑过 alembic 的用例会把应用 logger（core.models.db）禁用，导致后续 caplog 抓不到警告；且这是生产隐患（一次 alembic 运行禁用全部应用日志）。授权一字改动：`fileConfig(config.config_file_name, disable_existing_loggers=False)`。仅此一处，不碰 revision、不碰其他文件。改完按全文件顺序重跑 `pytest tests/test_alembic.py -q` 确认通过。
 
 ---
 
