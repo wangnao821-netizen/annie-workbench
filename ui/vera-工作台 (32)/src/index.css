@@ -1,0 +1,67 @@
+@import "tailwindcss";
+@import "./themes/tokens.css";
+
+/* Glass & Material Utility classes */
+.glass-panel {
+  background-color: var(--surface-translucent);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+.glass-card {
+  background-color: var(--surface-translucent-card, var(--bg-card));
+  backdrop-filter: blur(12px) saturate(160%);
+  -webkit-backdrop-filter: blur(12px) saturate(160%);
+}
+
+/* Typography polish */
+h1, h2, h3, h4, .font-heading {
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+body {
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Focus Visible outline ring for accessibility */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Reduced transparency accessibility override */
+@media (prefers-reduced-transparency: reduce) {
+  .glass-panel, .glass-card {
+    background-color: var(--bg-panel) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
+/* High contrast accessibility override */
+@media (prefers-contrast: more) {
+  :root {
+    --border: #4b5563 !important;
+    --text-muted: #d1d5db !important;
+  }
+}
+
+/* Reduced motion preference override */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+

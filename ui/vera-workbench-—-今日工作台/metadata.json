@@ -1,0 +1,6 @@
+{
+  "name": "Vera Workbench — 今日工作台",
+  "description": "Vera 贷款经纪人桌面工作台（今日工作台与案件管理大脑）",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
