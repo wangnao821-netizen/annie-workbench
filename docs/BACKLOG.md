@@ -2,23 +2,26 @@
 
 > 用途：汇总历次讨论中明确"以后做 / 待办 / 技术债 / 需授权"的事项，防止上下文丢失。
 > 维护：每次会议后更新；状态图例：✅ 完成 ｜ ⏳ 进行中 ｜ ❌ 待办 ｜ 🐍 依赖后端
-> 最后更新：2026-08-11
+> 最后更新：2026-08-12（22 项缺口 + 微信通道收口）
 
-## V1 范围重切（2026-08-12 定稿，产品主线）
+## V1 范围重切（2026-08-12 定稿；三稿更新为 AI First 大脑）
 
-> 原则：**不改 Vera 团队工作习惯**；系统做"记忆外部化"，从新 CASE 开始。
+> 原则：**不改 Vera 团队工作习惯**；**CASE 大脑 = 对话为主**（她说，它记、它答、它建议、她拍板）；客户信息 100% 靠聊天 + 内置流程主动询问 + 按需文件提取获得；文件/邮件/日历等外部数据源一律做成工具、按需接入（零数据源接入 = 零信任成本）。
 
-### V1 再简化（2026-08-12 二稿）：案件记录本最小版
-
-> **V1 = 案件记录本**：Vera 手动写，系统自动累积成上下文（全景/AI）。自动化全部延后。
+### V1 = CASE 大脑（2026-08-12 三稿，22 项缺口 + 微信通道已全部收口）
 
 | 做 | 说明 |
 |----|------|
-| ✅ 建案 | NewCaseModal（已有） |
-| ✅ 记录本 | 记一笔（内部/递交，已有）+ **记录流视图（补：后端 GET /api/cases/{id}/notes + 前端记录本列表/删除）** |
-| ✅ 客户全景 + AI 带上下文 | 已有（记录→蒸馏→全景→AI 注入） |
-| ✅ 统计 | 已做（S1.5），激励录入 |
-| ⏸️ 延后 | 邮件进度自动化 / 日历读取 / 文件 / 历史导入 / 委派闭环 / 双视角 UI（S4） |
+| ✅ 三栏工作台 | 左栏案件列表（含**全局咨询**入口）+ 中栏 BrainChat（对话主入口）+ 右栏客户全景（F-1 批次起） |
+| ✅ 统一建案页 | 新客户（必填 7 项）/ 存量壳（三级）/ 历史导入共用：顶部文件导入口 + 字段预填 + 一句话解析；建案成功自动进案件对话 |
+| ✅ 确认闸门 | 事件状态机 pending→confirmed→superseded；高置信直接记 + 可撤销，低置信轻确认 |
+| ✅ 双线披露 | 递交模式手动切换 + 披露清单（一次确认、永久标记、可撤销）；外线硬阻断未披露 internal |
+| ✅ 客户全景 + AI 带上下文 | 记录→蒸馏→全景→AI 注入（五层缓存友好协议） |
+| ✅ 统计 | 天/周/月（时区改 Australia/Sydney），激励录入 |
+| ✅ 提醒 | 软件内三处（汇总横幅/对话自然提醒/全景待办卡）+ 系统通知（Electron） |
+| 🆕 微信 Bot | Vera 私人助手（纯自用）：查信息/草稿/提醒，不进客户会话、不自动发送 |
+| ✅ 备份/导出 | 每天自动备份 7 份轮转，路径可配置（NAS，不可达回落本地），换路径自动迁移；一键导出 JSON |
+| ⏸️ 延后 | 邮件进度自动化 / 日历读取 / 文件主动扫描 / 历史数据迁移 / 委派闭环 / 团队共享（V2） |
 
 ### 自动化路线图（V1 之后逐步上）
 | 阶段 | 自动化 |
@@ -36,6 +39,10 @@
 | ❌ 文件 | **V1 完全不碰**：解析/分类/OCR/字段/清单关联全部延后；代码保留、默认关闭 |
 | ❌ 历史 | 历史案件导入（libratom / 旧库迁移）V1 不做 |
 | 🆕 内外双线 | 内线=客户真实情况/风险/策略（仅本地）；外线=递交呈现/证据（可出网生成银行文本）；双轨蒸馏 + 全景双视角 + AI 按视角注入；**外线生成禁止引用内线** |
+| ✅ 上下文注入 | 五层缓存友好排序（角色→案件大脑→经验/政策→实时数据→对话追加区）+ 追加式/折叠式（#8）；DeepSeek 日常 + Gemini 英文（#10） |
+| ✅ 存量客户 | 三级建壳（极简/标准/完整），动作驱动补全（越用越完整），按需建壳不批量 |
+| ✅ 单用户 | V1 Vera 专属，Vera = 全生命周期统筹者（同事执行的任务由她反馈进度）；团队共享 V2 |
+| ✅ 政策库 | lender_policies.yaml 规则引擎（CBA/ANZ/NAB 先行），Codex 起草 → Vera 审校 |
 | 🎯 核心价值 | 上下文外部化记忆：记录（日历/手动/邮件进度）→ CaseContextEvent → 蒸馏 → 客户全景 → AI 自动带上下文 |
 
 ### V1 冲刺
@@ -71,6 +78,9 @@
 - 后端：S0 内外双线数据模型 ✅（internal_notes/submission_summary/track + 双轨蒸馏 + ?track= + external 无泄漏红线，pytest 432/0）
 - 后端：S1 手动任务 + 「记一笔」端点 + match_status/source_ref 预埋 ✅（pytest 442/0，实测记一笔→内线蒸馏闭环）
 - 后端：S1.5 统计分析（天/周/月，overview/pipeline/lenders/efficiency）✅（pytest 450/0）
+- 收口：22 项缺口 + 微信通道（#23）全部定稿（2026-08-12，见 docs/CASE大脑_V1缺口与待讨论清单.md）
+- git：D:\vera-workbench 已初始化 + 基线提交 `1e2b10a`（435 文件）✅；前端交付流程 = commit + diff 对比
+- 双 data 目录：`core/data/assistant.db` 唯一真源 ✅（测试库已快照归档 `core/data/backups/legacy/`；根库原文件待后端重启后归档）
 - 前端：批 1-12 + 批 A/B/C/C-2/C-3/D-1/D-2/E-1 全部完成（AI Studio 线维护）
 - 联调：后端 + 前端已在本地跑通（8000/3000）；已修复：id/case_id、datetime naive、SSE payload、草稿 404、设置页离线误报、案件下拉遮挡、邮件附件预览、客户全景同源
 
@@ -123,22 +133,31 @@
 
 ### WO-05：Electron 桌面壳（❌，功能稳定后做）
 - 窗口/托盘/Python 内嵌/自动更新/端口冲突检测/首次安装引导
+- **系统通知（#11 定稿）**：到期/逾期提醒升级为系统通知中心（托盘 + 通知横幅），提醒可在后台运行
 
 ### WO-06：云同步（❌，模型稳定后做）
 - Supabase 脱敏镜像 + NAS 内网 + leak_guard + checkpoint + DDL
 
 ### WO-11：微信通道（❌）
-- iLink Bot 复制 + 案件查询 + 早报 + 紧急推送 + 草稿版本管理
+- **范围（#23 定稿）**：Vera 私人助手（纯自用）——查信息（案件进度/全景/统计/待办/政策）+ 草稿回复 + 提醒推送；**不进客户会话、不自动发送**
+- 现状核实：server/api/wechat.py 仅 2 个 stub（message/morning-report，NotImplementedError）；core/wechat/ 空——真实新开发
+- 技术形态待定：企业微信官方 API 优先；个人微信 hook 需 PoC（封号风险，工具准入三关）
+- 复用：同一后端、同一脱敏闸门、同一确认闸门、同一防串案协议
 
 ### WO-12：迁移与发布（❌）
 - migrate_from_v1 / merge_env / version_bump / GitHub Actions / README / CHANGELOG / 新项目 AGENTS.md
-- vera-workbench 目前**没有 git 仓库**，需要初始化
+- git：✅ 已初始化 + 基线提交（`1e2b10a`）；后续发布走 version_bump + tag
 
 ### 专项修复 / 技术债
 - **milestone_processor**：✅ 已迁移（core/case_engine/milestones.py），confirm_stage_advance 闭环，原 skip 已消除
 - **onboarding 三处降级**：✅ 已补齐（core/context/accumulator.py + core/ai/knowledge_base.py + core/strategy/strategy.py）
 - **alembic 迁移链**：✅ 基线迁移已建（core/migrations/versions/21c956b3c777）；create_all 作为空库/异常兜底保留
 - **alembic 双保险清理**：✅ 已收口（create_all 兜底移除，alembic 唯一建表路径；遗留库 stamp head；_sync_missing_columns 保留为兼容层）
+- **统计时区（#17）**：UTC → Australia/Sydney（bucketing 配置化 + 跨日边界测试）——施工单
+- **根 alembic.ini（#20）**：`sqlalchemy.url` 改指 core 库，避免 `alembic upgrade head` 误迁根库——施工单
+- **启动自检（#20）**：init_sa_tables 检测双库并存/路径漂移 → 警告——施工单
+- **根库归档（#20 执行中）**：后端重启后把根 data/assistant.db + wal/shm 移入 core/data/backups/legacy/（届时提醒）
+- **附录 A（#5）**：BrainFact 词表 43 key 草案待 Vera 过目确认
 - **POST /api/tasks/ 是联调临时端点**：正式任务创建应由业务流触发（WO-09 建案→首批任务卡），届时评估保留/移除
 - **知识中心/草稿箱/档案/导入后端端点**：GET /api/drafts 列表、已归档案件端点、导入记录表 + 端点、knowledge CRUD 端点
 - **版本号三处同步**：pyproject / 前端 package.json / server main.py 的 /version（当前 2.0.0，需保持）
