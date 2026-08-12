@@ -13,7 +13,8 @@
 | F-1 | 三栏骨架：左栏案件列表 + 中栏 BrainChat + 右栏客户全景，AI 从悬浮球变主角 | ✅ 已交付（vera-工作台 (24)），待真机运行验收 |
 | F-2 | 中栏实化：确认记录交互（低置信确认卡 + "已记录 N 条 [查看]" + 逐条撤销） | ✅ 已交付（vera-工作台 (25)），待真机运行验收 |
 | F-2b | 中栏：草稿卡 + 递交模式横幅（依赖后端对话协议 WO-16） | 待出 |
-| F-3 | 右栏实化：事实卡（BrainFact）/补全进度/待办（依赖 WO-15） | 待出 |
+| F-3 | 右栏实化：事实卡（BrainFact）/补全进度灰提示/track 切换（依赖 WO-15 ✅） | 已出（下文） |
+| F-3b | 右栏待办卡（任务引擎待办 + AI 建议待确认，依赖 tasks 端点契约确认） | 待出 |
 | F-4 | Apple 风格动画与材质打磨 + 次级入口收尾 | 待出 |
 
 > ✅ **已定稿（2026-08-12）**：在现有 `ui/vera-工作台 (23)` 基础上**增量改造**（换壳不换内脏）——
@@ -282,3 +283,137 @@ src/stores/uiStore.ts
 - **F-4**：Apple 风格打磨——毛玻璃材质/弹簧动画细节/空态插画/reduced-motion 复查；旧页面入口收尾
 
 > 注：F-2b~F-4 的具体提示词待对应批次验收后按实际代码结构撰写。
+
+---
+
+## 批 F-3：右栏客户全景实化（事实卡 + 补全进度 + track 切换）
+
+> 配对后端 **WO-15 BrainFact**（GET /api/cases/{id}/facts 已就绪）。待办卡（任务引擎 + AI 建议）拆到 F-3b（需先确认 tasks 端点契约），本批不做。
+
+### 提示词正文（复制给 AI Studio）
+
+```
+# 任务：Vera Workbench — F-3 右栏客户全景实化（事实卡 + 补全进度 + track 切换）
+
+## 背景
+在 F-1/F-2（ui/vera-工作台 (25)）基础上，实化右栏 CasePanorama：
+① 从 GET /api/cases/{id}/facts 加载当前有效 BrainFact，按类别分组渲染为事实卡；
+② 顶部加 internal/external 双线切换（切换时 context 与 facts 同步重拉）；
+③ 显示"补全进度"灰提示（缺收入/就业/负债/身份等关键类时，灰色一行，不打扰）。
+时间线、记一笔、刷新按钮保留（复用现有 OverviewTimeline / context 加载逻辑）。
+
+## 技术约束
+- 前端：TypeScript strict / React 18 / Vite / Tailwind CSS / motion/react（现有版本）
+- 图标：lucide-react（现有）；状态：zustand（现有）；Toast：useToastStore（现有）
+- 禁止：引入任何新的 npm 依赖；禁止修改后端；禁止改动现有页面逻辑（TaskWorkbench 等只读）
+- 样式：一律使用项目现有 CSS 变量（var(--bg-app)/var(--bg-panel)/var(--bg-card)/var(--border)/var(--text-primary)/var(--text-muted)/var(--accent) 等），不新增配色
+- 动画：motion/react spring（damping 1.0 / response 0.3-0.4），可中断；遵守 prefers-reduced-motion
+
+## 改动范围（严禁超出）
+
+| 文件 | 操作 |
+|------|------|
+| src/types/api.ts | 修改：新增 BrainFact 接口 |
+| src/services/api/cases.ts | 修改：新增 listBrainFacts |
+| src/components/brain/FactCard.tsx | 新建：单条事实卡 |
+| src/components/brain/CompletionHint.tsx | 新建：补全进度灰提示 |
+| src/components/brain/CasePanorama.tsx | 修改：事实卡区 + track 切换 + 补全进度挂载 |
+
+⚠️ 严禁修改上表以外的文件。严禁删除/重命名现有文件。严禁改动后端。
+
+## 接口契约
+
+1. BrainFact 接口（types/api.ts，对齐后端 BrainFactResponse）：
+   ```typescript
+   export interface BrainFact {
+     id: number;
+     case_id: string;
+     key: string;        // "category.key"，如 "bank.lender"
+     value: string;
+     category: string;   // identity/income/employment/property/loan/liability/bank/stage/commitment/disclosure/special
+     track: 'internal' | 'external';
+     event_id: number;
+     superseded_by: number | null;
+     conflict: boolean;  // true 时卡片加 ⚠️ 角标
+     valid_to: string | null;
+     created_at: string | null;
+   }
+   ```
+2. services/api/cases.ts 新增：
+   ```typescript
+   export function listBrainFacts(
+     caseId: string,
+     params?: { track?: 'internal' | 'external' },
+   ): Promise<BrainFact[]>;
+   ```
+3. FactCard.tsx：
+   - props: `{ fact: BrainFact; categoryLabel: string }`
+   - 渲染：key 中文标签（映射表见下）+ value + conflict 时右侧 "⚠️ 已更新/冲突" 角标（amber）
+   - 布局：一行 label（text-muted 小字）+ value（text-primary）；卡片 bg-card 边框 border
+4. CompletionHint.tsx：
+   - props: `{ missingCategories: string[] }`
+   - 无缺失 → 渲染 null；有缺失 → 一行灰色提示："补全进度：还缺 收入、签证、负债"（muted 小字，非红色、不弹窗、可点击展开说明）
+5. CasePanorama.tsx 修改（只加不改既有逻辑）：
+   - 新增 `const [track, setTrack] = useState<'internal' | 'external'>('internal')`；顶部渲染双线切换（两个 pill 按钮：内线 / 递交线，选中态 accent）
+   - track 变化时：context 加载（现有 getCaseContext）与 facts 加载（listBrainFacts(caseId, {track})）同步重拉
+   - 事实卡区：facts 按 category 分组，组标题用中文映射：
+     identity→身份 / income→收入 / employment→就业 / property→房产 / loan→贷款 /
+     liability→负债 / bank→银行 / stage→阶段 / commitment→承诺 / disclosure→披露 / special→特殊情况
+     每组下渲染 FactCard 列表；空组不显示
+   - 补全进度：V1 前端内置关键类集合 `{ income, employment, liability, identity }`（注释：V1 内置，后续可后端化）；
+     该 category 在 facts 中无任何有效事实 → 计入 missingCategories（identity 提示文案用"签证/身份"）
+   - mock 分支：VITE_USE_MOCK !== 'false' 时用 MOCK_FACTS（含 bank.lender=CBA、stage.current、一条 conflict 事实）+ MOCK_MISSING（["income","liability"]）
+   - 无案件（caseId=null）→ 事实区/切换/补全均空态，不加载
+   - 保留：时间线、记一笔输入、刷新按钮、折叠（现有逻辑不动）
+
+## 实施步骤
+
+### Step 1：类型 + API
+- [ ] src/types/api.ts：新增 BrainFact 接口（契约第 1 条）
+- [ ] src/services/api/cases.ts：新增 listBrainFacts（契约第 2 条）
+
+### Step 2：FactCard
+- [ ] 新建 src/components/brain/FactCard.tsx（契约第 3 条）
+
+### Step 3：CompletionHint
+- [ ] 新建 src/components/brain/CompletionHint.tsx（契约第 4 条）
+
+### Step 4：CasePanorama 实化
+- [ ] src/components/brain/CasePanorama.tsx：track 状态 + 切换 UI + 事实分组 + 补全进度挂载（契约第 5 条）
+
+### Step 5：验证
+- [ ] npx tsc --noEmit → 零错误
+- [ ] npm run build → 成功
+
+## 验收标准（手动）
+1. 打开某案件 → 右栏显示事实卡分组（银行/阶段/收入等按需），无空组
+2. 有冲突事实 → 该卡片显示 ⚠️ 角标
+3. 缺收入/负债的客户 → 顶部一行灰色"补全进度：还缺 收入、负债"（不红、不弹窗）
+4. 切换"内线/递交线" → 事实卡与摘要（memory）同步切换，external 下不出现 internal_notes 类内容
+5. 全局咨询（无案件）→ 右栏空态，不报错
+6. mock 分支：显示 2-3 张事实卡（含 1 张冲突）+ 补全提示
+7. 折叠按钮仍可用；动画顺滑可中断；prefers-reduced-motion 生效
+8. 后端未启动（真实分支报错）→ Toast 提示，页面不崩溃
+
+⚠️ 执行纪律：
+1. 只修改改动范围表中的文件，绝不碰其他文件
+2. 接口名/props/字段名严格按契约，一个字符不改
+3. 不引入新依赖；不改动现有页面内部逻辑（时间线/记一笔/刷新/折叠保持原样）
+4. 每完成一步运行验证；失败先报告，不自作主张修计划外代码
+5. 动画一律 spring（damping 1.0 / response 0.3-0.4），可中断，遵守 prefers-reduced-motion
+```
+
+### 上传给 AI Studio 的参考文件（最小集）
+
+```
+src/types/api.ts
+src/services/api/cases.ts
+src/services/http.ts
+src/components/brain/CasePanorama.tsx
+src/components/brain/BrainChat.tsx
+src/components/cases/overview/OverviewFacts.tsx
+src/components/cases/overview/OverviewTimeline.tsx
+src/components/panel/details/BrainPanel.tsx
+src/stores/caseStore.ts
+src/stores/toastStore.ts
+```
