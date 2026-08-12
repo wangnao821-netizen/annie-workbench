@@ -19,7 +19,8 @@
 | F-4 | Apple 风格打磨——玻璃材质/排版层级/动效/微交互/空态/旧页面视觉统一（已读 apple-design 规范） | 已出（下文） |
 | F-6 | 首页（今日工作台）界面设计——应用框架感 + 今日概览/待办/提醒/快捷操作/对话入口（自由发挥，功能要求到位） | 已出（下文） |
 | F-6c | 首页融合 + 侧栏布局修整——原型设计模式 × 主前端真实数据（固定顶栏/Bento 小组件/待办 tabs/侧栏分区） | 已出（下文） |
-| F-6d | 首页与侧栏细节修整（5 项）——去重复品牌/案件阶段节点/底部入口横排/首页头部精简/卡片动效统一（参考原型） | 已出（下文） |
+| F-6d（最终版） | 侧栏内容上导航下 + 图标统一 + 搜索图标化 + 顶栏下拉优化 + 阶段节点 + 头部精简 + 动效统一 | ✅ 已交付（(32) 大部分落地） |
+| F-6e | 主导航上移顶栏：今日工作台/全局咨询 → TopNavBar（搜索栏旁）；侧栏底部只留 4 入口 + 更多；搜索保留图标式 | 已出（下文） |
 
 > ✅ **已定稿（2026-08-12）**：在现有 `ui/vera-工作台 (23)` 基础上**增量改造**（换壳不换内脏）——
 > 保留 services/types/stores/themes/已验证组件，换 AppShell 外壳 + 新增 `src/components/brain/` 目录；
@@ -287,6 +288,74 @@ src/stores/uiStore.ts
 - **F-4**：Apple 风格打磨——毛玻璃材质/弹簧动画细节/空态插画/reduced-motion 复查；旧页面入口收尾
 
 > 注：F-2b~F-4 的具体提示词待对应批次验收后按实际代码结构撰写。
+
+---
+
+## 批 F-6e：主导航上移顶栏（今日工作台 / 全局咨询）
+
+> 用户定稿（2026-08-13）：今日工作台 / 全局咨询 是页面级主入口，放**顶栏搜索栏旁**（全局可见、任何视图可回）；侧栏彻底减负——底部只留 待办·看板·统计·设置 + 更多。侧栏搜索**保留图标式**（不改）。(32) 已实现的阶段节点/筛选 tabs/图标统一保持不动。
+
+### 提示词正文（复制给 AI Studio）
+
+```
+# 任务：Vera Workbench — 主导航上移顶栏（F-6e 修正）
+
+## 背景
+在 ui/vera-工作台 (32) 基础上：把"今日工作台 / 全局咨询"两个页面级主入口从侧栏底部**移到顶栏**（搜索栏左侧、品牌右侧），
+全局可见；侧栏底部只保留 待办·看板·统计·设置 + 更多。侧栏搜索**保留现有图标式**（不删不改）。只改导航结构与样式，不动业务逻辑/接口/路由。
+
+## 技术约束
+- TypeScript strict / React / Vite / Tailwind / motion/react / zustand（现有）
+- 不引入新依赖；颜色从现有 CSS 变量派生；动效统一 spring（damping 1.0 / response 0.3-0.4）；遵守 prefers-reduced-motion
+- 图标一律 lucide，样式与现有底部工具入口一致（无 emoji、无特殊色）
+
+## 改动范围（严禁超出）
+
+| 文件 | 操作 |
+|------|------|
+| src/components/layout/TopNavBar.tsx | 修改：品牌右侧新增 今日工作台/全局咨询 tabs |
+| src/components/brain/CaseListSidebar.tsx | 修改：底部导航移除 今日工作台/全局咨询，只留 SYSTEM_TABS + 更多 |
+
+⚠️ 严禁修改其他文件；严禁改动业务逻辑/接口/路由。
+
+## 一、TopNavBar 新增主导航 tabs
+- 品牌区（AI 圆标 + Vera Workbench）右侧、搜索框左侧，加两个紧凑 tabs：
+  - **今日工作台**：lucide `Home` 图标 + 文字；点击 `onNavigate('home')`；选中态（activeView==='home'）accent-soft + accent 文字
+  - **全局咨询**：lucide `MessageSquare`（或 Sparkles）图标 + 文字；点击 `setCurrentCase(null)` + `onNavigate('brain')`；选中态（activeView==='brain' && currentCase===null）同款
+  - 样式：与侧栏底部工具入口一致（text-xs font-bold、p-1.5/px-2.5 rounded-lg、hover 背景、whileTap scale 0.95）
+- 搜索框保持居中（如空间紧张，max-w-md 可收窄到 max-w-sm）
+- 右侧通知/主题/用户不变
+
+## 二、CaseListSidebar 底部精简
+- **移除**底部导航区的 今日工作台 + 全局咨询（展开态行 1 的两列、折叠态的两个图标、相关 Home/Sparkles import 若不再使用一并清理）
+- 底部只保留：SYSTEM_TABS（待办·看板·统计·设置，一行横排）+ 更多功能 dropdown（现有样式不动）
+- 折叠态：底部只留 SYSTEM_TABS 竖排图标 + 更多
+- 侧栏搜索图标式**保留**（不改）；阶段节点/筛选 tabs/案件卡样式全部不动
+
+## 验证
+- npx tsc --noEmit → 零错误；npm run build → 成功
+
+## 验收参考（手动）
+1. 顶栏：品牌右侧有 [今日工作台][全局咨询] tabs；当前在首页时 今日工作台 高亮；在全局咨询（无案件对话）时 全局咨询 高亮
+2. 点击全局咨询 → 进入全局对话（无客户名/无案件上下文），右栏统计面板；再点案件 → 切案件对话，全局咨询 tab 取消高亮
+3. 侧栏底部只剩 待办·看板·统计·设置 + 更多（无 今日工作台/全局咨询）
+4. 侧栏搜索图标式保留（点 🔍 展开、失焦收起）
+5. 折叠侧栏 → 底部只剩 4 入口图标 + 更多；顶栏 tabs 不受影响（全局可见）
+
+⚠️ 执行纪律：
+1. 只修改改动范围表中的 2 个文件；不碰业务逻辑/接口/路由
+2. 不引入新依赖；图标统一 lucide；动效统一 spring；每步完成运行验证；失败先报告
+```
+
+### 上传给 AI Studio 的参考文件（最小集）
+
+```
+src/components/layout/TopNavBar.tsx
+src/components/brain/CaseListSidebar.tsx
+src/types/navigation.ts
+src/stores/caseStore.ts
+src/stores/uiStore.ts
+```
 
 ---
 
