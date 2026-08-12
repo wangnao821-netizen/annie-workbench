@@ -78,6 +78,7 @@
   - AI 提取只能映射词表内 key，禁止自造；词表外概念 → 存 `unclassified` + 原文摘要 → 对话轻提示"有 1 条未归类信息，归到哪？"或忽略；
   - 新 key 由维护者按施工单加（Codex/opencode），不开放 AI 自由加；金额/日期/银行名用规则锚定（正则/枚举），不依赖 LLM；
   - 第一版词表见文末附录 A（**42 个 key**，✅ 已确认 v1，2026-08-12 Vera 拍板"按草案走"；配置驱动，试用期可迭代）。
+- **✅ 施工完成（2026-08-12，WO-15）**：fact_schema.yaml（42 key 全量转译）+ brain_facts 表（迁移 354973fd6c37）+ 规则锚定（bank.lender/stage.current，金额只出证据）+ LLM 词表提取（脱敏→白名单→unclassified，失败降级）+ sync 幂等/冲突 supersede/事件撤销置 valid_to + GET facts / POST facts-sync 端点；全量 pytest **479 passed**（基线 464 + 新增 15，零回归）。
 
 ### 6. 确认闸门的落点（高置信直接记 vs 低置信反问）
 
