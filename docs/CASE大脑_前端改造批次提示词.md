@@ -1962,3 +1962,53 @@ src/stores/toastStore.ts
 ## F-19 之二：设置页顶栏拥挤（src/pages/Settings.tsx）
 - 现状：标题块 + 5 个标签挤在同一行（`flex-col sm:flex-row ... justify-between`），长标题挤压标签，标签 `gap-1` 太紧
 - 期望：顶栏改两行——第一行标题+副标题；第二行 5 个标签整行铺开（`flex flex-col gap-4 pb-4 border-b` + 标签行 `flex flex-wrap items-center gap-2 p-1.5 rounded-xl ... w-full`），换行不挤
+
+---
+
+# F-20 补丁：AI 用量概况增强（Token 构成 + 环比 + 延迟；借鉴 DeepSeek Harness 用量面板）
+
+> 后端契约已就绪（`GET /api/analytics/usage?granularity=day|week|month`，默认 day，本批次**不改后端**）。
+> 当前 `GlobalStatsPanel.tsx` 已有"AI 用量概况"区块（组件内 `currentUsage` 已渲染 调用/费用/缓存命中率/纠正次数），本次是**在原区块上增强**，不是新建面板。
+
+## 一、数据契约（前端类型已在 src/types/api.ts，勿改）
+
+```typescript
+interface UsagePeriod {
+  calls: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  prompt_cache_hit_tokens: number;
+  prompt_cache_miss_tokens: number;
+  cache_hit_rate: number | null;
+  cost_usd: number;
+  avg_latency_ms: number | null;
+  corrected_count: number;
+}
+interface AnalyticsUsage {
+  current: UsagePeriod;
+  previous: UsagePeriod;
+}
+```
+
+服务层 `getUsage(granularity)` 已存在且组件已在 `loadData()` 中拉取 `current/previous`；**勿新增请求、勿改服务层**。
+
+## 二、要改（src/components/brain/GlobalStatsPanel.tsx 的 `#ai-usage-section` 区块）
+
+1. **Token 构成条**：用 `prompt_cache_hit_tokens`（命中）与 `prompt_cache_miss_tokens`（未命中）画一条水平堆叠条（两色块，占比按两值比例），下方标注 `Prompt {prompt_tokens.toLocaleString()} · Completion {completion_tokens.toLocaleString()}`；两值合计为 0 时整行隐藏。
+2. **缓存命中率强化**：现有 `缓存命中 {Math.round((cache_hit_rate ?? 0) * 100)}%` 改为：命中率为 `null` 时显示 `—`（不显示 0%）；有值时在数字旁加一个小的环形进度（可用纯 SVG，勿引新依赖），配色沿用现有紫色系。
+3. **平均延迟**：新增一行 `平均延迟 {avg_latency_ms?.toFixed(0) ?? '—'} ms`（null 显示 —）。
+4. **环比（current vs previous）**：调用次数、费用、缓存命中率、纠正次数四项，与 overview 卡片一致的 ▲▼ 样式（ArrowUpRight / ArrowDownRight，颜色红涨绿跌或按现有惯例），变化量 = current − previous；previous 为 0 时显示 `—`。
+5. **空状态**：`currentUsage.calls === 0` 时区块显示"暂无 AI 调用数据"，不报错、不渲染 0% 误导。
+6. 视觉参考：DeepSeek Harness Web UI 底部的 Token 消耗 + 缓存命中率实时面板——数字为主、紧凑一行、实时可读；本区块保持右栏小卡片的紧凑风格，勿做成分页/弹窗。
+
+## 三、红线
+- 只改 `GlobalStatsPanel.tsx` 一个文件（如抽子组件，仅允许在同目录新建 `AiUsageBar.tsx`，≤120 行）
+- 不改 `src/types/api.ts`、`src/services/api/analytics.ts`、后端任何文件
+- 不引入任何新的 npm 依赖（环形进度用内联 SVG）
+- `npx tsc --noEmit` 零错误
+
+## 四、验收
+1. 右栏统计分析面板可见增强后的"AI 用量概况"：Token 构成条 + 命中率环形 + 延迟 + 环比
+2. 无数据（空库）时显示"— / 暂无 AI 调用数据"，不报错
+3. 切换 日/周/月 粒度后四项数据随之刷新
+4. TypeScript 编译零错误；未引入新依赖
