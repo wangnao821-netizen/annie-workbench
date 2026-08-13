@@ -27,6 +27,7 @@ from pathlib import Path
 import yaml
 from sqlalchemy.orm import Session
 
+from core.config import get_config
 from core.logger import get_logger
 from core.models.orm import Case, CaseKnowledge, InboxMessage
 
@@ -321,6 +322,36 @@ def create_case_from_source(
             save_confirmed_checklist(case_id, mapped, db)
     except Exception as exc:  # noqa: BLE001 — 清单预选失败不阻断建档
         logger.warning("Checklist pre-selection failed for %s: %s (non-fatal)", case_id, exc)
+
+    # 建档即政策提示（#14）：非阻塞，写 internal 事件 → 全景/AI 可见
+    try:
+        from core.context.accumulator import append_context_event
+        from core.policy.engine import check_policy
+
+        result = check_policy(
+            lender=lender or "",
+            employment_type=employment_type,
+            residency=residency,
+            lvr=case.lvr,
+            loan_amount=loan_amount,
+            property_value=property_value,
+            config_dir=get_config().project_root / "config",
+        )
+        if result.issues:
+            content = "；".join(
+                f"[{i.level}] {i.title}：{i.detail}（{i.suggestion}）" for i in result.issues
+            )
+            append_context_event(
+                case_id=case_id,
+                source_type="manual_note",
+                content=f"政策检查：{content}",
+                db=db,
+                trigger_distill=True,
+                track="internal",
+                status="confirmed",
+            )
+    except Exception as exc:  # noqa: BLE001 — 政策提示失败不阻断建档
+        logger.warning("Policy check on create failed for %s: %s (non-fatal)", case_id, exc)
 
     db.refresh(case)
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import asdict
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
@@ -12,6 +13,7 @@ from core.ai.case_summary import mark_case_summary_dirty
 from core.case_creation import create_case_from_source
 from core.case_engine.progression import evaluate_stage_signal
 from core.checklist.matcher import CaseNotFoundError, check_completeness
+from core.config import get_config
 from core.constants import TERMINAL_STAGES
 from core.context.accumulator import append_context_event, get_context_events
 from core.events.timeline import get_timeline
@@ -25,6 +27,8 @@ from core.models.orm import (
     CaseTimelineEvent,
     OsCondition,
 )
+from core.policy.engine import check_policy
+from core.policy.prompts import polish_policy_text
 from server.api.schemas import (
     ArchivedCaseResponse,
     BrainFactResponse,
@@ -36,6 +40,7 @@ from server.api.schemas import (
     ContextEventResponse,
     ParseFileResponse,
     ParseTextRequest,
+    PolicyCheckResponse,
     PreFillResponse,
     StageAdvanceRequest,
     SubmissionCheckResponse,
@@ -393,6 +398,26 @@ async def parse_case_file(
     finally:
         if tmp_path and tmp_path.exists():
             tmp_path.unlink(missing_ok=True)
+
+
+@router.get("/{case_id}/policy-check", response_model=PolicyCheckResponse)
+def policy_check(
+    case_id: str,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> PolicyCheckResponse:
+    """建档/变更后政策检查：读案件画像 → 规则引擎 → 话术润色（失败回退模板）。"""
+    case = _get_case_or_404(case_id, db)
+    result = check_policy(
+        lender=case.lender or "",
+        employment_type=case.employment_type,
+        residency=case.residency,
+        lvr=case.lvr,
+        loan_amount=case.loan_amount,
+        property_value=case.property_value,
+        config_dir=get_config().project_root / "config",
+    )
+    summary = polish_policy_text(result, case_id, db)  # 失败自动回退模板
+    return PolicyCheckResponse(**asdict(result), summary=summary)
 
 
 @router.get("/{case_id}/submission-check", response_model=SubmissionCheckResponse)

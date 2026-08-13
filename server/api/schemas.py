@@ -85,6 +85,22 @@ class ContextEventRequest(BaseModel):
     source_ref: str | None = None  # 可选，S2/S3 去重用
 
 
+class PolicyIssueOut(BaseModel):
+    level: str      # green | amber | red
+    title: str
+    detail: str
+    suggestion: str
+
+
+class PolicyCheckResponse(BaseModel):
+    lender: str
+    overall: str                       # green | amber | red
+    issues: list[PolicyIssueOut] = Field(default_factory=list)
+    alternative_lenders: list[str] = Field(default_factory=list)
+    summary: str = ""                  # LLM 润色或模板文案（中文一段话）
+    disclaimer: str = "政策会变，以银行官方为准；本提示仅供辅助参考。"
+
+
 class ContextEventResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
