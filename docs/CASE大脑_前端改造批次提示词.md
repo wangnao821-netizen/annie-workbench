@@ -1965,6 +1965,48 @@ src/stores/toastStore.ts
 
 ---
 
+# F-21 补丁（2026-08-14，Gemini 执行）：GapAnalysisCard 草稿字段对齐 + F-20 AI 用量概况增强
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (43)`（已解压，最新）。本批次只改 2 个文件，不碰后端。
+
+## 任务 1：GapAnalysisCard 导出草稿字段对齐（src/components/brain/GapAnalysisCard.tsx）
+
+后端 gap_analysis payload 契约（WO-33，已验收）：
+`{ missing: [{master_id, name, reason}], matched: [{master_id, name}], suggestions: [{type, title, description, action_type, status, item_name}], summary }`
+
+- 现状：渲染部分已兼容（`item.name || item.item`、`sug.title || sug.item || sug.item_name`），但 `handleGenerateDraftList`（约 L21/L23）导出草稿仍用旧字段
+- 要改：L21 `m.item` → `m.name`；L23 `s.item` → `s.title`、`s.suggestion` → `s.description`
+- 否则导出的"补件清单草稿"会出现 undefined
+
+## 任务 2：F-20 AI 用量概况增强（src/components/brain/GlobalStatsPanel.tsx 的 #ai-usage-section 区块）
+
+后端 `GET /api/analytics/usage?granularity=day|week|month`（默认 day）已就绪；前端 `getUsage(granularity)` 服务与 `UsagePeriod` 类型均已存在，组件 `loadData()` 已拉取 `current/previous`——**不要新增请求、不改类型/服务层**。
+
+`UsagePeriod`：`{calls, prompt_tokens, completion_tokens, prompt_cache_hit_tokens, prompt_cache_miss_tokens, cache_hit_rate, cost_usd, avg_latency_ms, corrected_count}`
+
+在现有"AI 用量概况"区块（组件内 `currentUsage`）上增强 6 点：
+1. **Token 构成条**：用 `prompt_cache_hit_tokens`（命中）与 `prompt_cache_miss_tokens`（未命中）画水平堆叠条（两色块按比例），下方标 `Prompt {prompt_tokens.toLocaleString()} · Completion {completion_tokens.toLocaleString()}`；两值合计 0 时整行隐藏
+2. **缓存命中率强化**：`cache_hit_rate` 为 `null` 时显示 `—`（不显示 0%）；有值时数字旁加小环形进度（内联 SVG，勿引新依赖），沿用现有紫色系
+3. **平均延迟**：新增一行 `平均延迟 {avg_latency_ms?.toFixed(0) ?? '—'} ms`
+4. **环比（current vs previous）**：调用次数、费用、缓存命中率、纠正次数四项，与 overview 卡片一致的 ▲▼ 样式（ArrowUpRight / ArrowDownRight），变化量 = current − previous；previous 为 0 显示 `—`
+5. **空状态**：`currentUsage.calls === 0` 显示"暂无 AI 调用数据"，不报错、不渲染 0% 误导
+6. 视觉参考 DeepSeek Harness Web UI 底部的 Token + 缓存命中率面板：数字为主、紧凑一行、实时可读；保持右栏小卡片风格，勿做成分页/弹窗
+
+## 红线
+- 只改 `src/components/brain/GapAnalysisCard.tsx` 与 `src/components/brain/GlobalStatsPanel.tsx`（如抽子组件，仅允许同目录新建 `AiUsageBar.tsx`，≤120 行）
+- 不改 `src/types/api.ts`、`src/services/api/analytics.ts`、后端任何文件
+- 不引入任何新的 npm 依赖（环形进度用内联 SVG）
+- `npx tsc --noEmit` 零错误
+
+## 验收
+1. 缺口卡点击"生成建议清单"→ 草稿内容为 `【缺】{name} — 原因：{reason}` 与 `{title}: {description}`，无 undefined
+2. 右栏统计面板"AI 用量概况"：Token 构成条 + 命中率环形 + 延迟 + 四项环比
+3. 空库显示"— / 暂无 AI 调用数据"，不报错
+4. 切换 日/周/月 粒度后数据刷新
+5. `npx tsc --noEmit` 零错误；未引入新依赖
+
+---
+
 # F-20 补丁：AI 用量概况增强（Token 构成 + 环比 + 延迟；借鉴 DeepSeek Harness 用量面板）
 
 > 后端契约已就绪（`GET /api/analytics/usage?granularity=day|week|month`，默认 day，本批次**不改后端**）。
