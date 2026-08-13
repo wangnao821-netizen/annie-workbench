@@ -1,0 +1,287 @@
+bank: cba
+name: Commonwealth Bank
+source_file: cba hl calculator 270626 (Brokerpedia).xlsm
+source_version: LV81.3
+source_date: &id001 2026-06-27 00:00:00
+effective_from: '2026-06-27'
+profile_version: 2026.06.27
+indicative: false
+version_stamp:
+  source_version: LV81.3
+  source_date: *id001
+  effective_from: '2026-06-27'
+  extracted_at: '2026-08-13T01:10:41Z'
+  tool: tools/build_calculator_profiles.py
+parameters:
+  assessment:
+    buffer: 0.03
+    floor: 0.054
+    extra: 0.0
+  income_rules:
+    haircuts:
+      overtime: 0.8
+      bonus_commission: 0.8
+      investment_income: 0.8
+      dividends: 0.8
+      foreign_income: 0.8
+      rental_income: 0.7
+      casual: 1.0
+      government_benefits: 0.9
+      other_taxable: 1.0
+      other_nontaxable: 0.9
+    company_tax: 0.3
+  tax:
+    brackets:
+    - - 18200.0
+      - 0.0
+      - 0.0
+    - - 45000.0
+      - 0.15
+      - 0.0
+    - - 135000.0
+      - 0.3
+      - 4020.0
+    - - 190000.0
+      - 0.37
+      - 31020.0
+    - - 1000000000.0
+      - 0.45
+      - 51370.0
+    lito:
+    - - 37500.0
+      - 700.0
+      - 0.0
+    - - 45000.0
+      - 700.0
+      - 0.05
+    - - 66667.0
+      - 325.0
+      - 0.015
+    lmito: []
+    medicare: 0.02
+    medicare_low:
+      threshold_a: 28011.0
+      threshold_b: 35013.0
+      phase_rate: 0.1
+  living:
+    hem_source: CBA MasterData HEM
+    hem_weekly: false
+    use_max_declared: true
+    non_hem_categories: []
+    hem_table:
+      income_bands:
+      - 0
+      - 27000.01
+      - 40000.01
+      - 54000.01
+      - 67000.01
+      - 81000.01
+      - 107000.01
+      - 134000.01
+      - 161000.01
+      - 188000.01
+      - 215000.01
+      - 269000.01
+      - 336000.01
+      - 403000.01
+      - 671000.01
+      families:
+        S0:
+        - 1376
+        - 1453
+        - 1522
+        - 1626
+        - 1820
+        - 2086
+        - 2467
+        - 2813
+        - 3152
+        - 3407
+        - 3644
+        - 4174
+        - 4888
+        - 4983
+        - 5260
+        S1:
+        - 1807
+        - 1884
+        - 1952
+        - 2056
+        - 2250
+        - 2514
+        - 2894
+        - 3239
+        - 3577
+        - 3831
+        - 4067
+        - 4595
+        - 5307
+        - 5402
+        - 5679
+        S2:
+        - 2301
+        - 2378
+        - 2446
+        - 2550
+        - 2743
+        - 3007
+        - 3386
+        - 3730
+        - 4067
+        - 4321
+        - 4556
+        - 5083
+        - 5793
+        - 5888
+        - 6165
+        S3:
+        - 2795
+        - 2872
+        - 2940
+        - 3044
+        - 3236
+        - 3500
+        - 3878
+        - 4221
+        - 4558
+        - 4810
+        - 5046
+        - 5571
+        - 6280
+        - 6374
+        - 6651
+        S_add:
+        - 494
+        - 494
+        - 494
+        - 494
+        - 493
+        - 493
+        - 492
+        - 491
+        - 490
+        - 490
+        - 489
+        - 488
+        - 486
+        - 486
+        - 486
+        C0:
+        - 2575
+        - 2653
+        - 2721
+        - 2825
+        - 3019
+        - 3284
+        - 3664
+        - 4010
+        - 4349
+        - 4603
+        - 4840
+        - 5369
+        - 6082
+        - 6176
+        - 6453
+        C1:
+        - 2957
+        - 3035
+        - 3103
+        - 3208
+        - 3402
+        - 3668
+        - 4049
+        - 4396
+        - 4735
+        - 4991
+        - 5228
+        - 5759
+        - 6474
+        - 6568
+        - 6846
+        C2:
+        - 3300
+        - 3378
+        - 3446
+        - 3550
+        - 3744
+        - 4008
+        - 4388
+        - 4733
+        - 5071
+        - 5325
+        - 5561
+        - 6089
+        - 6801
+        - 6895
+        - 7172
+        C3:
+        - 3562
+        - 3639
+        - 3708
+        - 3812
+        - 4006
+        - 4271
+        - 4651
+        - 4996
+        - 5335
+        - 5589
+        - 5826
+        - 6355
+        - 7068
+        - 7163
+        - 7440
+        C_add:
+        - 262
+        - 262
+        - 262
+        - 262
+        - 262
+        - 263
+        - 263
+        - 264
+        - 264
+        - 265
+        - 265
+        - 266
+        - 267
+        - 268
+        - 268
+        C_adult:
+        - 1200
+        - 1200
+        - 1199
+        - 1199
+        - 1199
+        - 1198
+        - 1198
+        - 1197
+        - 1197
+        - 1196
+        - 1196
+        - 1195
+        - 1194
+        - 1194
+        - 1194
+  commitments:
+    credit_card:
+      rate: 0.038
+      minimum: 25.0
+    overdraft:
+      rate: 0.03
+      minimum: 0.0
+    commitment_floor:
+      rate: 0.045
+      term_months: 300
+      residual: 0.2
+  result:
+    indicator: surplus_sign
+    refer_without_buffer: true
+    max_loan: pv_invert
+options:
+  simple_refinance:
+    mode: add
+    value: 0.01
+notes:
+- IO 上限 5 年 / LOC 25 年（Data O11/Q-R 产品期限），V1 未启用。
+- LITO/Medicare 低收入阶梯取自 MasterData。
+- 公司税 30% 取契约参数表。

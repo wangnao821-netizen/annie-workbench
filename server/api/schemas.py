@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -448,3 +448,155 @@ class UsagePeriod(BaseModel):
 class AnalyticsUsageResponse(BaseModel):
     current: UsagePeriod
     previous: UsagePeriod
+
+
+# ── WO-21 计算器 ──────────────────────────────────────────
+
+
+class CalculatorApplicant(BaseModel):
+    """与 core/calculator/models.ApplicantIn 字段对齐（年度值）。"""
+
+    base: float = 0.0
+    overtime: float = 0.0
+    bonus_commission: float = 0.0
+    casual: float = 0.0
+    investment_income: float = 0.0
+    dividends: float = 0.0
+    foreign_income: float = 0.0
+    rental_income: float = 0.0
+    government_benefits: float = 0.0
+    other_taxable: float = 0.0
+    other_nontaxable: float = 0.0
+    company_npbt: float = 0.0
+    company_addbacks: float = 0.0
+
+
+class CalculatorLoanPortion(BaseModel):
+    amount: float
+    rate: float
+    term_years: int = 30
+    io_years: int = 0
+    purpose: Literal["OO", "INV"] = "OO"
+    repayment: Literal["PI", "IO"] = "PI"
+
+
+class CalculatorLoan(BaseModel):
+    portions: list[CalculatorLoanPortion] = Field(default_factory=list)
+    security_value: float = 0.0
+    postcode: str = ""
+    state: str = ""
+    mortgage_insurer: str = ""
+    product: str = "standard"
+    doc_type: str = "full_doc"
+    simple_refinance: bool = False
+    refinance_exception: bool = False
+
+
+class CalculatorCommitment(BaseModel):
+    type: str
+    balance: float = 0.0
+    limit: float = 0.0
+    rate: float = 0.0
+    remaining_months: int = 0
+    declared_monthly: float = 0.0
+
+
+class CalculatorHousehold(BaseModel):
+    status: Literal["Single", "Couple"] = "Single"
+    dependents: int = 0
+    income_for_hem: float | None = None
+
+
+class CalculatorLivingExpenses(BaseModel):
+    declared_basic_monthly: float = 0.0
+    declared_non_hem: float = 0.0
+
+
+class CalculatorAssessRequest(BaseModel):
+    bank: str
+    applicants: list[CalculatorApplicant] = Field(default_factory=list)
+    loan: CalculatorLoan = Field(default_factory=CalculatorLoan)
+    commitments: list[CalculatorCommitment] = Field(default_factory=list)
+    household: CalculatorHousehold = Field(default_factory=CalculatorHousehold)
+    living_expenses: CalculatorLivingExpenses = Field(default_factory=CalculatorLivingExpenses)
+
+
+class CalcStepSchema(BaseModel):
+    step_id: str
+    label: str
+    formula: str
+    inputs: dict[str, Any] = Field(default_factory=dict)
+    output: Any = None
+    source: str = ""
+
+
+class CalculatorAssessResponse(BaseModel):
+    bank: str
+    result: str                      # PASS | FAIL | REFER | NO RESULT
+    indicator: str
+    indicator_value: float | None = None
+    threshold: float | None = None
+    min_surplus: float | None = None
+    surplus: float | None = None
+    max_loan: float | None = None
+    dti: float | None = None
+    lvr: float | None = None
+    steps: list[CalcStepSchema] = Field(default_factory=list)
+    profile_version: str = ""
+
+
+class ProfileInfo(BaseModel):
+    bank: str
+    name: str
+    version: str
+    effective_date: str
+    source_file: str
+    source_hash: str
+    status: str = "default"          # default | overridden
+    pending: bool = False
+    last_checked: str | None = None
+
+
+class ProfileDiffItem(BaseModel):
+    path: str
+    old: Any = None
+    new: Any = None
+
+
+class ProfileUploadResponse(BaseModel):
+    bank: str | None = None
+    detected_version: str | None = None
+    current_version: str | None = None
+    is_new_bank: bool = False
+    needs_review: bool = False
+    review_note: str | None = None
+    diff: list[ProfileDiffItem] = Field(default_factory=list)
+    changed_count: int = 0
+    source_hash: str = ""
+
+
+class ProfileApplyRequest(BaseModel):
+    source_hash: str
+
+
+class SmokeTestResult(BaseModel):
+    name: str
+    passed: bool
+    detail: str = ""
+
+
+class ProfileApplyResponse(BaseModel):
+    bank: str
+    applied_version: str
+    smoke_tests: list[SmokeTestResult] = Field(default_factory=list)
+    history: list[str] = Field(default_factory=list)
+
+
+class ProfileRollbackRequest(BaseModel):
+    version: str
+
+
+class ProfileRollbackResponse(BaseModel):
+    bank: str
+    rolled_back_to: str
+    smoke_tests: list[SmokeTestResult] = Field(default_factory=list)
