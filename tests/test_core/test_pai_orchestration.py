@@ -90,7 +90,7 @@ def test_runner_pai_success_contract(test_db, monkeypatch):
 
 def test_tool_whitelist_matches_wo26():
     assert set(pai._TOOL_NAMES) == set(flow_tool_whitelist())
-    assert len(pai._TOOL_NAMES) == 5  # WO-27 新增 draft_email
+    assert len(pai._TOOL_NAMES) == 7  # WO-27 draft_email + WO-32 folder_lookup + WO-33 gap_analysis
 
 
 def test_timeout_returns_none(test_db, monkeypatch):
