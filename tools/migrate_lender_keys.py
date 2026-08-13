@@ -9,7 +9,7 @@
 用法：
     python tools/migrate_lender_keys.py --dry-run
     python tools/migrate_lender_keys.py
-    python tools/migrate_lender_keys.py --db data/assistant.db --db core/data/assistant.db
+    python tools/migrate_lender_keys.py --db core/data/assistant.db
 
 幂等：同库跑两次，第二次 lender_updated=0、platform_updated=0。
 """
@@ -88,16 +88,16 @@ def backfill(db_path: Path, dry_run: bool = False) -> dict:
 
 
 def main() -> None:
-    """CLI 入口：--dry-run 演练，--db 可重复指定；默认处理 data 与 core/data 两个库。"""
+    """CLI 入口：--dry-run 演练，--db 可重复指定；默认处理 core/data 真源库。"""
     parser = argparse.ArgumentParser(description="回填 cases.lender_ref / submission_platform_ref")
     parser.add_argument("--dry-run", action="store_true", help="只演练不写库")
-    parser.add_argument("--db", action="append", default=None, help="数据库路径（可重复）；默认两个助手库")
+    parser.add_argument("--db", action="append", default=None, help="数据库路径（可重复）；默认真源库 core/data/assistant.db")
     args = parser.parse_args()
 
     if args.db:
         paths = [Path(p) for p in args.db]
     else:
-        paths = [PROJECT_ROOT / "data" / "assistant.db", PROJECT_ROOT / "core" / "data" / "assistant.db"]
+        paths = [PROJECT_ROOT / "core" / "data" / "assistant.db"]
 
     for db_path in paths:
         if not db_path.exists():

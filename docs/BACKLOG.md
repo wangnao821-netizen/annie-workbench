@@ -132,6 +132,29 @@
 - 前端 checklist 抽屉/面板已就绪（批 5），等后端 master 数据
 - 遗留 TODO：① 摘要接入 Mem0 软记忆（refresh_case_summary 目前只喂硬数据）② CaseChecklist 无 master id 列（reverse_match 需调用方传 id；后续加列或经 ai_suggestion 携带）③ generator 预选可升级 use_ai=True（现为规则预选避免双 LLM）
 
+### WO-19：政策库规则引擎（✅ 已完成 2026-08-13）
+- `core/policy/engine.py` 只读 lender_policies.yaml 规则匹配（自雇 ABN 年限/临时签证/LVR cap/替代银行排序，不依赖 LLM）
+- `GET /api/cases/{id}/policy-check` + 建档自动触发；LLM 话术润色失败回退模板；全量 pytest **514 passed**
+
+### WO-20：申报一致性检查 Agent（✅ 已完成 2026-08-13，5c58018）
+- `core/agents/declaration_check.py` + `evidence.py`：外线画像 vs 指定文件 → 规则比对 + LLM 补强 → 结论分层 + 解释信草稿 + internal 事件
+- `POST /api/cases/{id}/declaration-check`；只查指定路径、不递归不主动扫（红线）；证据本地真实值展示
+- 16 测试；全量 pytest **529 passed**
+
+### WO-21：计算器 Agent（✅ 已完成 2026-08-13，edf96f1）
+- `config/calculator/`：6 家档案（BOC/CBA/Macquarie/MA Money/Latrobe/Resimac）+ stamp_duty/LMI 兜底；构建工具从源 xlsm 机械提取（mtime 幂等）
+- `core/calculator/`：确定性引擎（steps 可见）+ parsers + updates（diff/apply/rollback）；`server/api/calculator.py` 5 端点 + 上传闭环（profile_envelope 共用）
+- 110+6 测试；全量 pytest **646 passed**；`indicative: false` 语义修正
+- 遗留：prudent offset 未建模（补丁候选）；BOC 2 参数取契约表 + HEM 仅 Australia 块（notes 标注）
+
+### WO-22：银行主数据 + 聚合平台（📋 施工单已出，待执行）
+- `config/bank_registry.yaml` 22 家分层 + 5 平台 key；`core/bank_registry.py` 别名解析
+- `Case.lender_ref` / `submission_platform_ref` + 幂等回填工具；4 消费点切 key；`GET /api/banks/` + `/api/platforms/`
+- 施工单：docs/flash_specs/wo-22-bank-registry.md
+
+### WO-23：PST 接线 + pyproject 对齐（📋 施工单已出，待执行）
+- import_pst.py remember 接线（F821 真缺陷）；pyproject 声明 openpyxl/oletools/python-multipart；uv.lock 重新生成入库
+- 施工单：docs/flash_specs/wo-23-pst-pyproject.md
 ### WO-10：基础设施 + 调度（❌）
 - APScheduler 定时任务（SQLite 每日备份保留 7 天、委派超期检查、摘要刷新）
 - `core/scheduler/`（jobs.py / backup.py）、`core/pipeline/ingest.py` 统一入口
@@ -163,11 +186,13 @@
 - **统计时区（#17）**：✅ WO-13 完成——UTC → Australia/Sydney（ANALYTICS_TZ 可覆盖 + 跨日边界测试）
 - **根 alembic.ini / core/alembic.ini（#20）**：✅ WO-13 完成——`%(here)s` 加固，URL 不依赖 CWD，均指向 core 库
 - **启动自检（#20）**：✅ WO-13 完成——init_sa_tables 检测双库并存/路径漂移 → 警告；附修复 env.py `disable_existing_loggers` 生产隐患
-- **根库归档（#20 执行中）**：后端重启后把根 data/assistant.db + wal/shm 移入 core/data/backups/legacy/（届时提醒）
+- **根库归档（#20）**：✅ 已收口（2026-08-13）：唯一真源 core/data/assistant.db；根库不存在无需归档
 - **附录 A（#5）**：✅ 已确认（42 key 按草案 v1，2026-08-12 实测修正；配置驱动可迭代）
 - **POST /api/tasks/ 是联调临时端点**：正式任务创建应由业务流触发（WO-09 建案→首批任务卡），届时评估保留/移除
 - **知识中心/草稿箱/档案/导入后端端点**：GET /api/drafts 列表、已归档案件端点、导入记录表 + 端点、knowledge CRUD 端点
 - **版本号三处同步**：pyproject / 前端 package.json / server main.py 的 /version（当前 2.0.0，需保持）
+- **遗留 ruff 13 条（HEAD 既有，另行报告）**：backfill_client_id.py（RUF100×3+PERF102）、import_pst.py（UP009/I001/F401/BLE001×3/TRY201/**F821 remember 真缺陷 → WO-23**）、tasks.py（I001）
+- **uv.lock 未跟踪**：待 pyproject 对齐后重新生成入库（WO-23）
 
 ---
 
@@ -207,3 +232,4 @@
 - 后端：WO-01/02/03/07/08 + 收尾（SSE 事件名、5 测试、CreateCaseRequest 9 字段、/api/commission）
 - 前端：批 1-12（主题/布局/任务队列/详情/抽屉/草稿/聊天/通知/OS 三栏/看板拖拽/新建案件全字段）+ 修复（SSE、datetime、id/case_id、草稿 404、设置离线、下拉遮挡、附件预览）
 - 测试：pytest 336 passed, 1 skipped（skip = milestone_processor 待办）
+- 2026-08-13：WO-19 政策引擎 / WO-20 申报一致性检查 / WO-21 计算器 Agent 交付（5c58018 + edf96f1）；WO-22 银行主数据+平台、WO-23 PST+依赖 施工单已出；pytest **646 passed**，0 failed / 0 skipped

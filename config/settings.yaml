@@ -68,7 +68,7 @@ parser:
   msg_recursion_limit: 3
 
 database:
-  path: "data/loan_assistant.db"
+  path: "core/data/assistant.db"
 
 logging:
   level: "INFO"
