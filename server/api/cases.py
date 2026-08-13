@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy.orm import Session
 
+from core.agents.declaration_check import run_declaration_check
 from core.ai.case_context import build_case_context
 from core.ai.case_summary import mark_case_summary_dirty
 from core.case_creation import create_case_from_source
@@ -38,6 +39,8 @@ from server.api.schemas import (
     CaseResponse,
     ContextEventRequest,
     ContextEventResponse,
+    DeclarationCheckRequest,
+    DeclarationCheckResponse,
     ParseFileResponse,
     ParseTextRequest,
     PolicyCheckResponse,
@@ -418,6 +421,20 @@ def policy_check(
     )
     summary = polish_policy_text(result, case_id, db)  # 失败自动回退模板
     return PolicyCheckResponse(**asdict(result), summary=summary)
+
+
+@router.post("/{case_id}/declaration-check", response_model=DeclarationCheckResponse)
+def declaration_check(
+    case_id: str,
+    req: DeclarationCheckRequest,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> DeclarationCheckResponse:
+    """申报一致性检查（#16 按需：只检查 Vera 指定的文件/路径）。"""
+    _get_case_or_404(case_id, db)
+    if not req.files and not req.folder:
+        raise HTTPException(status_code=422, detail="请指定至少一个文件或文件夹路径")
+    data = run_declaration_check(case_id, req.files, req.folder, db)
+    return DeclarationCheckResponse(**data)
 
 
 @router.get("/{case_id}/submission-check", response_model=SubmissionCheckResponse)

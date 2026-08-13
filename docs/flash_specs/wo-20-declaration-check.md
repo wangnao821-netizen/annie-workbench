@@ -143,7 +143,7 @@ def _parse_files(files: list[str], folder: str | None) -> list[tuple[str, str]]:
 ```python
 class DeclarationFinding(BaseModel):
     item: str                       # 申报维度（dependents/income/living_expense/liability/occupation/visa/文件）
-    evidence: str                   # 证据片段（脱敏后）
+    evidence: str                   # 证据片段（本地展示真实值；仅 LLM 出站时脱敏）
     level: str                      # warning | fail | unparseable
     suggestion: str                 # 建议
 

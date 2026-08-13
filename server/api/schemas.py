@@ -101,6 +101,25 @@ class PolicyCheckResponse(BaseModel):
     disclaimer: str = "政策会变，以银行官方为准；本提示仅供辅助参考。"
 
 
+class DeclarationFinding(BaseModel):
+    item: str                       # 申报维度（dependents/income/living_expense/liability/occupation/visa/文件）
+    evidence: str                   # 证据片段（本地展示真实值；仅 LLM 出站时脱敏）
+    level: str                      # warning | fail | unparseable
+    suggestion: str                 # 建议
+
+
+class DeclarationCheckRequest(BaseModel):
+    files: list[str] = []           # Vera 指定文件路径（至少一个，或 folder）
+    folder: str | None = None       # Vera 指定文件夹（可选；仅一层，不递归）
+
+
+class DeclarationCheckResponse(BaseModel):
+    status: str                     # pass | warning | fail | unparseable
+    findings: list[DeclarationFinding] = Field(default_factory=list)
+    summary: str
+    draft_explanation: str | None = None
+
+
 class ContextEventResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
