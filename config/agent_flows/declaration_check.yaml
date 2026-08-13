@@ -1,0 +1,11 @@
+key: declaration_check
+name: "申报一致性检查"
+description: "比对申报画像与指定材料，输出分层结论"
+triggers: ["申报一致性", "检查一下申报", "比对材料与申请表"]
+presentation: result_card
+steps:
+  - tool: declaration_check
+    params: { case_id: "$case_id", files: "$arg.files", folder: "$arg.folder" }
+    output: findings
+confirm_required: false
+acceptance: []

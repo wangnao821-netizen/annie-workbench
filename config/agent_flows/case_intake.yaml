@@ -1,0 +1,11 @@
+key: case_intake
+name: "新建案件"
+description: "触发新建贷款案件流程，引导完成建档表单"
+triggers: ["帮我建个案件", "新建贷款案件", "给.*建个壳", "建档"]
+presentation: dialog
+steps:
+  - tool: context_event_write
+    params: { case_id: "$case_id", event_type: "user_case_intake_triggered" }
+    output: result
+confirm_required: false
+acceptance: []

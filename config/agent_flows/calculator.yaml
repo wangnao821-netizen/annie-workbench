@@ -1,0 +1,11 @@
+key: calculator
+name: "贷款能力计算器"
+description: "根据客户财务状况和意向银行评估贷款能力"
+triggers: ["计算器", "贷款能力", "算一下贷款", "服务能力计算"]
+presentation: dialog
+steps:
+  - tool: calculator_assess
+    params: { bank: "$arg.bank", request: "$arg.request" }
+    output: result
+confirm_required: false
+acceptance: []

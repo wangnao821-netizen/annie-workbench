@@ -227,9 +227,10 @@ class BossReplyRequest(BaseModel):
 
 class ToolCard(BaseModel):
     """结构化工具卡（前端只渲染，不执行）。"""
-    type: Literal["record_confirm", "draft", "submission_suggest", "flow"]
+    type: str
     title: str
-    payload: dict  # 结构见契约说明
+    payload: dict = {}
+    presentation: str = "result_card"   # result_card | dialog
 
 
 class ChatRequest(BaseModel):

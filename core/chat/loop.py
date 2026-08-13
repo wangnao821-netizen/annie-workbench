@@ -36,6 +36,15 @@ def run_chat_with_tools(
     Returns:
         {"reply": str, "tool_cards": list[dict], "recorded_facts": list[dict]}
     """
+    # ── Agent 流程包路由（WO-26）：命中 → 执行流程包；未命中 → 原工具循环 ──
+    from core.agents.flows import match_flow
+    from core.agents.runner import run_flow
+
+    flow = match_flow(message)
+    if flow is not None:
+        args = {}  # V1：参数由前端/对话补全，流程包先做触发与卡片壳
+        return run_flow(flow, case_id, args, db, track=track)
+
     scope = case_id or "system"
     safe_message = desensitize(message, scope, db)
     layers = build_chat_layers(case_id, safe_message, track, db)
