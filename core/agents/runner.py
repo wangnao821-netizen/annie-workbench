@@ -9,6 +9,32 @@ from core.logger import get_logger
 
 logger = get_logger(__name__)
 
+def _resolve_params(step: dict, args: dict, case_id: str | None, step_ctx: dict) -> tuple[dict, str | None]:
+    """解析步骤参数绑定（WO-26c）。
+
+    支持：$case_id / $arg.<field>（缺失宽松透传，兼容既有流程包）/
+    $step.<output>（未产出即报可读错误）/ 字面量；step.required 声明必填参数。
+    """
+    raw = step.get("params") or {}
+    resolved: dict = {}
+    for key, expr in raw.items():
+        if not isinstance(expr, str):
+            resolved[key] = expr
+        elif expr == "$case_id":
+            resolved[key] = case_id
+        elif expr.startswith("$arg."):
+            resolved[key] = args.get(expr[len("$arg."):])
+        elif expr.startswith("$step."):
+            out = expr[len("$step."):]
+            if out not in step_ctx:
+                return {}, f"步骤上下文缺失：{expr}（上一步未产出该输出）"
+            resolved[key] = step_ctx[out]
+        else:
+            resolved[key] = expr
+    for req in step.get("required", []):
+        if resolved.get(req) in (None, ""):
+            return {}, f"参数缺失：{req}"
+    return resolved, None
 
 def run_flow(
     flow: dict,
@@ -45,6 +71,7 @@ def run_flow(
     steps = flow.get("steps", [])
 
     try:
+        step_ctx: dict = {}
         last_res: dict = {}
         executed_any = False
 
@@ -56,28 +83,44 @@ def run_flow(
                 )
                 continue
 
+            # WO-26c：解析 params 绑定（$arg.x / $case_id / $step.<output> / 字面量）
+            params, resolve_err = _resolve_params(step, args, case_id, step_ctx)
+            if resolve_err:
+                return {
+                    "reply": f"执行{name}时参数无效：{resolve_err}",
+                    "tool_cards": [],
+                    "recorded_facts": [],
+                    "presentation": presentation,
+                }
+
             res: dict = {}
             if tool_name == "declaration_check":
                 from core.agents.declaration_check import run_declaration_check
-                files = args.get("files", [])
-                folder = args.get("folder", None)
-                cid = case_id or ""
-                res = run_declaration_check(case_id=cid, files=files, folder=folder, db=db)
+                res = run_declaration_check(
+                    case_id=case_id or "",
+                    files=params.get("files") or [],
+                    folder=params.get("folder"),
+                    db=db,
+                )
 
             elif tool_name == "calculator_assess":
                 res = {"needs_form": True}
+                if params.get("bank"):
+                    res["bank"] = str(params["bank"])
 
             elif tool_name == "policy_check":
+                merged = {k: v for k, v in params.items() if v is not None}
+                merged.update({k: v for k, v in args.items() if k not in merged})
                 try:
                     from core.policy.engine import run_policy_check
-                    res = run_policy_check(case_id=case_id, args=args, db=db)
+                    res = run_policy_check(case_id=case_id, args=merged, db=db)
                 except (ImportError, AttributeError):
                     logger.warning("policy_check tool not implemented in policy engine")
                     res = {"status": "skipped", "message": "policy_check not implemented"}
 
             elif tool_name == "context_event_write":
-                event_type = step.get("params", {}).get("event_type", "flow_triggered")
-                content_str = f"流程【{name}】触发事件: {event_type}"
+                event_type = params.get("event_type") or "flow_triggered"
+                content_str = str(params.get("content") or f"流程【{name}】触发事件: {event_type}")
                 if case_id:
                     from core.context.accumulator import append_context_event
                     append_context_event(
@@ -88,6 +131,9 @@ def run_flow(
                         track=track,
                     )
                 res = {"status": "success", "event_type": event_type}
+
+            if step.get("output"):
+                step_ctx[str(step["output"])] = res
 
             last_res = res
             executed_any = True
