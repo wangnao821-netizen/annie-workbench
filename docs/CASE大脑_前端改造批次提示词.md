@@ -1944,3 +1944,16 @@ src/stores/toastStore.ts
 
 ## 四、红线
 - 只读浏览；无文件操作按钮；路径校验全部由后端完成
+---
+
+# F-19 补丁：GapAnalysisCard 字段对齐（WO-33 契约）
+
+> 后端 gap_analysis payload 契约（WO-33，已验收）：
+> `{ missing: [{master_id, name, reason}], matched: [{master_id, name}], suggestions: [{type, title, description, action_type, status, item_name}], summary }`
+> 当前 `GapAnalysisCard` 读的是 `missing[].item` 和 `suggestions[].item/suggestion` → 显示 undefined。
+
+要改（src/components/brain/GapAnalysisCard.tsx）：
+1. missing 列表：`m.item` → `m.name`（原因字段 `m.reason` 已对）
+2. suggestions 展示：`s.item` → `s.title`；`s.suggestion` → `s.description`（可在 description 前加"建议："）
+3. 保留 summary 直显；matched 可加"已收"徽标（可选）
+4. mock 数据同步改为后端字段名（name/title/description）
