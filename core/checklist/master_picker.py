@@ -57,7 +57,10 @@ def _matches_bank_specific(item: dict, lender: str) -> bool:
     bs = item.get("bank_specific")
     if not bs:
         return True
-    return _norm(bs) == _norm(lender)
+    from core.bank_registry import resolve_lender_key
+    k_bs = resolve_lender_key(bs)
+    k_lender = resolve_lender_key(lender)
+    return k_bs is not None and k_bs == k_lender
 
 
 def _matches_applicable_when(item: dict, case_info: dict) -> bool:

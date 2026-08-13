@@ -11,6 +11,12 @@ from sqlalchemy.orm import Session
 from core.agents.declaration_check import run_declaration_check
 from core.ai.case_context import build_case_context
 from core.ai.case_summary import mark_case_summary_dirty
+from core.bank_registry import (
+    display_name,
+    display_platform,
+    resolve_lender_key,
+    resolve_platform_key,
+)
 from core.case_creation import create_case_from_source
 from core.case_engine.progression import evaluate_stage_signal
 from core.checklist.matcher import CaseNotFoundError, check_completeness
@@ -126,6 +132,7 @@ def _to_case_detail(case: Case) -> CaseDetailResponse:
         interest_rate=case.interest_rate,
         lender_ref=case.lender_ref,
         submission_platform=case.submission_platform,
+        submission_platform_ref=case.submission_platform_ref,
         finance_deadline=case.finance_deadline,
         created_at=case.created_at,
     )
@@ -311,6 +318,8 @@ def sync_case_brain_facts(case_id: str, db: Session = Depends(get_db)) -> dict: 
 @router.post("/", response_model=CaseDetailResponse)
 def create_case(req: CaseCreateRequest, db: Session = Depends(get_db)):  # noqa: B008
     """创建案件 — 走 core.case_creation.create_case_from_source。"""
+    lender_key = resolve_lender_key(req.lender)
+    platform_key = resolve_platform_key(req.submission_platform)
     case = create_case_from_source(
         client_name=req.client_name,
         source=req.source,
@@ -318,12 +327,13 @@ def create_case(req: CaseCreateRequest, db: Session = Depends(get_db)):  # noqa:
         broker_name=req.broker_name,
         loan_amount=req.loan_amount,
         purpose=req.purpose,
-        lender=req.lender,
+        lender=display_name(lender_key) or req.lender,
+        lender_ref=lender_key,
         client_email=req.client_email,
         client_phone=req.client_phone,
         raw_text=req.raw_text,
         force_new_client=req.is_force_new_client,
-        submission_platform=req.submission_platform,
+        submission_platform=display_platform(platform_key) or req.submission_platform,
         client_goal=req.client_goal,
         special_circumstances=req.special_circumstances,
         property_value=req.property_value,
@@ -340,6 +350,8 @@ def create_case(req: CaseCreateRequest, db: Session = Depends(get_db)):  # noqa:
     if req.finance_clause_date:
         raw = req.finance_clause_date.replace("Z", "+00:00")
         case.finance_deadline = datetime.fromisoformat(raw)
+    if platform_key:
+        case.submission_platform_ref = platform_key
     if req.linked_client_id:
         # 覆盖自动匹配结果，建立客户实体关联（勿写 broker_notes）
         case.client_id = req.linked_client_id

@@ -1,0 +1,359 @@
+# 银行主数据注册表（WO-22 定稿 2026-08-13）
+#
+# 结构契约：
+#   - display_name 必须与 config/lender_policies.yaml 顶层键逐字一致（20 家），
+#     保证政策引擎/佣金按 display_name 查找零改动；boc / ma_money 无政策档。
+#   - tier: full（A 层 9 家置顶）| basic（B 层 13 家基础档）
+#   - calculator_profile 仅 6 家非 null（cba/macquarie/boc/ma_money/latrobe/resimac），
+#     对应 config/calculator/<key>.yaml。
+#   - vera_confirmed=false 表示 Vera 尚未在设置页确认（仅作 UI 过滤建议，不算合规结论）。
+# 本文件为本地配置，不含 PII；解析只做字符串规范化，不调 LLM、不访问网络。
+#
+# 校验：core/bank_registry.load_registry() 加载时强制（失败抛 ValueError）。
+
+version: 1
+
+lenders:
+  - key: cba
+    display_name: "CBA"
+    name_en: "Commonwealth Bank of Australia"
+    name_zh: "澳洲联邦银行"
+    aliases: ["Commonwealth Bank", "Commonwealth", "Commonwealth Bank of Australia"]
+    type: major
+    adi: true
+    tier: full
+    sort_order: 1
+    calculator_profile: cba
+    policy_key: "CBA"
+    platforms: ["mqg", "infynity"]
+    vera_confirmed: false
+
+  - key: anz
+    display_name: "ANZ"
+    name_en: "Australia and New Zealand Banking Group"
+    name_zh: "澳新银行"
+    aliases: ["ANZ Bank", "Australia and New Zealand Banking Group"]
+    type: major
+    adi: true
+    tier: full
+    sort_order: 2
+    calculator_profile: null
+    policy_key: "ANZ"
+    platforms: ["mqg", "infynity"]
+    vera_confirmed: false
+
+  - key: westpac
+    display_name: "Westpac"
+    name_en: "Westpac Banking Corporation"
+    name_zh: "西太平洋银行"
+    aliases: ["Westpac Banking Corporation"]
+    type: major
+    adi: true
+    tier: full
+    sort_order: 3
+    calculator_profile: null
+    policy_key: "Westpac"
+    platforms: ["mqg", "infynity"]
+    vera_confirmed: false
+
+  - key: nab
+    display_name: "NAB"
+    name_en: "National Australia Bank"
+    name_zh: "澳洲国民银行"
+    aliases: ["National Australia Bank"]
+    type: major
+    adi: true
+    tier: full
+    sort_order: 4
+    calculator_profile: null
+    policy_key: "NAB"
+    platforms: ["mqg", "infynity"]
+    vera_confirmed: false
+
+  - key: macquarie
+    display_name: "Macquarie"
+    name_en: "Macquarie Bank"
+    name_zh: "麦格理银行"
+    aliases: ["Macquarie Bank"]
+    type: major
+    adi: true
+    tier: full
+    sort_order: 5
+    calculator_profile: macquarie
+    policy_key: "Macquarie"
+    platforms: ["mqg", "infynity"]
+    vera_confirmed: false
+
+  - key: boc
+    display_name: "Bank of China"
+    name_en: "Bank of China (Australia)"
+    name_zh: "中国银行（澳洲）"
+    aliases: ["BOC", "Bank of China (Australia)", "中国银行"]
+    type: bank
+    adi: true
+    tier: full
+    sort_order: 6
+    calculator_profile: boc
+    policy_key: null
+    platforms: ["mqg", "infynity"]
+    vera_confirmed: false
+
+  - key: ma_money
+    display_name: "MA Money"
+    name_en: "MA Money"
+    name_zh: "MA Money（非银行）"
+    aliases: ["MA Money Home Loans"]
+    type: non_bank
+    adi: false
+    tier: full
+    sort_order: 7
+    calculator_profile: ma_money
+    policy_key: null
+    platforms: ["mqg", "infynity"]
+    vera_confirmed: false
+
+  - key: latrobe
+    display_name: "La Trobe"
+    name_en: "La Trobe Financial"
+    name_zh: "La Trobe 金融"
+    aliases: ["La Trobe Financial", "Latrobe Financial"]
+    type: non_bank
+    adi: false
+    tier: full
+    sort_order: 8
+    calculator_profile: latrobe
+    policy_key: "Latrobe"
+    platforms: ["mqg", "infynity"]
+    vera_confirmed: false
+
+  - key: resimac
+    display_name: "Resimac"
+    name_en: "Resimac"
+    name_zh: "Resimac 贷款"
+    aliases: ["Resimac Home Loans"]
+    type: non_bank
+    adi: false
+    tier: full
+    sort_order: 9
+    calculator_profile: resimac
+    policy_key: "Resimac"
+    platforms: ["mqg", "infynity"]
+    vera_confirmed: false
+
+  - key: bankwest
+    display_name: "Bankwest"
+    name_en: "Bankwest"
+    name_zh: "西澳银行"
+    aliases: []
+    type: bank
+    adi: true
+    tier: basic
+    sort_order: 10
+    calculator_profile: null
+    policy_key: "Bankwest"
+    platforms: ["mqg"]
+    vera_confirmed: false
+
+  - key: ing
+    display_name: "ING"
+    name_en: "ING Bank (Australia)"
+    name_zh: "ING 银行"
+    aliases: ["ING Direct"]
+    type: bank
+    adi: true
+    tier: basic
+    sort_order: 11
+    calculator_profile: null
+    policy_key: "ING"
+    platforms: ["mqg"]
+    vera_confirmed: false
+
+  - key: pepper
+    display_name: "Pepper"
+    name_en: "Pepper Money"
+    name_zh: "Pepper 金融"
+    aliases: ["Pepper Money"]
+    type: non_bank
+    adi: false
+    tier: basic
+    sort_order: 12
+    calculator_profile: null
+    policy_key: "Pepper"
+    platforms: ["mqg"]
+    vera_confirmed: false
+
+  - key: st_george
+    display_name: "St George"
+    name_en: "St George Bank"
+    name_zh: "圣乔治银行"
+    aliases: ["St.George", "St. George", "St George Bank"]
+    type: bank
+    adi: true
+    tier: basic
+    sort_order: 13
+    calculator_profile: null
+    policy_key: "St George"
+    platforms: ["mqg"]
+    vera_confirmed: false
+
+  - key: bank_of_melbourne
+    display_name: "Bank of Melbourne"
+    name_en: "Bank of Melbourne"
+    name_zh: "墨尔本银行"
+    aliases: ["BOM"]
+    type: bank
+    adi: true
+    tier: basic
+    sort_order: 14
+    calculator_profile: null
+    policy_key: "Bank of Melbourne"
+    platforms: ["mqg"]
+    vera_confirmed: false
+
+  - key: adelaide_bank
+    display_name: "Adelaide Bank"
+    name_en: "Adelaide Bank"
+    name_zh: "阿德莱德银行"
+    aliases: []
+    type: bank
+    adi: true
+    tier: basic
+    sort_order: 15
+    calculator_profile: null
+    policy_key: "Adelaide Bank"
+    platforms: ["mqg"]
+    vera_confirmed: false
+
+  - key: boq
+    display_name: "BOQ"
+    name_en: "Bank of Queensland"
+    name_zh: "昆士兰银行"
+    aliases: ["Bank of Queensland"]
+    type: bank
+    adi: true
+    tier: basic
+    sort_order: 16
+    calculator_profile: null
+    policy_key: "BOQ"
+    platforms: ["mqg"]
+    vera_confirmed: false
+
+  - key: me_bank
+    display_name: "ME Bank"
+    name_en: "ME Bank"
+    name_zh: "ME 银行"
+    aliases: ["ME"]
+    type: bank
+    adi: true
+    tier: basic
+    sort_order: 17
+    calculator_profile: null
+    policy_key: "ME Bank"
+    platforms: ["mqg"]
+    vera_confirmed: false
+
+  - key: suncorp
+    display_name: "Suncorp"
+    name_en: "Suncorp Bank"
+    name_zh: "桑科普银行"
+    aliases: ["Suncorp Bank"]
+    type: bank
+    adi: true
+    tier: basic
+    sort_order: 18
+    calculator_profile: null
+    policy_key: "Suncorp"
+    platforms: ["mqg"]
+    vera_confirmed: false
+
+  - key: hsbc
+    display_name: "HSBC"
+    name_en: "HSBC Bank Australia"
+    name_zh: "汇丰银行"
+    aliases: []
+    type: bank
+    adi: true
+    tier: basic
+    sort_order: 19
+    calculator_profile: null
+    policy_key: "HSBC"
+    platforms: ["mqg"]
+    vera_confirmed: false
+
+  - key: amp
+    display_name: "AMP"
+    name_en: "AMP Bank"
+    name_zh: "AMP 银行"
+    aliases: ["AMP Bank"]
+    type: bank
+    adi: true
+    tier: basic
+    sort_order: 20
+    calculator_profile: null
+    policy_key: "AMP"
+    platforms: ["mqg"]
+    vera_confirmed: false
+
+  - key: bendigo
+    display_name: "Bendigo"
+    name_en: "Bendigo Bank"
+    name_zh: "本迪戈银行"
+    aliases: ["Bendigo Bank"]
+    type: bank
+    adi: true
+    tier: basic
+    sort_order: 21
+    calculator_profile: null
+    policy_key: "Bendigo"
+    platforms: ["mqg"]
+    vera_confirmed: false
+
+  - key: liberty
+    display_name: "Liberty"
+    name_en: "Liberty Financial"
+    name_zh: "Liberty 金融"
+    aliases: ["Liberty Financial"]
+    type: non_bank
+    adi: false
+    tier: basic
+    sort_order: 22
+    calculator_profile: null
+    policy_key: "Liberty"
+    platforms: ["mqg"]
+    vera_confirmed: false
+
+platforms:
+  - key: mqg
+    display_name: "MoneyQuest"
+    name_zh: "MoneyQuest（聚合平台）"
+    aliases: ["MQG", "mqga", "money quest"]
+    type: aggregator
+    vera_confirmed: true
+
+  - key: infynity
+    display_name: "Infynity"
+    name_zh: "Infynity（Finsure 聚合平台）"
+    aliases: ["Finsure"]
+    type: aggregator
+    vera_confirmed: true
+
+  - key: aol
+    display_name: "ApplyOnline"
+    name_zh: "ApplyOnline（递交工具）"
+    aliases: ["AOL"]
+    type: lodgement
+    vera_confirmed: true
+
+  - key: loanapp
+    display_name: "Loanapp"
+    name_zh: "Loanapp（递交工具）"
+    aliases: []
+    type: lodgement
+    vera_confirmed: true
+
+  - key: manual
+    display_name: "手动递交"
+    name_zh: "手动递交"
+    aliases: []
+    type: manual
+    vera_confirmed: true

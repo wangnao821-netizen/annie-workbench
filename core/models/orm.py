@@ -81,6 +81,7 @@ class Case(Base):  # type: ignore[misc]
 
     # ── 递交平台 ──
     submission_platform = Column(String, nullable=True)  # 递交平台 (如 "Platform A", "Platform B")
+    submission_platform_ref = Column(String, nullable=True)  # 递交平台规范 key（WO-22，如 mqg/infynity）
 
     # ── 内外双轨（S4-数据层）：内线真实情况 vs 外线递交呈现 ──
     internal_notes = Column(Text, nullable=True)      # 内线：真实情况/风险/策略（仅本地）

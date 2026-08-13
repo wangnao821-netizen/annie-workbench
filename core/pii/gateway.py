@@ -15,36 +15,25 @@ Desensitization strategy: **Tokenization** (placeholder mapping).
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
+from core.bank_registry import bank_names_for_pii
 from core.logger import get_logger
 from core.models.orm import PIIMap
-
-if TYPE_CHECKING:
-    pass
 
 logger = get_logger(__name__)
 
 # ── Known Lender / Institution Names (NOT desensitized) ──────────────
-_LENDER_NAMES: frozenset[str] = frozenset({
-    # Big 4
-    "CBA", "Commonwealth Bank", "Westpac", "ANZ", "NAB",
-    # Others
-    "HSBC", "Macquarie", "Macquarie Bank",
-    "Bankwest", "ING", "ING Direct",
-    "St George", "St. George", "Bank of Melbourne",
-    "BankSA", "Suncorp", "AMP", "Bendigo Bank",
-    "Adelaide Bank", "ME Bank", "Bank of Queensland", "BOQ",
+# 非银行机构/聚合商/监管机构（保持原样，registry 不收录）
+_EXTRA_NAMES: frozenset[str] = frozenset({
     "Citibank", "Citi", "UBank", "Virgin Money",
-    "Pepper", "Pepper Money", "Liberty", "Liberty Financial",
-    "La Trobe", "La Trobe Financial", "Resimac",
     "Firstmac", "Athena", "Nano", "loans.com.au",
     "AFG", "Connective", "Aggregator",
-    # Government / Regulators
     "ATO", "ASIC", "APRA", "Centrelink",
 })
+
+_LENDER_NAMES: frozenset[str] = frozenset(bank_names_for_pii()) | _EXTRA_NAMES
 
 # Pre-compile a case-insensitive pattern for lender names
 _LENDER_PATTERN: re.Pattern[str] = re.compile(
@@ -126,9 +115,7 @@ _PII_DETECTORS: list[tuple[str, re.Pattern[str]]] = [
 def _is_lender_name(value: str) -> bool:
     """Check if a detected value is a known lender/institution name."""
     stripped = value.strip()
-    if stripped.upper() in {n.upper() for n in _LENDER_NAMES}:
-        return True
-    return False
+    return stripped.upper() in {n.upper() for n in _LENDER_NAMES}
 
 
 def _get_or_create_token(

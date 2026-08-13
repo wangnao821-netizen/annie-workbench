@@ -24,6 +24,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from core.constants import TERMINAL_STAGES
 from core.knowledge.service import _load_lender_policies
 from core.logger import get_logger
 from core.models.orm import Case, CaseMilestone
@@ -33,7 +34,6 @@ logger = get_logger(__name__)
 # 状态口径
 _SETTLED_STAGES = {"已结算", "settled"}
 _APPROVED_STAGES = {"已批准", "approved", "结算中", "settling"}
-from core.constants import TERMINAL_STAGES
 # Commission-specific exclusion: base TERMINAL_STAGES + hold/resubmit states
 _TERMINAL_STAGES = TERMINAL_STAGES | frozenset({
     "已暂停", "resubmitted",
@@ -72,22 +72,8 @@ def resolve_lender_key(lender: str | None) -> str | None:
     Returns:
         标准键；无法匹配时返回 None。
     """
-    if not lender:
-        return None
-    rates = get_commission_rates()
-    name = lender.strip()
-    if name in rates:
-        return name
-    low = name.lower()
-    for key in rates:
-        if key.lower() == low:
-            return key
-    policies = _load_lender_policies().get("lenders", {}) or {}
-    for key, cfg in policies.items():
-        full = (cfg.get("full_name") or "").lower()
-        if full and (low in full or full in low):
-            return str(key)
-    return None
+    from core.bank_registry import resolve_policy_key
+    return resolve_policy_key(lender)
 
 
 def commission_status(stage: str | None) -> str:
@@ -200,7 +186,7 @@ def get_commission_summary(db: Session, period: str = "all") -> dict[str, Any]:
     """
     cutoff: datetime | None = None
     if period in _PERIOD_DAYS:
-        cutoff = datetime.utcnow() - timedelta(days=_PERIOD_DAYS[period])
+        cutoff = datetime.utcnow() - timedelta(days=_PERIOD_DAYS[period])  # noqa: DTZ003 — 保持 naive UTC 与 DB 列对齐
 
     rates = get_commission_rates()
     settled_dates = _fetch_milestone_dates(db, "settled")

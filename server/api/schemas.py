@@ -59,6 +59,7 @@ class CaseDetailResponse(BaseModel):
     interest_rate: str | None = None
     lender_ref: str | None = None
     submission_platform: str | None = None
+    submission_platform_ref: str | None = None
     finance_deadline: datetime | None = None  # Finance Clause / 关键截止日
     created_at: datetime | None = None
 
@@ -408,6 +409,7 @@ class AnalyticsPipelineResponse(BaseModel):
 
 class AnalyticsLenderStats(BaseModel):
     lender: str
+    lender_key: str
     cases: int
     avg_approval_days: float | None = None
     os_rate: float
@@ -417,6 +419,34 @@ class AnalyticsLenderStats(BaseModel):
 class AnalyticsLendersResponse(BaseModel):
     granularity: Literal["day", "week", "month"]
     lenders: list[AnalyticsLenderStats] = Field(default_factory=list)
+
+
+class BankItem(BaseModel):
+    key: str
+    display_name: str
+    name_zh: str
+    type: str            # major | bank | non_bank
+    adi: bool
+    tier: str            # full | basic
+    has_calculator: bool
+    platforms: list[str]
+    vera_confirmed: bool
+
+
+class PlatformItem(BaseModel):
+    key: str
+    display_name: str
+    name_zh: str
+    type: str            # aggregator | lodgement | manual
+    vera_confirmed: bool
+
+
+class BanksResponse(BaseModel):
+    banks: list[BankItem] = Field(default_factory=list)
+
+
+class PlatformsResponse(BaseModel):
+    platforms: list[PlatformItem] = Field(default_factory=list)
 
 
 class AnalyticsEfficiencyMetrics(BaseModel):

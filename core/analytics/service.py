@@ -24,6 +24,7 @@ from core.analytics._base import (
     normalize_bounds,
 )
 from core.analytics.bucketing import DEFAULT_BUCKETS, buckets_since
+from core.bank_registry import display_name, resolve_lender_key
 from core.commission.calculator import _fetch_milestone_dates, get_commission_rates
 from core.models.orm import CaseChecklist, EmailDraft, OsCondition
 
@@ -99,8 +100,8 @@ def get_lenders(db: Session, granularity: str) -> dict:
     start, end = normalize_bounds(buckets[0])
     groups: dict[str, dict] = {}
     for case in active_cases(db, start, end):
-        name = (case.lender or "").strip() or "未指定银行"
-        group = groups.setdefault(name, {"n": 0, "with_os": 0, "approved": 0, "approval_days": []})
+        key = case.lender_ref or resolve_lender_key(case.lender) or (case.lender or "").strip() or "未指定银行"
+        group = groups.setdefault(key, {"n": 0, "with_os": 0, "approved": 0, "approval_days": []})
         group["n"] += 1
         if db.query(OsCondition).filter(OsCondition.case_id == case.id).count() > 0:
             group["with_os"] += 1
@@ -111,12 +112,14 @@ def get_lenders(db: Session, granularity: str) -> dict:
             group["approval_days"].append(days)
 
     rows = []
-    for name, g in sorted(groups.items(), key=lambda x: (-x[1]["n"], x[0])):
+    for key, g in sorted(groups.items(), key=lambda x: (-x[1]["n"], x[0])):
+        name = display_name(key) or key
         n = g["n"]
         avg = round(sum(g["approval_days"]) / len(g["approval_days"]), 2) if g["approval_days"] else None
         rows.append(
             {
                 "lender": name,
+                "lender_key": key,
                 "cases": n,
                 "avg_approval_days": avg,
                 "os_rate": round(g["with_os"] / n, 2) if n else 0.0,

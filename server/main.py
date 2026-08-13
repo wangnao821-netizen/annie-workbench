@@ -31,6 +31,7 @@ app.add_middleware(
 # ── 注册路由 ───────────────────────────────────────────
 from server.api.admin import router as admin_router
 from server.api.analytics import router as analytics_router
+from server.api.banks import router as banks_router
 from server.api.calculator import router as calculator_router
 from server.api.cases import router as cases_router
 from server.api.chat import router as chat_router
@@ -46,6 +47,7 @@ from server.api.wechat import router as wechat_router
 
 app.include_router(admin_router)
 app.include_router(cases_router)
+app.include_router(banks_router)
 app.include_router(analytics_router)
 app.include_router(commission_router)
 app.include_router(calculator_router)
