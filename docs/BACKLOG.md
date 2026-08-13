@@ -87,6 +87,7 @@
 - 后端：**WO-16 对话协议 ✅**（非流式 + 服务端工具循环 + 结构化卡片 + record_fact/suggest_submission；pytest 487/0）
 - 后端：**WO-17 上下文注入 ✅**（五层缓存友好协议 + 对话窗口 + ai_usage_log/缓存命中率 + DeepSeek/Gemini 路由；pytest 497/0）
 - 后端：**WO-18 统一建案后端 ✅**（LVR 自动算 + 建档即预选清单 + 存量壳 is_imported + parse-text/parse-file 预填提取；pytest 505/0）
+- 后端：**WO-19 政策库规则引擎 ✅**（自雇/签证/LVR 规则 + 建档政策提示事件 + policy-check 端点；pytest 514/0）
 - 前端：批 1-12 + 批 A/B/C/C-2/C-3/D-1/D-2/E-1 全部完成 + **F-1~F-6f 全部交付（当前主线 ui/vera-工作台 (33)：三栏/确认闸门/全景/递交横幅/全局统计/指挥中心/视觉打磨/今日工作台首页/主导航上顶栏/快捷发问 chips）**（AI Studio 线维护）
 - 联调：后端 + 前端已在本地跑通（8000/3000）；已修复：id/case_id、datetime naive、SSE payload、草稿 404、设置页离线误报、案件下拉遮挡、邮件附件预览、客户全景同源
 
