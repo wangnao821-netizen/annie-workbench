@@ -1,5 +1,6 @@
 """Vera Workbench — FastAPI 应用入口。"""
 
+import logging
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -16,10 +17,19 @@ APP_VERSION = "2.0.0"
 # ── 后台调度（Phase 2 数据保命） ───────────────────────
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
-    """启动/停止 APScheduler（备份/委派超期/摘要刷新）。"""
+    """启动：配置 fail-fast + 调度器容错（Phase 2 收口）。
+
+    第一层 get_config()：环境/配置错误（如缺 CLIENT_FILES_ROOT）→ 启动失败，显式暴露；
+    第二层 init_scheduler()：调度器故障 → 告警降级，不阻断应用。
+    """
+    from core.config import get_config
     from core.scheduler.jobs import init_scheduler, shutdown_scheduler
 
-    init_scheduler()
+    get_config()
+    try:
+        init_scheduler()
+    except Exception as exc:  # noqa: BLE001 — 调度器故障不阻断应用
+        logging.getLogger("server.main").warning("scheduler init failed: %s", exc)
     try:
         yield
     finally:
