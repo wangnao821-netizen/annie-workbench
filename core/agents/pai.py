@@ -25,7 +25,7 @@ logger = get_logger(__name__)
 _AGENTS: dict[str, Any] = {}
 _gemini_failures = 0
 _gemini_skipped_until = 0.0
-_TOOL_NAMES = frozenset({"declaration_check", "calculator_assess", "policy_check", "context_event_write"})
+_TOOL_NAMES = frozenset({"declaration_check", "calculator_assess", "policy_check", "context_event_write", "draft_email"})
 _DEFAULT_TIMEOUT_S = 30
 _SYSTEM_PROMPT = "你是澳洲贷款经纪团队的 AI 助手。按流程包意图调用白名单工具，回答具体到这个客户，不要给通用建议。"
 
@@ -127,10 +127,9 @@ def _log_usage(db: Session, case_id: str | None, track: str, provider: str, mode
         p = int(getattr(usage, "input_tokens", 0) or 0) if usage else 0
         c = int(getattr(usage, "output_tokens", 0) or 0) if usage else 0
         hit = int(getattr(usage, "cache_read_tokens", 0) or 0) if usage else 0
-        cost = (p * 0.0001 / 1000) + (c * 0.0002 / 1000)
         db.add(AiUsageLog(case_id=case_id, scope="case" if case_id else "global", track=track, provider=provider, model=model,
                           prompt_tokens=p, completion_tokens=c, prompt_cache_hit_tokens=hit, prompt_cache_miss_tokens=max(p - hit, 0),
-                          cost_usd=cost, latency_ms=latency_ms,
+                          cost_usd=(p * 0.0001 / 1000) + (c * 0.0002 / 1000), latency_ms=latency_ms,
                           layer_names=json.dumps([f"flow:{flow_key}"], ensure_ascii=False)))
         db.commit()
     except Exception:  # 用量记录失败不阻断
@@ -175,12 +174,9 @@ def run_flow_with_pai(flow: dict, case_id: str | None, args: dict, db: Session, 
             for part in getattr(msg, "parts", []):
                 if isinstance(getattr(part, "content", None), dict):
                     payload = part.content
-        return {
-            "reply": reply or f"{name}执行完成。",
-            "tool_cards": [{"type": f"flow_{flow.get('key', 'unknown')}", "title": name, "presentation": flow.get("presentation", "result_card"), "payload": payload}],
-            "recorded_facts": [],
-            "presentation": flow.get("presentation", "result_card"),
-        }
+        return {"reply": reply or f"{name}执行完成。",
+                "tool_cards": [{"type": f"flow_{flow.get('key', 'unknown')}", "title": name, "presentation": flow.get("presentation", "result_card"), "payload": payload}],
+                "recorded_facts": [], "presentation": flow.get("presentation", "result_card")}
     except Exception as exc:  # noqa: BLE001 — PAI 失败回退，绝不阻断对话
         if provider == "gemini":
             _gemini_failures += 1

@@ -231,6 +231,23 @@ class ToolCard(BaseModel):
     title: str
     payload: dict = {}
     presentation: str = "result_card"   # result_card | dialog
+class DraftCardVersion(BaseModel):
+    """邮件草稿版本（V1/V2/V3 + 分支，WO-27）。"""
+    version: str
+    branch_label: str
+    message_id: int
+    subject: str
+    body: str
+
+
+class DraftCardPayload(BaseModel):
+    """状态卡片契约（WO-27）：payload_version + state（表单）+ result（最新结论）。"""
+    schema_version: int = 1
+    card_type: str
+    action: str
+    state: dict = {}
+    result: dict = {}
+    status: str = "draft"
 
 
 class ChatRequest(BaseModel):

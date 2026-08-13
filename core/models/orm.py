@@ -620,6 +620,8 @@ class CaseChatMessage(Base):  # type: ignore[misc]
     role = Column(String, nullable=False)  # user / assistant / system
     content = Column(Text, nullable=False)
     tool_results = Column(Text, nullable=True)  # JSON string of tool execution results
+    parent_message_id = Column(Integer, nullable=True, index=True)  # WO-27 版本链
+    branch_label = Column(String, nullable=True, index=True)        # WO-27 分支（A/B）
     created_at = Column(DateTime, default=datetime.utcnow)
 
 

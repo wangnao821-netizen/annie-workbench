@@ -19,6 +19,7 @@ _TOOL_WHITELIST = frozenset({
     "calculator_assess",
     "policy_check",
     "context_event_write",
+    "draft_email",
 })
 
 

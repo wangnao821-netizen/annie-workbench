@@ -1,0 +1,11 @@
+key: chaser
+name: "催件"
+description: "共创生成催件邮件草稿（V1-V3 版本链，只出草稿）"
+triggers: ["催件", "催银行", "催一下", "chaser"]
+presentation: dialog
+steps:
+  - tool: draft_email
+    params: { intent: "chaser", action: "$arg.action" }
+    output: result
+confirm_required: false
+acceptance: []

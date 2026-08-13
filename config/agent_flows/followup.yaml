@@ -1,0 +1,11 @@
+key: followup
+name: "跟进邮件"
+description: "共创生成跟进邮件草稿（V1-V3 版本链，只出草稿）"
+triggers: ["跟进邮件", "写跟进", "跟进一下", "follow up"]
+presentation: dialog
+steps:
+  - tool: draft_email
+    params: { intent: "followup", action: "$arg.action" }
+    output: result
+confirm_required: false
+acceptance: []

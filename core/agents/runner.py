@@ -132,14 +132,20 @@ def run_flow(
                     )
                 res = {"status": "success", "event_type": event_type}
 
+            elif tool_name == "draft_email":
+                from core.agents.draft_email import run_draft_email
+                merged_draft = {k: v for k, v in params.items() if v is not None}
+                merged_draft.update({k: v for k, v in args.items() if k not in merged_draft})
+                res = run_draft_email(case_id=case_id, args=merged_draft, db=db, track=track)
+
             if step.get("output"):
                 step_ctx[str(step["output"])] = res
 
             last_res = res
             executed_any = True
 
-            # 每步成功写一条 internal 事件（若 case_id 存在）
-            if case_id:
+            # 每步成功写一条 internal 事件（若 case_id 存在；草稿未确认不蒸馏，WO-27）
+            if case_id and tool_name != "draft_email":
                 if isinstance(res, dict) and "summary" in res:
                     summary_text = str(res["summary"])
                 else:

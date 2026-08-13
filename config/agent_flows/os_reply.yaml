@@ -1,0 +1,11 @@
+key: os_reply
+name: "OS 回复"
+description: "共创生成银行条件（Special Conditions）回复草稿（只出草稿）"
+triggers: ["OS 回复", "条件回复", "special condition", "os reply"]
+presentation: dialog
+steps:
+  - tool: draft_email
+    params: { intent: "os_reply", action: "$arg.action" }
+    output: result
+confirm_required: false
+acceptance: []
