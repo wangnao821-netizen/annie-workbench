@@ -1,6 +1,0 @@
-{
-  "name": "Vera 工作台",
-  "description": "基于 Apple Design 原则的 Vera 工作台系统，支持多主题切换、智能任务处理与自动化审计管理。",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
