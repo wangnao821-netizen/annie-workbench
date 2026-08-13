@@ -179,6 +179,8 @@ agents/
 | Screenpipe（被动录屏/音频） | 🛑 **架构保留（L4.5 层），数据暂不进入记忆系统**；V2 再评估（opt-in + 本地隔离） |
 | 邮件进度 / 共享日历 .ics / 文件佐证 | ⛔ 未接入，按路线图逐步评估 |
 | 文件识别提取（按需） | 🆕 V1 定稿：扔文件 → 本地解析 → 脱敏 → 提取 → 确认 → 预填/入账（#15/#16）；只按需不主动扫 |
+| 申报一致性检查 Agent（#16 落地） | ✅ WO-20 已完成：Vera 指定文件/文件夹 → 本地解析 → 规则比对+LLM 补强 → 结论分层（pass/warning/fail/unparseable）→ 解释信草稿 + internal 事件；只查指定路径、不递归不主动扫（红线）；证据本地真实值展示 |
+| 计算器 Agent（银行服务能力） | ✅ WO-21 已完成：6 家（BOC/CBA/Macquarie/MA Money/Latrobe/Resimac）确定性引擎（每步公式可见，非黑盒）+ 上传新 xlsm 更新闭环（diff/apply/rollback）；印花税/首购/FHOG/LMI 用 OpenClaw 表兜底（indicative）；档案参数机械提取自 Brokerpedia 源文件 |
 | 微信 Bot | 🆕 V1 定稿：Vera 私人助手通道（纯自用）——查信息/草稿/提醒，不进客户会话、不自动发送；**个人微信 hook（2026-08-12 拍板）**，PoC 观察后转正，封号风险提示 |
 
 ---
@@ -237,6 +239,7 @@ agents/
 - [CASE大脑_记忆方案对照分析.md](./CASE大脑_记忆方案对照分析.md) — DeepSeek × Antigravity 对照
 - [CASE大脑_Screenpipe被动录入层构想.md](./CASE大脑_Screenpipe被动录入层构想.md) — Screenpipe 观察方案
 - [BACKLOG.md](./BACKLOG.md) — 执行状态与待办
+- [WO 施工单与验收（wo-19~23）](./flash_specs/) — 政策引擎 / 申报一致性检查 / 计算器 Agent / 银行主数据+平台 / PST 收尾
 
 ---
 
@@ -304,3 +307,40 @@ agents/
 
 ### 统计时区（#17）
 - 分桶时区改 **Australia/Sydney**（配置化，不硬编码）；补跨日边界测试（悉尼 0 点 vs UTC 14:00）。
+## 十二、2026-08-13 增补：银行主数据 + 聚合平台 + 计算器/申报检查落地
+
+### 银行主数据（WO-22 定稿，施工单已出）
+- **20 家全收但分层**：A 层「常用精档」9 家置顶（6 家计算器银行 BOC/CBA/Macquarie/MA Money/Latrobe/Resimac + 4 大）；B 层「基础档」13 家（政策轮廓在库，其余字段按需补档）；
+- **单一真源 `config/bank_registry.yaml`**：22 家（20 政策银行 + BOC/MA Money 两家纯计算器银行）；规范 key 用小写下划线（`st_george`/`me_bank`/`ma_money`/`boc`）；`display_name` 与 lender_policies.yaml 顶层键逐字一致，政策引擎/佣金零改动；
+- **别名解析**：key → display_name → aliases → 英文名包含（"St.George"↔"St George"、"Commonwealth Bank"→CBA、"中国银行"→boc）；
+- **落库**：`Case.lender_ref` 存规范 key（复用既有列）；`submission_platform_ref` 新增列（Alembic）；`tools/migrate_lender_keys.py` 幂等回填存量案件；
+- **消费点切 key**：建档下拉、清单预选（master_picker）、政策引擎、佣金（resolve_lender_key 委托）、统计分组、PII 白名单（bank_names_for_pii 生成）。
+
+### 聚合平台维度（WO-22 定稿）
+- 平台独立成维度，**不写死 Infynity**：Finsure 已公布 2026 起以新 CRM Metanoia 替换 Infynity（落地时间未定）；
+- 平台 key：`mqg`（MoneyQuest 聚合）/ `infynity`（Finsure 聚合）/ `aol` / `loanapp`（递交工具，兼容旧值）/ `manual`；
+- 银行×平台可用性：默认 full→[mqg, infynity]、basic→[mqg]，`vera_confirmed=false` 待 Vera 在设置页确认；
+- **Infynity 公开资料已入 knowledge**（industry_seed.yaml platform 段 = MQG×4 + Infynity×3，2026-08-13）：
+  - Infynity 为 Finsure 集团自研 CRM（finsure.com.au；broker 文档站 broker-docs.middle.finance），集成 AOL / CitoPlus / Annature / Client Centre / Middle；
+  - Virtual Assistant 递交工作流 12 项：收集支持文件 → 录入 Infynity CRM + AOL → SOCA → Quote → 估价 → Pricing → Discharge（仅转贷）→ 与银行沟通 → 递交 Lender Application → 交割协调 → 交割后支持 → 数据库维护；
+  - Fact Find 必填字段：主/次申请人（joint）均须 名+姓、邮箱、电话，并指定主申请人；Credit Guide 在客户开始 Discovery Journey 时自动发送；文档默认不索取需手动配置；Middle 导入会覆盖 Infynity 既有 fact-find 数据；
+  - Finsure 2026 起新 broker 准入：至少 2 年相关经验，否则须完成 Finsure Academy；
+  - 完整合规手册仅 Finsure 成员门户内，拿到后补「银行×平台合规清单」（当前标 vera_confirmed=false）。
+
+### 计算器 Agent（WO-21，2026-08-13 交付 edf96f1）
+- 6 家档案 `config/calculator/*.yaml` 由构建工具从 Brokerpedia 源 xlsm 机械提取（禁止手抄），带来源/版本/日期；构建幂等（时间戳用源文件 mtime）；
+- 确定性引擎：每步公式+输入+输出（steps 轨迹），算术不经过 LLM、不调外部 API；黄金用例钉关键值；
+- 上传更新闭环：设置页传新 xlsm → 解析 → diff 预览 → pending → Vera 确认 apply（记录 previous_yaml 可回滚）→ 支持新增银行；
+- `indicative: false` 语义：6 家真计算器（机械提取）；仅 stamp_duty / lmi_fallback 兜底表为 true；
+- BOC 档案诚实降级项（notes 标注）：公司税 30% / 信用卡 3.8% 源表无显式单元格、取契约参数表；HEM 仅 Australia 国表块；高密度租金 haircut 70%（AB2）入 options.high_density，V1 引擎未接线；
+- 源文件出现 prudent offset（无规格锚点）→ 决定不建模，留补丁候选（不发明行为）。
+
+### 申报一致性检查 Agent（WO-20，2026-08-13 交付 5c58018）
+- 功能卡落地：POST /api/cases/{id}/declaration-check（files/folder 二选一，文件夹仅一层不递归）；
+- 流程：外线申报画像（external BrainFact + submission_summary；无 → fail「暂无外线申报画像」）→ 解析指定文件（单文件失败记 unparseable 不阻断）→ 规则比对（dependents/income/liability/occupation/visa）→ LLM 补强（脱敏出站、失败降级）→ 结论分层 + 解释信草稿 + internal 事件；
+- 证据本地展示真实值（rehydrate），仅 LLM 出站脱敏。
+
+### 收尾（WO-23，施工单已出）
+- PST 导入 remember 接线（tools/import_pst.py F821：改 `from core.knowledge.memory import remember`）；
+- pyproject 依赖对齐（openpyxl/oletools/python-multipart 声明）+ uv.lock 重新生成入库（mem0 暂不声明，未安装且优雅降级）；
+- 遗留 ruff 13 条（HEAD 既有）另行报告，不混入 WO 提交。
