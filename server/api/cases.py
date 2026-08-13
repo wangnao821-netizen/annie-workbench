@@ -18,6 +18,7 @@ from core.bank_registry import (
     resolve_platform_key,
 )
 from core.case_creation import create_case_from_source
+from core.case_engine.folder import auto_create, link_existing
 from core.case_engine.progression import evaluate_stage_signal
 from core.checklist.matcher import CaseNotFoundError, check_completeness
 from core.config import get_config
@@ -42,6 +43,8 @@ from server.api.schemas import (
     CaseContextResponse,
     CaseCreateRequest,
     CaseDetailResponse,
+    CaseFolderRequest,
+    CaseFolderResponse,
     CaseResponse,
     ContextEventRequest,
     ContextEventResponse,
@@ -181,6 +184,44 @@ def list_archived_cases(
 def get_case(case_id: str, db: Session = Depends(get_db)):  # noqa: B008
     """案件详情。"""
     return _to_case_detail(_get_case_or_404(case_id, db))
+
+
+@router.post("/{case_id}/folder", response_model=CaseFolderResponse)
+def link_or_create_case_folder(
+    case_id: str,
+    req: CaseFolderRequest,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> CaseFolderResponse:
+    """案件文件夹关联（选已有/自动创建）。
+
+    - 案件不存在 → 404
+    - mode 非法 → 422
+    - 路径越界/穿越/不存在 → 422
+    """
+    _get_case_or_404(case_id, db)
+    import os
+    from pathlib import Path
+    env_root = os.getenv("CLIENT_FILES_ROOT")
+    client_root = Path(env_root) if env_root else get_config().client_files_root
+
+    try:
+        if req.mode == "existing":
+            if not req.path or not req.path.strip():
+                raise HTTPException(status_code=422, detail="mode 为 existing 时必填 path")
+            updated_case = link_existing(db, case_id=case_id, path=req.path, client_root=client_root)
+        elif req.mode == "auto":
+            updated_case = auto_create(db, case_id=case_id, naming=req.path, client_root=client_root)
+        else:
+            raise HTTPException(status_code=422, detail=f"不支持的 mode: {req.mode}")
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    return CaseFolderResponse(
+        case_id=updated_case.id,
+        folder_path=updated_case.folder_path or "",
+        mode=req.mode,
+    )
+
 
 
 @router.get("/{case_id}/context", response_model=CaseContextResponse)

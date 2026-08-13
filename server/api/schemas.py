@@ -751,3 +751,17 @@ class SkillActivateRequest(BaseModel):
 class SkillRollbackRequest(BaseModel):
     target_version: str
 
+
+# ── WO-29 案件文件夹关联 Schemas ─────────────────────────────────────────
+
+class CaseFolderRequest(BaseModel):
+    mode: Literal["existing", "auto"]
+    path: str | None = None
+
+
+class CaseFolderResponse(BaseModel):
+    case_id: str
+    folder_path: str
+    mode: str
+
+
