@@ -135,6 +135,7 @@ class CaseChecklist(Base):  # type: ignore[misc]
     candidate_file_ids = Column(Text, nullable=True)  # JSON array: ["file_id1", "file_id2"]
     received_file_ids = Column(JSON, default=list)  # [file_id, ...] 多文件（V5）
     ai_suggestion = Column(Text, nullable=True)
+    master_id = Column(String, nullable=True, index=True)  # 全集清单项 id（Phase 3）
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 

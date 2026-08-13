@@ -7,18 +7,22 @@ to dynamically generate case-specific document checklists.
 from __future__ import annotations
 
 import json
+import re
+from pathlib import Path
 from typing import Any
 
 import yaml
 from sqlalchemy.orm import Session
 
-from core.config import get_config
-# TODO: memory 接口对齐 # recall
-from core.pii.gateway import desensitize, rehydrate
 from core.ai.gateway import ApiGateway
+from core.config import get_config
+from core.knowledge.memory import recall
 from core.logger import get_logger
 from core.models.orm import Case, CaseChecklist
 from core.models.types import DesensitizedText
+
+# TODO: memory 接口对齐 # recall
+from core.pii.gateway import desensitize, rehydrate
 
 logger = get_logger(__name__)
 
@@ -66,7 +70,7 @@ def generate_checklist_draft(case_id: str, db: Session) -> list[dict[str, Any]]:
                 lender_policy_yaml = yaml.dump(lender_data, allow_unicode=True)
             else:
                 logger.warning("No policy found in config for lender %s", lender)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 — 政策加载失败降级
         logger.error("Failed to load lender policy: %s", exc)
 
     # 4. Load Base Checklist from config/checklist/{case_type}.yaml
@@ -80,7 +84,7 @@ def generate_checklist_draft(case_id: str, db: Session) -> list[dict[str, Any]]:
     base_checklist_yaml = ""
     try:
         base_checklist_yaml = checklist_path.read_text(encoding="utf-8")
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 — 基础清单加载失败降级
         logger.error("Failed to load base checklist: %s", exc)
 
     # 5. Recall experience from Mem0 (automatically rehydrated by recall)
@@ -91,11 +95,11 @@ def generate_checklist_draft(case_id: str, db: Session) -> list[dict[str, Any]]:
             desensitized_experience = desensitize(recalled_experience, case_id, db)
         else:
             desensitized_experience = "无相关历史经验记录。"
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 — 记忆召回失败降级
         logger.warning("Failed to recall memory for case %s: %s", case_id, exc)
         desensitized_experience = "无法获取历史经验。"
 
-    # 6. Master 全集预选（规则硬过滤，AI 排序失败回退）— V5 三层模型第一层
+    # 6. Master 全集预选（规则硬过滤 + AI 排序/理由，失败回退）— Phase 3 use_ai=True
     preselected_block = ""
     try:
         from core.checklist.master_picker import pick_checklist
@@ -109,7 +113,7 @@ def generate_checklist_draft(case_id: str, db: Session) -> list[dict[str, Any]]:
                 "purpose": purpose,
             },
             db,
-            use_ai=False,
+            use_ai=True,
         )
         if preselected:
             preselected_block = "\n".join(
@@ -176,19 +180,16 @@ JSON 格式要求：
             system_prompt="You are an expert Australian mortgage broker assistant that outputs clean JSON arrays.",
         )
         resp_text = api_result.response_text.strip()
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 — LLM 失败回退默认清单
         logger.warning("LLM checklist generation fallback to default checklist: %s", exc)
         resp_text = json.dumps([
             {"item_name": "身份证明 (Passport/DL)", "category": "ID", "is_required": True, "status": "pending", "ai_suggestion": "核对姓名拼写与有效期"},
             {"item_name": "近两个月工资单 (Payslips)", "category": "Income", "is_required": True, "status": "pending", "ai_suggestion": "核对雇主名与 YTD 累计收入"},
             {"item_name": "银行流水账单 (Bank Statements)", "category": "Income", "is_required": True, "status": "pending", "ai_suggestion": "核查 BSB 与账户余额"}
         ], ensure_ascii=False)
-    if resp_text.startswith("```json"):
-        resp_text = resp_text[7:]
-    if resp_text.startswith("```"):
-        resp_text = resp_text[3:]
-    if resp_text.endswith("```"):
-        resp_text = resp_text[:-3]
+    resp_text = resp_text.removeprefix("```json")
+    resp_text = resp_text.removeprefix("```")
+    resp_text = resp_text.removesuffix("```")
 
     try:
         items = json.loads(resp_text.strip())
@@ -196,7 +197,8 @@ JSON 格式要求：
         logger.error("Failed to parse LLM checklist JSON. Raw: %s", api_result.response_text)
         raise ValueError(f"AI 生成的 JSON 格式解析失败: {exc}") from exc
 
-    # 9. Rehydrate items (restore real names from tokens)
+    # 9. Rehydrate items (restore real names from tokens) + 关联全集 master_id
+    master_map = _master_id_map()
     rehydrated_items = []
     for item in items:
         name = item.get("item_name", "")
@@ -213,9 +215,39 @@ JSON 格式要求：
             "category": category,
             "is_required": is_req,
             "ai_suggestion": rehydrated_sugg,
+            "master_id": master_map.get(_norm_checklist_name(rehydrated_name)),
         })
 
     return rehydrated_items
+
+
+def _norm_checklist_name(name: str) -> str:
+    """清单名称归一化（小写 + 去分隔符），用于与全集匹配。"""
+    return re.sub(r"[^a-z0-9\u4e00-\u9fff]+", "", (name or "").lower())
+
+
+def _master_id_map() -> dict[str, str]:
+    """全集清单项：归一化名称（name_zh/name_en）→ master id。
+
+    Returns:
+        {归一化名称: master id}；读取失败返回空 dict（不阻断流程）。
+    """
+    try:
+        path = Path(__file__).resolve().parent.parent.parent / "config" / "checklist_master.yaml"
+        items = yaml.safe_load(path.read_text(encoding="utf-8"))["items"]
+    except Exception as exc:  # noqa: BLE001 — 映射失败不阻断
+        logger.warning("master_id map load failed: %s", exc)
+        return {}
+    mapping: dict[str, str] = {}
+    for it in items:
+        mid = str(it.get("id") or "")
+        if not mid:
+            continue
+        for name in (it.get("name_zh"), it.get("name_en")):
+            key = _norm_checklist_name(str(name))
+            if key:
+                mapping.setdefault(key, mid)
+    return mapping
 
 
 def save_confirmed_checklist(
@@ -248,6 +280,7 @@ def save_confirmed_checklist(
                 is_required=it.get("is_required", True),
                 status="pending",
                 ai_suggestion=it.get("ai_suggestion"),
+                master_id=it.get("master_id"),
             )
             db.add(cc)
 
@@ -255,4 +288,4 @@ def save_confirmed_checklist(
     except Exception as exc:
         db.rollback()
         logger.error("Failed to save checklist to database: %s", exc)
-        raise exc
+        raise

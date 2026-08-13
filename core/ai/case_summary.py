@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 from core.ai.gateway import ApiGateway
 from core.config import get_config
 from core.logger import get_logger
-from core.models.orm import Case, CaseChecklist, OsCondition
+from core.models.orm import BrainFact, Case, CaseChecklist, OsCondition
 from core.models.types import DesensitizedText
 from core.pii.gateway import desensitize, rehydrate
 
@@ -66,6 +66,23 @@ def _rule_fallback(case: Case, db: Session) -> str:
     return _truncate(" · ".join(parts))
 
 
+def _build_memory_context(case_id: str, db: Session) -> str:
+    """案件软记忆：confirmed BrainFact（internal、有效）拼接，≤300 字符。"""
+    facts = (
+        db.query(BrainFact)
+        .filter(
+            BrainFact.case_id == case_id,
+            BrainFact.track == "internal",
+            BrainFact.valid_to.is_(None),
+        )
+        .order_by(BrainFact.valid_from.desc())
+        .limit(15)
+        .all()
+    )
+    text = "；".join(f"{f.key}: {f.value}" for f in facts)
+    return text[:300]
+
+
 def mark_case_summary_dirty(case_id: str, db: Session) -> None:
     """只标记 dirty（清缓存 + 置空持久化摘要），不调 LLM。"""
     _CACHE.pop(case_id, None)
@@ -101,6 +118,9 @@ def refresh_case_summary(case_id: str, db: Session) -> str:
         f"清单:{done}/{len(checklist)}; OS待处理:{os_pending}; "
         f"特殊情况:{case.special_circumstances or '无'}"
     )
+    memory_context = _build_memory_context(case_id, db)
+    if memory_context:
+        source = f"{source}\n案件记忆：{memory_context}"
 
     one_liner = ""
     try:
