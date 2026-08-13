@@ -151,7 +151,7 @@
 - **架构影响**：默认模型 + fallback + 成本/质量评测（10 个脱敏问答测试集）。Pydantic AI 可配 model，改动成本低。
 - **Vera 视角**：影响"快不快、准不准、中文好不好"。她日常已在用 Gemini/DeepSeek 聊天。
 - **倾向**：默认 DeepSeek（便宜、中文好）做日常；写英文邮件/复杂推理用 Gemini/OpenAI（fallback）；先跑测试集定。
-- **✅ 已定稿（2026-08-12）— DeepSeek 日常 + Gemini 写英文，互为容灾**：
+- **✅ 已定稿（2026-08-12）— DeepSeek 日常 + Gemini 写英文，互为容灾**（**2026-08-13 修订**：DeepSeek 默认主力；Gemini 仅英文写作任务优先 + 短超时 5-8s + 健康探测自动跳过；Gemini key 留空 = 纯 DeepSeek 模式，适配 VPN 不稳定）：
   - **默认（日常 BrainChat）**：DeepSeek——中文对话/记录/咨询/建议全走它；配合 #8 缓存友好结构，命中后成本 1/10~1/120。
   - **递交模式英文草稿**：Gemini 为主——银行邮件/翻译/复杂英文推理走 Gemini；**Gemini 失败/超时 → DeepSeek 接手**（英文链路：Gemini → DeepSeek）。
   - **OpenAI 不引入**：V1 只配 DeepSeek + Gemini 两个 provider，不保留第三备选。
