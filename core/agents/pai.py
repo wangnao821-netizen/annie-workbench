@@ -25,14 +25,12 @@ logger = get_logger(__name__)
 _AGENTS: dict[str, Any] = {}
 _gemini_failures = 0
 _gemini_skipped_until = 0.0
-_TOOL_NAMES = frozenset({"declaration_check", "calculator_assess", "policy_check", "context_event_write", "draft_email"})
+_TOOL_NAMES = frozenset({"declaration_check", "calculator_assess", "policy_check", "context_event_write", "draft_email", "folder_lookup"})
 _DEFAULT_TIMEOUT_S = 30
 _SYSTEM_PROMPT = "你是澳洲贷款经纪团队的 AI 助手。按流程包意图调用白名单工具，回答具体到这个客户，不要给通用建议。"
 
 
 class FlowDeps(BaseModel):
-    """工具依赖注入：db / case / track。"""
-
     model_config = ConfigDict(arbitrary_types_allowed=True)
     db: Session
     case_id: str
@@ -53,9 +51,7 @@ def _declaration_check(ctx, files: list[str] | None = None, folder: str | None =
 
 
 def _calculator_assess(bank: str = "", request: str = "") -> dict:
-    if not bank:
-        return {"status": "invalid", "reason": "工具参数校验失败：缺少 bank"}
-    return {"needs_form": True, "bank": bank}
+    return {"needs_form": True, "bank": bank} if bank else {"status": "invalid", "reason": "工具参数校验失败：缺少 bank"}
 
 
 def _policy_check(ctx, query: str = "") -> dict:
@@ -73,8 +69,23 @@ def _context_event_write(ctx, event_type: str = "flow_triggered", content: str =
     return {"status": "success", "event_type": event_type}
 
 
+def _folder_lookup(ctx, query: str = "") -> dict:
+    if ".." in query:
+        return {"status": "error", "message": "路径穿越拒绝：query 包含 '..' 字符"}
+    from core.case_folder.lookup import lookup_files
+    from core.models.orm import Case
+    case_obj = ctx.deps.db.query(Case).filter(Case.id == ctx.deps.case_id).first() if ctx.deps.case_id else None
+    if not case_obj or not case_obj.folder_path:
+        return {"status": "error", "message": "案件未关联文件夹"}
+    try:
+        found = lookup_files(case_obj, query)
+        return {"status": "success", "count": len(found), "files": found, "summary": f"找到 {len(found)} 个匹配文件"}
+    except ValueError as ve:
+        return {"status": "error", "message": str(ve)}
+
+
 def _tool_defs() -> list[Any]:
-    return [_declaration_check, _calculator_assess, _policy_check, _context_event_write]
+    return [_declaration_check, _calculator_assess, _policy_check, _context_event_write, _folder_lookup]
 
 
 def _pick_provider(task_text: str, cfg) -> str:
@@ -116,9 +127,7 @@ def _run_agent(agent: Any, prompt: str, timeout_s: float) -> Any:
 def _confirm_gate(flow: dict, args: dict) -> str | None:
     if flow.get("confirm_required") and not args.get("confirmed"):
         return "confirm_required：本流程需要 Vera 确认后才执行"
-    if any(s.get("tool") == "declaration_check" for s in flow.get("steps", [])) and not args.get("files") and not args.get("folder"):
-        return "扫描/读文件类工具必须由 Vera 显式指定路径"
-    return None
+    return "扫描/读文件类工具必须由 Vera 显式指定路径" if (any(s.get("tool") == "declaration_check" for s in flow.get("steps", [])) and not args.get("files") and not args.get("folder")) else None
 
 
 def _log_usage(db: Session, case_id: str | None, track: str, provider: str, model: str, result: Any, latency_ms: int, flow_key: str) -> None:
@@ -137,10 +146,7 @@ def _log_usage(db: Session, case_id: str | None, track: str, provider: str, mode
 
 
 def run_flow_with_pai(flow: dict, case_id: str | None, args: dict, db: Session, track: str = "internal") -> dict | None:
-    """用 Pydantic AI 执行流程包；失败返回 None（调用方回退轻量执行器）。
-
-    输入脱敏 → 确认钩子 → Agent.run（超时）→ rehydrate → 写用量 → WO-26 契约 dict。
-    """
+    """用 Pydantic AI 执行流程包；失败返回 None（调用方回退轻量执行器）。"""
     global _gemini_failures, _gemini_skipped_until
     if os.getenv("PYTEST_CURRENT_TEST") and os.getenv("VERA_PAI_TEST") != "1":
         return None  # 测试环境默认不发真实 LLM；置 VERA_PAI_TEST=1 可显式走 PAI

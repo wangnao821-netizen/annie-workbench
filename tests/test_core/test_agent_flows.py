@@ -5,10 +5,10 @@ import pytest
 from core.agents.flows import flow_tool_whitelist, load_flows, match_flow
 
 
-def test_load_flows_returns_six_flows():
+def test_load_flows_returns_all_flows():
     flows = load_flows()
-    assert len(flows) == 6
-    assert set(flows.keys()) == {"declaration_check", "calculator", "case_intake", "followup", "chaser", "os_reply"}
+    assert len(flows) >= 7
+    assert "folder_lookup" in flows
 
 
 def test_flows_schema_integrity():

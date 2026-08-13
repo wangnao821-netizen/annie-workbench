@@ -140,6 +140,34 @@ def run_flow(
                 merged_draft.update({k: v for k, v in args.items() if k not in merged_draft})
                 res = run_draft_email(case_id=case_id, args=merged_draft, db=db, track=track)
 
+            elif tool_name == "folder_lookup":
+                from core.case_folder.lookup import lookup_files
+                from core.models.orm import Case
+                query = str(params.get("query") or args.get("query") or "").strip()
+                if not case_id:
+                    res = {"status": "error", "message": "案件未关联文件夹", "summary": "案件未关联文件夹"}
+                else:
+                    case_obj = db.query(Case).filter(Case.id == case_id).first()
+                    if not case_obj or not case_obj.folder_path:
+                        res = {"status": "error", "message": "案件未关联文件夹", "summary": "案件未关联文件夹"}
+                    elif ".." in query:
+                        res = {"status": "error", "message": f"路径穿越拒绝：query '{query}' 包含 '..' 字符", "summary": f"路径穿越拒绝：query '{query}' 包含 '..' 字符"}
+                    else:
+                        try:
+                            found = lookup_files(case_obj, query)
+                            if not found:
+                                res = {"status": "success", "count": 0, "files": [], "summary": f"在案件文件夹中未找到匹配 '{query}' 的文件"}
+                            else:
+                                names_str = ", ".join(f["rel_path"] for f in found[:3])
+                                res = {
+                                    "status": "success",
+                                    "count": len(found),
+                                    "files": found,
+                                    "summary": f"找到 {len(found)} 个匹配文件：{names_str}",
+                                }
+                        except ValueError as ve:
+                            res = {"status": "error", "message": str(ve), "summary": str(ve)}
+
             if step.get("output"):
                 step_ctx[str(step["output"])] = res
 

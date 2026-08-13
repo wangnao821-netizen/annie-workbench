@@ -1,0 +1,11 @@
+key: folder_lookup
+name: "自主取件"
+description: "去案件文件夹按需检索/解析指定文件"
+triggers: ["去.*文件夹找", "找一下文件", "folder lookup", "在案件文件夹里找", "去文件夹找"]
+presentation: result_card
+steps:
+  - tool: folder_lookup
+    params: { case_id: "$case_id", query: "$arg.query" }
+    output: result
+confirm_required: false
+acceptance: []

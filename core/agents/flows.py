@@ -20,6 +20,7 @@ _TOOL_WHITELIST = frozenset({
     "policy_check",
     "context_event_write",
     "draft_email",
+    "folder_lookup",
 })
 
 
