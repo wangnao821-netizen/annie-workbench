@@ -57,13 +57,15 @@ def run_flow(
          "presentation": "result_card" | "dialog"}
     """
     # WO-26b：优先 Pydantic AI 内核；失败/不可用回退轻量执行器
-    try:
-        from core.agents.pai import run_flow_with_pai
-        result = run_flow_with_pai(flow, case_id, args, db, track=track)
-        if result is not None:
-            return result
-    except Exception as exc:  # noqa: BLE001 — PAI 失败回退，不阻断
-        logger.warning("pai runner failed, fallback to lightweight: %s", exc)
+    # F-15：卡片动作（_force_lightweight）走确定性轻量执行器，不经 LLM
+    if not args.get("_force_lightweight"):
+        try:
+            from core.agents.pai import run_flow_with_pai
+            result = run_flow_with_pai(flow, case_id, args, db, track=track)
+            if result is not None:
+                return result
+        except Exception as exc:  # noqa: BLE001 — PAI 失败回退，不阻断
+            logger.warning("pai runner failed, fallback to lightweight: %s", exc)
 
     key = flow.get("key", "unknown")
     name = flow.get("name", key)

@@ -240,6 +240,28 @@ class DraftCardVersion(BaseModel):
     body: str
 
 
+class CardActionRequest(BaseModel):
+    """共创卡动作请求（F-15）：new / version / branch / confirm。"""
+    flow_key: str
+    case_id: str | None = None
+    action: str = "new"
+    parent_message_id: int | None = None
+    branch_label: str | None = None
+    recipient_hint: str = ""
+    extra: dict = Field(default_factory=dict)
+
+
+class SkillUpdateRequest(BaseModel):
+    """技能草稿更新（仅 draft，F-15 对接）。"""
+    manifest: dict
+    reason: str | None = None
+
+
+class SkillRejectRequest(BaseModel):
+    """拒绝 AI 技能提议（F-15 对接）。"""
+    reason: str | None = None
+
+
 class DraftCardPayload(BaseModel):
     """状态卡片契约（WO-27）：payload_version + state（表单）+ result（最新结论）。"""
     schema_version: int = 1

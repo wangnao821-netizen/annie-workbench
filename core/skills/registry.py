@@ -154,3 +154,42 @@ def rollback_skill(db: Session, key: str, target_version: str) -> SkillVersion:
     db.commit()
     db.refresh(target)
     return target
+
+
+def update_skill_draft(db: Session, key: str, manifest_data: dict[str, Any], reason: str | None = None) -> SkillVersion:
+    """更新最新 draft 版本 manifest（仅 draft 状态可编辑）。"""
+    target = (
+        db.query(SkillVersion)
+        .filter(SkillVersion.key == key, SkillVersion.status == "draft")
+        .order_by(SkillVersion.id.desc())
+        .first()
+    )
+    if target is None:
+        raise ValueError(f"Skill '{key}' has no draft version to update")
+    manifest_data["status"] = "draft"
+    manifest_data["key"] = key
+    manifest = validate_manifest(manifest_data)
+    target.manifest_json = manifest.model_dump_json()
+    if reason:
+        target.reason = reason
+    db.commit()
+    db.refresh(target)
+    return target
+
+
+def reject_skill_proposal(db: Session, key: str, reason: str | None = None) -> SkillVersion:
+    """拒绝 AI 提议：将 ai_propose 的 draft 置为 deprecated 并记 reason。"""
+    target = (
+        db.query(SkillVersion)
+        .filter(SkillVersion.key == key, SkillVersion.created_by == "ai_propose", SkillVersion.status == "draft")
+        .order_by(SkillVersion.id.desc())
+        .first()
+    )
+    if target is None:
+        raise ValueError(f"No AI proposal draft found for '{key}'")
+    target.status = "deprecated"
+    if reason:
+        target.reason = reason
+    db.commit()
+    db.refresh(target)
+    return target

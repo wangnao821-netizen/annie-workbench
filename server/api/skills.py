@@ -15,14 +15,18 @@ from core.skills.registry import (
     get_skill,
     list_skills,
     propose_skill,
+    reject_skill_proposal,
     rollback_skill,
+    update_skill_draft,
 )
 from server.api.schemas import (
     SkillActivateRequest,
     SkillCreateRequest,
     SkillProposeRequest,
+    SkillRejectRequest,
     SkillResponse,
     SkillRollbackRequest,
+    SkillUpdateRequest,
 )
 from server.deps import get_db
 
@@ -120,3 +124,31 @@ def rollback_skill_endpoint(
         return {"id": sv.id, "key": sv.key, "version": sv.version, "status": sv.status}
     except ValueError as err:
         raise HTTPException(status_code=400, detail=str(err)) from err
+
+
+@router.put("/{key}")
+def update_skill_draft_endpoint(
+    key: str,
+    req: SkillUpdateRequest,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> dict[str, Any]:
+    """更新技能草稿（仅 draft 状态；F-15 对接）。"""
+    try:
+        sv = update_skill_draft(db, key=key, manifest_data=req.manifest, reason=req.reason)
+        return {"id": sv.id, "key": sv.key, "version": sv.version, "status": sv.status}
+    except (ValueError, ValidationError) as err:
+        raise HTTPException(status_code=422, detail=str(err)) from err
+
+
+@router.post("/{key}/reject")
+def reject_skill_proposal_endpoint(
+    key: str,
+    req: SkillRejectRequest,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> dict[str, Any]:
+    """拒绝 AI 技能提议（人闸：Vera 拒绝并给理由；F-15 对接）。"""
+    try:
+        sv = reject_skill_proposal(db, key=key, reason=req.reason)
+        return {"id": sv.id, "key": sv.key, "version": sv.version, "status": sv.status}
+    except ValueError as err:
+        raise HTTPException(status_code=404, detail=str(err)) from err
