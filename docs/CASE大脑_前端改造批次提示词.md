@@ -26,6 +26,7 @@
 | F-8 | 能力中心 V1（设置里 Agent/工具列表 + 启用开关 + 能力提示） | 已出（下文） |
 | F-9 | 政策提示卡 + 申报一致性检查功能卡（建档后/全景/对话触发，接 WO-19/20） | 已出（下文） |
 | F-10 | 提醒展示（对话内自然提醒 + 首页/全景联动，接 WO-21） | 已出（下文） |
+| F-11 | 首页 B 方案布局：AI 输入框移入右栏（今日待办最大化 + 整列对齐）+ 文案修正 | 已出（下文） |
 
 > ✅ **已定稿（2026-08-12）**：在现有 `ui/vera-工作台 (23)` 基础上**增量改造**（换壳不换内脏）——
 > 保留 services/types/stores/themes/已验证组件，换 AppShell 外壳 + 新增 `src/components/brain/` 目录；
@@ -293,6 +294,70 @@ src/stores/uiStore.ts
 - **F-4**：Apple 风格打磨——毛玻璃材质/弹簧动画细节/空态插画/reduced-motion 复查；旧页面入口收尾
 
 > 注：F-2b~F-4 的具体提示词待对应批次验收后按实际代码结构撰写。
+
+---
+
+## 批 F-11：首页 B 方案布局（AI 输入框进右栏 + 整列对齐 + 文案修正）
+
+> 用户定稿（2026-08-13）：① 今日待办要更多竖向空间——页面底部通栏 AI 对话区移入右栏；② 两栏等底、右栏底部与左卡底部齐平；③ 对话区标题"直接与 Vera 说话"表述错误（Vera 是人，AI 是助手），需改文案。
+
+### 提示词正文（复制给 AI Studio）
+
+```
+# 任务：Vera Workbench — 首页 B 方案布局（AI 输入框进右栏 + 对齐 + 文案）
+
+## 背景
+在 ui/vera-工作台 (36) 基础上重构首页主内容区：
+① 页面底部通栏"对话入口"整体移入右栏（今日待办获得整页剩余高度）；
+② 两栏等底：左卡（今日待办）底部与右栏底部（AI 输入框）齐平；
+③ 修正对话区文案："直接与 Vera 说话"错误（Vera 是使用者，AI 才是助手）。
+只改 HomePage 布局/文案，不动业务逻辑/接口/路由。
+
+## 技术约束
+- TypeScript strict / React / Vite / Tailwind / motion/react / zustand（现有）
+- 不引入新依赖；颜色从现有 CSS 变量派生；动效 spring（damping 1.0 / response 0.3-0.4）；遵守 prefers-reduced-motion
+- 对话逻辑（handleStartChat / chatPrompt / Enter 发送 / 快捷 chips）原样保留，只改位置与文案
+
+## 改动范围（严禁超出）
+
+| 文件 | 操作 |
+|------|------|
+| src/components/brain/HomePage.tsx | 修改：主 grid 对齐、右栏 flex 化、对话区移入右栏、删底部通栏、文案修正 |
+
+⚠️ 严禁修改其他文件；严禁改动业务逻辑/接口/路由。
+
+## 具体改动
+
+### 1. 主内容区对齐
+- 主 grid（现 L361）：`grid grid-cols-1 lg:grid-cols-3 gap-5 items-start` → 去掉 `items-start`（默认 items-stretch，两栏等底）
+
+### 2. 右栏 flex 化 + 对话区移入
+- 右栏（现 L504）：`space-y-5` → `flex flex-col gap-5 h-full`
+- **快捷看板 widget 加 `flex-1`**（伸缩吃掉弹性空间）
+- **专家贴士 widget 保持**
+- **对话区（现页面底部第 6 节，含标题/输入框/发送按钮/快捷 chips）整体移入右栏底部**（专家贴士下方）：
+  - 输入框保留 handleStartChat + Enter 发送 + disabled 逻辑；样式适配右栏宽度（360px）
+  - 快捷 chips（现有 4 个）放在输入框上方（横向 wrap）
+  - 对话区整体 `flex-shrink-0`（不随列伸缩）
+- 页面底部原通栏对话区**整段删除**
+
+### 3. 文案修正
+- 标题："直接与 Vera 说话 (AI First Chat Entry)" → **"向 AI 提问"**（副标可留"AI First Chat Entry"或改为"随时开始"）
+- placeholder："例如：帮 Chen Wei 检查补件状态、计算 85% LVR 豁免 LMI 条件、或拟写退筹码邮件..." → **"例如：检查补件状态、算 LVR、拟写退筹码邮件…"**（简洁；不出现"与 Vera 说话"类表述）
+- 文案原则：Vera 是使用者，AI 是助手——所有提示语面向"她向 AI 提问"，不说"与 Vera 说话"
+
+## 验证
+- npx tsc --noEmit → 零错误；npm run build → 成功
+
+## 验收参考（手动）
+1. 今日待办卡获得整页剩余高度（底部无通栏对话条）；列表内部滚动
+2. 右栏自上而下：快捷看板（flex-1 伸缩）→ 专家贴士 → AI 输入框 + 快捷 chips；右栏底部与左卡底部齐平
+3. 输入框输入 + Enter → 正常预填跳全局咨询；快捷 chips 可点
+4. 标题显示"向 AI 提问"，无"与 Vera 说话"表述
+5. 动效顺滑；reduced-motion 生效
+
+⚠️ 执行纪律：只改 HomePage.tsx 一个文件；对话逻辑原样迁移（不重写）；不引入新依赖；失败先报告。
+```
 
 ---
 
