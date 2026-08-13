@@ -772,3 +772,17 @@ class FolderParseResponse(BaseModel):
     client_name: str | None = None
     broker_name: str | None = None
     case_id: str | None = None
+
+class FolderBrowseItem(BaseModel):
+    """文件夹浏览项（WO-34；前端契约 FolderBrowseItem）。"""
+    path: str
+    name: str
+    is_dir: bool = True
+    size: int | None = None
+    mtime: str | None = None
+
+
+class FolderBrowseResponse(BaseModel):
+    """文件夹浏览响应（WO-34；前端契约 FolderBrowseResponse）。"""
+    current_path: str
+    items: list[FolderBrowseItem] = Field(default_factory=list)

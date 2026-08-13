@@ -218,4 +218,4 @@ def revoke_folder_file_match_endpoint(
         raise HTTPException(status_code=404, detail="file not found")
     from core.case_folder.discovery import revoke_folder_file_match
     reverted = revoke_folder_file_match(db, case_id, file_id)
-    return {"case_id": case_id, "file_id": file_id, "reverted_items": reverted}
+    return {"case_id": case_id, "file_id": file_id, "reverted_items": reverted, "success": True, "message": f"已撤销 {reverted} 项自动匹配"}
