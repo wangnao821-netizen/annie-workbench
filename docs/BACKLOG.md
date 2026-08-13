@@ -156,10 +156,11 @@
 ### WO-23：PST 接线 + pyproject 对齐（📋 施工单已出，待执行）
 - import_pst.py remember 接线（F821 真缺陷）；pyproject 声明 openpyxl/oletools/python-multipart；uv.lock 重新生成入库
 - 施工单：docs/flash_specs/wo-23-pst-pyproject.md
-### WO-10：基础设施 + 调度（❌）
-- APScheduler 定时任务（SQLite 每日备份保留 7 天、委派超期检查、摘要刷新）
-- `core/scheduler/`（jobs.py / backup.py）、`core/pipeline/ingest.py` 统一入口
-- OCR 阈值 50→100、HEIC 支持、两阶段分类、`expected_fields.yaml` 外置
+### WO-10：基础设施 + 调度（✅ 精简版 2026-08-13）
+- `core/scheduler/`（jobs.py / backup.py）APScheduler 三任务：每日备份（03:00 Sydney，保留 7 天）/ 委派超期提醒（30 分钟，OVERDUE_REMINDER 去重）/ 摘要刷新（每小时，dirty 批量）
+- `config/settings.yaml` scheduler 节（enabled/backup_time/keep_days/interval/batch）；server/main.py lifespan 启停
+- 测试：tests/test_scheduler.py 7 用例；全量 **734 passed**
+- ⏳ 剥离 V2：`core/pipeline/ingest.py` 统一入口、OCR 阈值 100、HEIC、两阶段分类、`expected_fields.yaml` 外置（与"第一版不碰文件解析"对齐）
 - 注：金额不脱敏已在 gateway 修复中完成 ✅
 
 ### WO-05：Electron 桌面壳（❌，功能稳定后做）

@@ -1,6 +1,7 @@
 """Vera Workbench — FastAPI 应用入口。"""
 
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -12,12 +13,26 @@ VERA_PORT = int(os.getenv("VERA_PORT", "8000"))
 VERA_DATA_DIR = os.getenv("VERA_DATA_DIR", "")  # 空 = 默认 data/
 APP_VERSION = "2.0.0"
 
+# ── 后台调度（Phase 2 数据保命） ───────────────────────
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    """启动/停止 APScheduler（备份/委派超期/摘要刷新）。"""
+    from core.scheduler.jobs import init_scheduler, shutdown_scheduler
+
+    init_scheduler()
+    try:
+        yield
+    finally:
+        shutdown_scheduler()
+
+
 # ── FastAPI App ────────────────────────────────────────
 app = FastAPI(
     title="Vera Workbench",
     version=APP_VERSION,
     docs_url="/api/docs",
     redoc_url=None,
+    lifespan=_lifespan,
 )
 
 # ── CORS（Electron + dev server） ─────────────────────
@@ -30,6 +45,7 @@ app.add_middleware(
 
 # ── 注册路由 ───────────────────────────────────────────
 from server.api.admin import router as admin_router
+from server.api.agents import router as agents_router
 from server.api.analytics import router as analytics_router
 from server.api.banks import router as banks_router
 from server.api.calculator import router as calculator_router
@@ -46,6 +62,7 @@ from server.api.tasks import router as tasks_router
 from server.api.wechat import router as wechat_router
 
 app.include_router(admin_router)
+app.include_router(agents_router)
 app.include_router(cases_router)
 app.include_router(banks_router)
 app.include_router(analytics_router)

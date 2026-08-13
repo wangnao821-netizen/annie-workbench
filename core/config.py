@@ -170,12 +170,23 @@ class WechatConfig(BaseModel):
     """微信 iLink Bot 配置（Spec D）。"""
 
     enabled: bool = False
-    bot_token_env: str = "WECHAT_BOT_TOKEN"  # noqa: S105 (env 变量名，非密钥本身)
+    bot_token_env: str = "WECHAT_BOT_TOKEN"  # env 变量名，非密钥本身
     base_url: str = "https://ilinkai.weixin.qq.com/ilink/bot"
     poll_timeout_seconds: int = Field(default=55, gt=0)
     reply_max_length: int = Field(default=2000, gt=0)
     typing_enabled: bool = True
     allowed_senders: list[str] = Field(default_factory=list)
+
+
+class SchedulerConfig(BaseModel):
+    """后台调度配置（Phase 2 数据保命：备份/委派超期/摘要刷新）。"""
+
+    enabled: bool = True
+    backup_time: str = "03:00"                     # 每日备份时刻（HH:MM，Sydney 时区）
+    backup_keep_days: int = Field(default=7, ge=1)
+    overdue_interval_minutes: int = Field(default=30, ge=5)
+    summary_interval_hours: int = Field(default=1, ge=1)
+    summary_batch_limit: int = Field(default=20, ge=1)
 
 
 class SettingsConfig(BaseModel):
@@ -189,6 +200,7 @@ class SettingsConfig(BaseModel):
     logging: LoggingConfig
     report: ReportConfig
     wechat: WechatConfig = Field(default_factory=WechatConfig)
+    scheduler: SchedulerConfig = Field(default_factory=SchedulerConfig)
 
 
 # ---------------------------------------------------------------------------
@@ -433,7 +445,7 @@ class ConfigLoader:
         # Check 1: checklist types → document_types
         for checklist_name, checklist_data in self.checklists.items():
             required = checklist_data.get("required", {})
-            for _category, items in required.items():
+            for items in required.values():
                 for item in items:
                     item_type = item.get("type")
                     if item_type and item_type not in doc_type_names:
@@ -495,7 +507,7 @@ class ConfigLoader:
             try:
                 root_path.mkdir(parents=True, exist_ok=True)
                 logger.info(f"CLIENT_FILES_ROOT automatically created: {root}")
-            except Exception:
+            except Exception:  # noqa: BLE001 — 建目录失败回落兜底路径
                 fallback_path = Path(__file__).resolve().parent.parent / "data" / "nas_root"
                 fallback_path.mkdir(parents=True, exist_ok=True)
                 self._client_files_root = fallback_path

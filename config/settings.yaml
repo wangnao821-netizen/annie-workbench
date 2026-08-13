@@ -98,3 +98,12 @@ wechat:
 analytics:
   timezone: "Australia/Sydney"
 
+# 后台调度（Phase 2 数据保命：每日备份 / 委派超期 / 摘要刷新）
+scheduler:
+  enabled: true
+  backup_time: "03:00"          # 每日备份时刻（Sydney 时区）
+  backup_keep_days: 7
+  overdue_interval_minutes: 30
+  summary_interval_hours: 1
+  summary_batch_limit: 20
+
