@@ -269,3 +269,7 @@
 - WO-32 按需自主取：Vera 指定 → folder_lookup 流程包只读检索/解析案件文件夹内文件
 - WO-33 主动预判：清单/文件夹缺口分析 → 建议草稿（Vera 拍板，不自动改状态）；开关 case_folder.auto_gap
 - 每档独立开关、默认关闭；执行方待定
+### WO-34（✅ 已完成 2026-08-14）：文件夹命名解析端点 GET /api/folders/parse
+- parse_folder_naming（broker/client/case-id 三段 + 末段清理兜底）+ GET /api/folders/parse（越界/穿越 422）；Electron/Web 共用预填
+- **browse 延后 WO-05**（Electron 原生目录选择器，避免过渡代码重做）；F-16 v3 前端 provider 抽象已入档
+- 全量 909

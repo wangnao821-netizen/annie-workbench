@@ -379,6 +379,12 @@ Agent 的呈现方式由**动作类型**决定，不硬套同一模式：
 - 执行必须显式确认（user_confirmed=True）且过 `PathGuard.assert_user_action_allowed()`：源/目标均在 CLIENT_FILES_ROOT 下**同一案件子目录内**、禁止路径穿越、目标已存在禁止覆盖；
 - 操作记录写 file_events（可追溯）；AI 建议的命名/归档仍只出建议，Vera 确认后执行（与 AGENTS.md 授权规则一致）。
 
+### 文件夹选择交互（Electron 优先，2026-08-14 拍板）
+- 目录选择器 = 可替换 provider：Web 过渡（输入路径 / 浏览端点）/ **Electron 原生**（`window.vera.chooseDirectory()` → `dialog.showOpenDialog`，返回绝对路径）
+- 后端契约固定：`POST /api/cases/{id}/folder` 接受**绝对/相对路径**（validate_path_safety 统一校验在 CLIENT_FILES_ROOT 内）；`GET /api/folders/parse` 命名预填（两模式共用）
+- 分工：WO-34 只做 parse；browse（`GET /api/folders/browse`）延后 WO-05 与 Electron 一起做（避免过渡代码重做）
+- 选完文件夹自动预填 client_name（broker/client/case-id 三段解析，末段清理兜底，Vera 可改）
+
 ### 与"不主动扫"决策的关系（2026-08-13 修正）
 - V1 曾定"不主动扫文件夹、不建索引"（文件自动分析效果不佳 + 工作习惯顾虑）；V2 重新拍板：
   - 扫描范围收敛为**已关联案件文件夹**（边界明确、可审计）；

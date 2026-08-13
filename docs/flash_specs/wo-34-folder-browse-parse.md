@@ -1,6 +1,7 @@
 # WO-34：文件夹浏览/解析端点（Electron 兼容）
 
 > 来源（Vera 拍板 2026-08-14）：F-16 v3——目录选择器走 provider 抽象，Electron 打包只换实现不重做。
+> **本单执行范围（2026-08-14 拍板）：只做 parse；browse 延后 WO-05 与 Electron 原生选择器一起做**（下方 browse 设计保留为 WO-05 参考，避免过渡代码重做）。
 > 后端要点：`POST /api/cases/{id}/folder` 已兼容绝对/相对路径（WO-29 validate_path_safety）；本单补两个辅助端点。
 > 执行方：Codex。检查方：Codex 自检。
 
