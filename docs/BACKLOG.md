@@ -271,5 +271,5 @@
 - 每档独立开关、默认关闭；执行方待定
 ### WO-34（✅ 已完成 2026-08-14）：文件夹命名解析端点 GET /api/folders/parse
 - parse_folder_naming（broker/client/case-id 三段 + 末段清理兜底）+ GET /api/folders/parse（越界/穿越 422）；Electron/Web 共用预填
-- **browse 延后 WO-05**（Electron 原生目录选择器，避免过渡代码重做）；F-16 v3 前端 provider 抽象已入档
+- **browse 已补做（2026-08-14 修订）**：前端 (42) 已依赖 browse 契约；Electron 时经 folderPicker provider 切原生选择器，browse 保留 Web 过渡
 - 全量 909

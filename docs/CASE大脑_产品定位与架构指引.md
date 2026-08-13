@@ -382,7 +382,7 @@ Agent 的呈现方式由**动作类型**决定，不硬套同一模式：
 ### 文件夹选择交互（Electron 优先，2026-08-14 拍板）
 - 目录选择器 = 可替换 provider：Web 过渡（输入路径 / 浏览端点）/ **Electron 原生**（`window.vera.chooseDirectory()` → `dialog.showOpenDialog`，返回绝对路径）
 - 后端契约固定：`POST /api/cases/{id}/folder` 接受**绝对/相对路径**（validate_path_safety 统一校验在 CLIENT_FILES_ROOT 内）；`GET /api/folders/parse` 命名预填（两模式共用）
-- 分工：WO-34 只做 parse；browse（`GET /api/folders/browse`）延后 WO-05 与 Electron 一起做（避免过渡代码重做）
+- 分工（2026-08-14 修订）：WO-34 **parse + browse 都做**——前端 (42) 已按 browse 契约实现文件夹树弹窗；Electron 时经 folderPicker provider 切原生选择器，browse 保留为 Web 过渡
 - 选完文件夹自动预填 client_name（broker/client/case-id 三段解析，末段清理兜底，Vera 可改）
 
 ### 与"不主动扫"决策的关系（2026-08-13 修正）
