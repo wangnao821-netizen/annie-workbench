@@ -282,3 +282,6 @@
 - 前端工作流（2026-08-14 拍板）：**定稿后仍由 AI Studio 改前端**（Codex 只出提示词 + 验收，不改前端）；Vera 问题先收集到 docs/前端问题清单.md，定稿前集中转 F 批次提示词；Codex 直接改前端仅限 AI Studio 不可用等紧急例外，且改后需 AI Studio 认领同步
 - 前端 F-20 已入批次（2026-08-14）：AI 用量概况增强（Token 构成条 + 缓存命中率环形 + 延迟 + 环比；数据契约已就绪，纯前端）
 - DeepSeek Harness 调研（2026-08-14）：不引入本体；借鉴 用量面板/会话压缩 compaction/V4 模型评估；缓存纪律已被官方实测验证（docs/DeepSeek Harness 调研与对照分析.md，commit e629c25）
+- Semantica 调研（2026-08-14）：图原生上下文/问责基础设施（热榜 5.5K+ 星）；**不引入本体**（依赖重量/预览期/PII 红线/定位错位）；记忆架构方向（事件流+派生事实+冲突+时间模型）获外部验证（docs/Semantica调研与对照分析.md）
+- 🟡 决策先例检索（借鉴 Semantica find_precedents；需小 WO：PendingAction/Action+Timeline 结构化为"决策→结果"一等对象，场景维度 bank/lvr/purpose/OS，先例进上下文；解决同客户建议一致性）
+- 🟡 时间点回溯（借鉴 Semantica point-in-time；数据已具备 created_at/superseded 链，需小 WO：案件在 X 日/递交前全景快照查询；解决老客户半截接手缺上下文）
