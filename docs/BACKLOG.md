@@ -264,3 +264,8 @@
 
 ### WO-30（✅ 已完成 2026-08-13，f479ddc）：意图路由升级
 - core/agents/router.py：规则唯一命中直接走（零 LLM）；撞车（≥2 命中）→ LLM 选流程包 + 规则保底；零命中不调 LLM（成本闸门）；出站脱敏/AiUsageLog(layer=router)；ai.routing.intent_routing_enabled 开关；全量 876
+### WO-31/32/33（📋 施工单已出 2026-08-13）：案件文件夹三档渐进
+- WO-31 新文件自动发现：扫描已关联案件文件夹 → 识别类型 → 高置信自动匹配清单"已收"（可撤销）+ SSE 提醒；开关 case_folder.auto_discover
+- WO-32 按需自主取：Vera 指定 → folder_lookup 流程包只读检索/解析案件文件夹内文件
+- WO-33 主动预判：清单/文件夹缺口分析 → 建议草稿（Vera 拍板，不自动改状态）；开关 case_folder.auto_gap
+- 每档独立开关、默认关闭；执行方待定
