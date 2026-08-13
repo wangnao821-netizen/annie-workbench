@@ -1795,14 +1795,19 @@ src/stores/toastStore.ts
 
 > 背景：F-15 UI 已完成（ui/vera-工作台 (40)），但**真实后端对接未打通**（mock 模式默认开掩盖了问题）。后端已补齐（e995c91，全量 855 测试全绿），本批次只改前端。
 
-## 后端已就绪的契约（以 server/api/schemas.py 为准）
+## 后端已就绪的契约（自包含，无需访问后端文件）
+
+> 完整契约另见 docs/前端API契约快照.md——**把快照整份粘贴给 AI Studio 即可**。以下为关键契约内嵌：
 
 1. `POST /api/agent/cards/action` — 卡片动作通道
-   body: `{ flow_key, case_id?, action: new|version|branch|confirm, parent_message_id?, branch_label?, recipient_hint?, extra? }`
-   返回 WO-26 契约：`{ reply, tool_cards[], recorded_facts[], presentation }`（tool_cards[0].payload 为 DraftCardPayload）
-2. `PUT /api/skills/{key}` — 更新技能草稿（仅 draft）body `{ manifest, reason? }`
-3. `POST /api/skills/{key}/reject` — 拒绝 AI 提议 body `{ reason? }`
-4. 既有：`GET /api/skills`、`GET /api/skills/{key}`、`POST /api/skills`（body `{manifest, reason}`）、`POST /api/skills/propose`、`POST /api/skills/{key}/activate`（body `{version, operator:"vera"}`）、`POST /api/skills/{key}/deactivate?version=`、`POST /api/skills/{key}/rollback`（body `{target_version}`）
+   body: `{"flow_key": "followup|chaser|os_reply", "case_id"?, "action": "new|version|branch|confirm", "parent_message_id"?, "branch_label"?, "recipient_hint"?, "extra"?}`
+   返回：`{reply, tool_cards:[ToolCard(payload=DraftCardPayload)], recorded_facts, presentation}`
+   DraftCardPayload：`{schema_version:1, card_type:"draft_email", action, status:"draft"|"confirmed_draft", state:{version, branch_label, message_id}, result:{versions:[{subject, body, version, branch_label, message_id}]}}`
+2. `PUT /api/skills/{key}` — 更新草稿（仅 draft）body `{"manifest": SkillManifest, "reason"?: str}`；非 draft → 422
+3. `POST /api/skills/{key}/reject` — 拒绝 AI 提议 body `{"reason"?: str}`；无 AI 提议 → 404
+4. 既有：`GET /api/skills?category=&status=`、`GET /api/skills/{key}`、`POST /api/skills`（body `{manifest, reason}`，201 draft）、`POST /api/skills/propose`（body `{manifest, reason必填, scope?}`）、`POST /api/skills/{key}/activate`（body `{version, operator:"vera"}`，非 vera → 403）、`POST /api/skills/{key}/deactivate?version=`、`POST /api/skills/{key}/rollback`（body `{target_version}`）
+5. `SkillResponse` 字段：`key,name,description,version,category(agent|tool|flow|knowledge),triggers[],presentation,permission,inputs,outputs,steps,assets,confirm_required,status(draft|active|deprecated),author,db_id?,created_by?,reason?`；内置=`created_by==="system"`，AI 提议=`created_by==="ai_propose"`
+6. `SkillManifest` 字段：`key,name,description?,version?,category?,triggers?,presentation?,permission?,inputs?,outputs?,steps:[{tool,params?,output?}],assets?,confirm_required?,status?,author?`；白名单工具：`declaration_check/calculator_assess/policy_check/context_event_write/draft_email`
 
 ## 要改的前端
 
