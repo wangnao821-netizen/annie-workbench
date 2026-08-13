@@ -765,3 +765,10 @@ class CaseFolderResponse(BaseModel):
     mode: str
 
 
+
+
+class FolderParseResponse(BaseModel):
+    """文件夹命名解析结果（WO-34，Electron/Web 共用预填）。"""
+    client_name: str | None = None
+    broker_name: str | None = None
+    case_id: str | None = None

@@ -195,3 +195,29 @@ def auto_create(
     db.commit()
     db.refresh(case)
     return case
+
+
+def _clean_client_name(name: str) -> str:
+    """清理客户名：去下划线/连字符/多余空格/数字尾巴。"""
+    import re
+    cleaned = re.sub(r"[\s_\-]+", " ", name).strip()
+    return re.sub(r"\d+$", "", cleaned).strip()
+
+
+def parse_folder_naming(path: str | Path) -> dict[str, str]:
+    """解析文件夹命名为预填字段（Electron/Web 共用；纯命名解析，不查文件系统）。
+
+    优先按三段结构 broker/client/case-id；不足三段取末段清理兜底为 client_name。
+    绝对/相对路径均可（取最后三段，天然忽略盘符/根前缀）。
+    """
+    raw = str(path).replace("\\", "/").strip().strip("/")
+    parts = [p for p in raw.split("/") if p]
+    if not parts:
+        return {}
+    if len(parts) >= 3:
+        return {
+            "broker_name": parts[-3],
+            "client_name": _clean_client_name(parts[-2]),
+            "case_id": parts[-1],
+        }
+    return {"client_name": _clean_client_name(parts[-1])}
