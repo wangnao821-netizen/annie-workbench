@@ -1921,3 +1921,26 @@ src/stores/toastStore.ts
 
 ## 四、红线
 - 只读浏览；无文件操作按钮；路径校验全部由后端完成
+---
+
+# F-16 修订 v3（2026-08-14，Electron 优先模式）
+
+> 替代 v2 的目录选择器部分。原则：**选择器做成 provider 抽象，Electron 打包时只换实现、不重做**。
+
+## 一、目录选择器 = 可替换 Provider
+- 前端定义统一接口：`pickExistingFolder(): Promise<{ path: string }>`（返回路径，绝对或相对皆可，后端统一校验）
+- **Electron 实现（WO-05 目标形态，WO-05 施工单里的预留契约）**：
+  - preload 暴露 `window.vera.chooseDirectory()`（IPC → `dialog.showOpenDialog({ properties: ['openDirectory'] })`）→ 返回**绝对路径**
+  - 前端拿到绝对路径直接调 `POST /api/cases/{id}/folder {"mode":"existing","path":绝对路径}`（后端 `validate_path_safety` 已兼容绝对/相对路径并校验在 CLIENT_FILES_ROOT 内）
+- **Web 过渡实现（现在）**：输入相对路径 或 浏览弹窗（如后端已做 `GET /api/folders/browse`）；代码标注 `// TODO(WO-05): 替换为 Electron 原生目录选择器`
+
+## 二、新建案件表单
+- "关联文件夹"按钮：自动创建（mode=auto）/ 选择已有（provider 返回路径 → mode=existing）
+- 选完 → `GET /api/folders/parse?path=` → 自动预填客户姓名等字段（Vera 可改）→ 提交建档
+
+## 三、为什么打包不重做
+- 后端契约固定：`POST /api/cases/{id}/folder` 接受绝对/相对路径；`GET /api/folders/parse` 两模式共用
+- 前端只有 `pickExistingFolder()` 一个实现点：Web 输入/浏览 ↔ Electron 原生，其余（按钮/弹窗壳/预填/关联）全部复用
+
+## 四、红线
+- 只读浏览；无文件操作按钮；路径校验全部由后端完成
