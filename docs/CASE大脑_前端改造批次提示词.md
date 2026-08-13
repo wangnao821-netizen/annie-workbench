@@ -1829,3 +1829,61 @@ src/stores/toastStore.ts
 - 三张卡（跟进/催件/OS 回复）V1 → 生成下一版(V2) → 方案 B → 确认进草稿箱，链路全通
 - 技能中心：创建草稿 / 编辑草稿 / 激活（人闸确认） / 停用 / 回滚 / AI 提议拒绝（带理由）
 - 后端响应字段缺啥补啥时，先看 server/api/schemas.py，不要改后端
+---
+
+# F-16：案件文件夹关联（WO-29 前端）
+
+> 后端已就绪（901 全绿）。本批次只改前端；契约内嵌如下，另把 docs/前端API契约快照.md 一并粘贴给 AI Studio。
+
+## 一、建档时关联文件夹
+- 建档表单（NewCaseModal/NewCaseSheet）新增"案件文件夹"区块：
+  - 方式选择：自动创建（默认） / 选择已有
+  - 自动创建：提示"将按 broker/client/case 命名自动建标准子目录（_Inbox / Send to Lender / Don't send 等）"；建档后调 `POST /api/cases/{id}/folder` body `{"mode":"auto"}`
+  - 选择已有：输入/粘贴相对路径（相对 CLIENT_FILES_ROOT），调 body `{"mode":"existing","path":"..."}`；422 时展示后端 detail（越界/穿越/目录不存在/缺 path）
+- 建档响应含 `folder_path`，展示在案件详情
+
+## 二、案件详情显示
+- CaseDetail/DetailPanel 显示：关联文件夹路径 + 状态（已关联 ✅ / 未关联）；未关联时提供"关联文件夹"入口（同上两种方式）
+- 契约：`POST /api/cases/{id}/folder` → 200 `{case_id, folder_path, mode}`；404 无案件；422 越界/穿越/目录不存在/缺 path
+
+## 三、红线
+- 只读展示路径；不提供任何文件操作按钮（移动/改名/删除一律不做）；不做文件扫描
+---
+
+# F-17：三档渐进前端（WO-31 自动发现 / WO-32 按需取 / WO-33 主动预判）
+
+> 后端已就绪（901 全绿）。本批次只改前端；契约内嵌如下，另把 docs/前端API契约快照.md 一并粘贴。
+
+## 一、发现提醒（WO-31）
+- 监听 SSE 事件 `file_discovered`（数据：`{case_id, file_id, original_name, doc_type, matched[]}`）
+- 通知中心（NotificationBell）显示"材料到了：{original_name}（已自动匹配清单 / 待确认）"
+- 高置信自动匹配时：案件清单对应项显示"已收（自动）"徽标 + **撤销**按钮 → `POST /api/cases/{id}/folder-files/{file_id}/revoke` → 刷新清单
+- 低置信仅提醒，不自动匹配（显示"待确认"）
+
+## 二、folder_lookup 结果卡（WO-32）
+- 渲染 `flow_folder_lookup`（result_card，payload：`{files:[{rel_path,size,mtime,doc_type}]}`）
+- 卡片内"解析"按钮 → 触发对应文件解析，展示脱敏摘要（结果卡更新）
+- 触发语"去案件文件夹找 X"→ 后端路由 folder_lookup 流程包
+
+## 三、gap_analysis 缺口卡（WO-33）
+- 渲染 `flow_gap_analysis`（result_card，payload：`{missing[], matched[], suggestions[], summary}`）
+- 展示缺口列表（缺什么 / 原因）+ 建议（draft 标记），按钮"生成建议清单"→ 草稿出口
+- 触发语"缺什么材料 / 材料缺口 / 主动预判"
+
+## 四、红线
+- 所有卡片无"发送"按钮；提醒/建议均为只读呈现 + 草稿出口；文件操作只读（无移动/改名/删除）
+---
+
+# F-18：全局咨询右栏统计分析
+
+> 后端已就绪（GET /api/analytics/overview|pipeline|lenders|efficiency，契约见前端API契约快照第 4 节）。本批次只改前端。
+
+## 一、右栏统计分析面板（全局咨询无案件时）
+- 概览卡：活跃案件 / 新增案件 / 递交 / 批准 / 结算 / 佣金估算 / 完成任务（overview current vs previous，标注环比 ▲▼）
+- Pipeline 漏斗：各阶段数量 + 金额（默认近 6 个月、月粒度，可切 天/周/月 + buckets）
+- 银行表现：案件数 / 平均批准天数 / OS 率 / 批准率（lenders）
+- 效率：完成任务 / 准时率 / 清单确认率 / AI 采纳数 / 客户平均回复天数（efficiency current vs previous）
+- 空库显示 0 或 —，不报错
+
+## 二、布局
+- 跟随现有右栏风格（可折叠/展开）；不阻塞对话；数据刷新：进入面板时拉取一次 + 手动刷新按钮
