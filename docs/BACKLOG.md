@@ -153,7 +153,11 @@
 - `Case.lender_ref` / `submission_platform_ref` + 幂等回填工具；4 消费点切 key；`GET /api/banks/` + `/api/platforms/`
 - 施工单：docs/flash_specs/wo-22-bank-registry.md
 
-### WO-26（待开）：Agent 编排层 + 流程包框架（主文档 §二最大缺口）
+### WO-26（✅ 已完成 2026-08-13，492e193）：Agent 编排层 + 流程包框架
+- V1 轻量编排（match_flow 规则路由 + run_flow 执行器 + config/agent_flows 3 流程包 + 呈现分类 result_card/dialog）；pytest 783；Pydantic AI 不引
+
+### WO-26b（待办，Codex 直接实施）：Pydantic AI 编排内核
+- WO-26 验收通过后，由 Codex 直接实施：pydantic-ai 接入替换执行内核（接口契约不变），DeepSeek/Gemini OpenAI 兼容接入、版本锁定（解决主文档 §八 待拍板）、脱敏红线测试延续
 - Pydantic AI 接入 + `agents/*.yaml` 流程包（triggers/steps/tools/confirm_required/acceptance）
 - 先把申报一致性/建档/计算器包装成流程包；对话路由 → 执行
 
