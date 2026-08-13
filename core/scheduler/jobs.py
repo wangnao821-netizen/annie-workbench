@@ -115,6 +115,24 @@ def _discover_job() -> None:
             db.close()
     except Exception as exc:  # noqa: BLE001 — 定时任务失败只记录
         logger.error("scheduler folder discovery job failed: %s", exc)
+
+
+def _gap_job() -> None:
+    """主动预判缺口分析（三档渐进第 3 档，开关 case_folder.auto_gap）。"""
+    try:
+        from core.case_folder.gap_analysis import scan_and_analyze_gaps
+
+        db = get_session_factory()()
+        try:
+            results = scan_and_analyze_gaps(db)
+            if results:
+                logger.info("folder auto_gap: analyzed %d case(s)", len(results))
+        finally:
+            db.close()
+    except Exception as exc:  # noqa: BLE001 — 定时任务失败只记录
+        logger.error("scheduler folder gap job failed: %s", exc)
+
+
 def init_scheduler() -> BackgroundScheduler | None:
     """初始化并启动全局调度器（按 settings.scheduler.enabled；幂等）。
 
@@ -149,6 +167,14 @@ def init_scheduler() -> BackgroundScheduler | None:
             _discover_job, IntervalTrigger(minutes=fd.interval_minutes),
             id="folder_discovery", max_instances=1, coalesce=True,
         )
+
+    ag = get_config().settings.case_folder.auto_gap
+    if ag.enabled:
+        _scheduler.add_job(
+            _gap_job, IntervalTrigger(hours=ag.interval_hours),
+            id="folder_gap", max_instances=1, coalesce=True,
+        )
+
     _scheduler.start()
     logger.info("scheduler started: daily_backup / overdue_check / summary_refresh")
     return _scheduler

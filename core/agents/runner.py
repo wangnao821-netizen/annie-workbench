@@ -168,6 +168,18 @@ def run_flow(
                         except ValueError as ve:
                             res = {"status": "error", "message": str(ve), "summary": str(ve)}
 
+            elif tool_name == "gap_analysis":
+                from core.case_folder.gap_analysis import analyze_gaps
+                from core.models.orm import Case
+                if not case_id:
+                    res = {"status": "skipped", "message": "案件未关联文件夹", "summary": "案件未关联文件夹", "missing": [], "matched": [], "suggestions": []}
+                else:
+                    case_obj = db.query(Case).filter(Case.id == case_id).first()
+                    if not case_obj or not case_obj.folder_path:
+                        res = {"status": "skipped", "message": "案件未关联文件夹", "summary": "案件未关联文件夹", "missing": [], "matched": [], "suggestions": []}
+                    else:
+                        res = analyze_gaps(case_obj, db)
+
             if step.get("output"):
                 step_ctx[str(step["output"])] = res
 

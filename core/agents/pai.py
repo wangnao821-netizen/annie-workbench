@@ -25,7 +25,7 @@ logger = get_logger(__name__)
 _AGENTS: dict[str, Any] = {}
 _gemini_failures = 0
 _gemini_skipped_until = 0.0
-_TOOL_NAMES = frozenset({"declaration_check", "calculator_assess", "policy_check", "context_event_write", "draft_email", "folder_lookup"})
+_TOOL_NAMES = frozenset({"declaration_check", "calculator_assess", "policy_check", "context_event_write", "draft_email", "folder_lookup", "gap_analysis"})
 _DEFAULT_TIMEOUT_S = 30
 _SYSTEM_PROMPT = "你是澳洲贷款经纪团队的 AI 助手。按流程包意图调用白名单工具，回答具体到这个客户，不要给通用建议。"
 
@@ -84,8 +84,19 @@ def _folder_lookup(ctx, query: str = "") -> dict:
         return {"status": "error", "message": str(ve)}
 
 
+def _gap_analysis(ctx) -> dict:
+    from core.case_folder.gap_analysis import analyze_gaps
+    from core.models.orm import Case
+    if not ctx.deps.case_id:
+        return {"status": "skipped", "message": "案件未关联文件夹", "summary": "案件未关联文件夹", "missing": [], "matched": [], "suggestions": []}
+    case_obj = ctx.deps.db.query(Case).filter(Case.id == ctx.deps.case_id).first()
+    if not case_obj or not case_obj.folder_path:
+        return {"status": "skipped", "message": "案件未关联文件夹", "summary": "案件未关联文件夹", "missing": [], "matched": [], "suggestions": []}
+    return analyze_gaps(case_obj, ctx.deps.db)
+
+
 def _tool_defs() -> list[Any]:
-    return [_declaration_check, _calculator_assess, _policy_check, _context_event_write, _folder_lookup]
+    return [_declaration_check, _calculator_assess, _policy_check, _context_event_write, _folder_lookup, _gap_analysis]
 
 
 def _pick_provider(task_text: str, cfg) -> str:

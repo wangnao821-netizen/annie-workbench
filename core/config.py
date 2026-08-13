@@ -200,10 +200,18 @@ class CaseFolderAutoDiscoverConfig(BaseModel):
     confidence_threshold: float = Field(default=0.8, ge=0.0, le=1.0)
 
 
+class CaseFolderAutoGapConfig(BaseModel):
+    """三档渐进第 3 档：主动预判缺口（WO-33）。"""
+
+    enabled: bool = False
+    interval_hours: int = Field(default=4, ge=1)
+
+
 class CaseFolderConfig(BaseModel):
     """案件文件夹三档渐进配置（WO-31/32/33；每档独立开关，默认关闭）。"""
 
     auto_discover: CaseFolderAutoDiscoverConfig = Field(default_factory=CaseFolderAutoDiscoverConfig)
+    auto_gap: CaseFolderAutoGapConfig = Field(default_factory=CaseFolderAutoGapConfig)
 
 
 class SchedulerConfig(BaseModel):

@@ -1,0 +1,11 @@
+key: gap_analysis
+name: "主动预判"
+description: "分析案件材料缺口并给出预判建议"
+triggers: ["缺什么材料", "材料缺口", "主动预判", "gap analysis"]
+presentation: result_card
+steps:
+  - tool: gap_analysis
+    params: { case_id: "$case_id" }
+    output: result
+confirm_required: false
+acceptance: []

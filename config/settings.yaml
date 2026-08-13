@@ -122,3 +122,6 @@ case_folder:
     enabled: false
     interval_minutes: 10
     confidence_threshold: 0.8
+  auto_gap:
+    enabled: false
+    interval_hours: 4

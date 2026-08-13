@@ -21,6 +21,7 @@ _TOOL_WHITELIST = frozenset({
     "context_event_write",
     "draft_email",
     "folder_lookup",
+    "gap_analysis",
 })
 
 
