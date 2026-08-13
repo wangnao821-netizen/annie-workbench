@@ -736,3 +736,20 @@ class BankPlatformState(Base):  # type: ignore[misc]
     platforms = Column(Text, nullable=False)  # JSON 数组字符串，如 '["mqg"]'
     vera_confirmed = Column(Boolean, nullable=False, default=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class SkillVersion(Base):  # type: ignore[misc]
+    """技能包版本持久化表（WO-28）。"""
+
+    __tablename__ = "skill_versions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    key = Column(String, nullable=False, index=True)
+    version = Column(String, nullable=False)
+    manifest_json = Column(Text, nullable=False)
+    status = Column(String, nullable=False, default="draft")  # draft / active / deprecated
+    created_by = Column(String, nullable=False)
+    reason = Column(Text, nullable=True)
+    superseded_by = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+

@@ -674,3 +674,58 @@ class ProfileRollbackResponse(BaseModel):
     bank: str
     rolled_back_to: str
     smoke_tests: list[SmokeTestResult] = Field(default_factory=list)
+
+
+# ── WO-28 技能包系统 Schemas ─────────────────────────────────────────
+
+class SkillVersionResponse(BaseModel):
+    id: int
+    key: str
+    version: str
+    status: str
+    created_by: str
+    reason: str | None = None
+    superseded_by: int | None = None
+    created_at: datetime | None = None
+
+
+class SkillResponse(BaseModel):
+    key: str
+    name: str
+    description: str = ""
+    version: str = "1.0.0"
+    category: str = "flow"
+    triggers: list[str] = Field(default_factory=list)
+    presentation: str = "result_card"
+    permission: str = "draft"
+    inputs: dict[str, Any] = Field(default_factory=dict)
+    outputs: dict[str, Any] = Field(default_factory=dict)
+    steps: list[dict[str, Any]] = Field(default_factory=list)
+    assets: list[dict[str, Any]] = Field(default_factory=list)
+    confirm_required: bool = True
+    status: str = "draft"
+    author: str = "vera"
+    db_id: int | None = None
+    created_by: str | None = None
+    reason: str | None = None
+
+
+class SkillCreateRequest(BaseModel):
+    manifest: dict[str, Any]
+    reason: str | None = None
+
+
+class SkillProposeRequest(BaseModel):
+    manifest: dict[str, Any]
+    reason: str = Field(..., min_length=1)
+    scope: str | None = None
+
+
+class SkillActivateRequest(BaseModel):
+    version: str
+    operator: str = "vera"
+
+
+class SkillRollbackRequest(BaseModel):
+    target_version: str
+

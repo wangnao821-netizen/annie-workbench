@@ -67,12 +67,14 @@ from server.api.events import router as events_router
 from server.api.files import router as files_router
 from server.api.imports import router as imports_router
 from server.api.inbox import router as inbox_router
+from server.api.skills import router as skills_router
 from server.api.sync import router as sync_router
 from server.api.tasks import router as tasks_router
 from server.api.wechat import router as wechat_router
 
 app.include_router(admin_router)
 app.include_router(agents_router)
+app.include_router(skills_router)
 app.include_router(cases_router)
 app.include_router(banks_router)
 app.include_router(analytics_router)
