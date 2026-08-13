@@ -201,3 +201,19 @@ def test_direct_core_function_unit_tests(test_env):
     updated = auto_create(db, case.id, naming="CustomFolder/SubCase", client_root=client_root)
     assert updated.folder_path == "CustomFolder/SubCase"
     assert (client_root / "CustomFolder/SubCase").is_dir()
+
+
+def test_auto_create_mkdir_failure_422(test_env, client, monkeypatch):
+    """8. auto_create 目录创建失败（OSError，如非法字符/权限）→ 422（不 500）"""
+    import pathlib
+
+    db = test_env["db"]
+    case = _create_sample_case(db, "CASE-WO29-008")
+
+    def boom_mkdir(self, *args, **kwargs):
+        raise OSError("permission denied (simulated)")
+
+    monkeypatch.setattr(pathlib.Path, "mkdir", boom_mkdir)
+    resp = client.post(f"/api/cases/{case.id}/folder", json={"mode": "auto"})
+    assert resp.status_code == 422
+    assert "无法创建" in resp.json()["detail"]

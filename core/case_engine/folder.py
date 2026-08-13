@@ -183,10 +183,13 @@ def auto_create(
         resolved_target = new_target
         rel_path_str = resolved_target.relative_to(root).as_posix()
 
-    # 创建案件主目录与标准子目录
-    resolved_target.mkdir(parents=True, exist_ok=True)
-    for subdir in STANDARD_SUBDIRS:
-        (resolved_target / subdir).mkdir(exist_ok=True)
+    # 创建案件主目录与标准子目录（非法字符/保留名/权限 → OSError → ValueError → 422）
+    try:
+        resolved_target.mkdir(parents=True, exist_ok=True)
+        for subdir in STANDARD_SUBDIRS:
+            (resolved_target / subdir).mkdir(exist_ok=True)
+    except OSError as exc:
+        raise ValueError(f"无法创建案件文件夹（路径含非法字符或权限不足）：{exc}") from exc
 
     case.folder_path = rel_path_str
     db.commit()
