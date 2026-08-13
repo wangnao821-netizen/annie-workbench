@@ -153,6 +153,16 @@
 - `Case.lender_ref` / `submission_platform_ref` + 幂等回填工具；4 消费点切 key；`GET /api/banks/` + `/api/platforms/`
 - 施工单：docs/flash_specs/wo-22-bank-registry.md
 
+### WO-26（待开）：Agent 编排层 + 流程包框架（主文档 §二最大缺口）
+- Pydantic AI 接入 + `agents/*.yaml` 流程包（triggers/steps/tools/confirm_required/acceptance）
+- 先把申报一致性/建档/计算器包装成流程包；对话路由 → 执行
+
+### WO-27（待开）：跟进 / 催件 / OS 回复 三个流程
+- 均为空壳注册条目；承诺/提醒/草稿链路补齐
+
+### V2 定稿（2026-08-13，主文档 §十三）：案件文件夹机制 + 文件操作
+- 案件文件夹关联（选已有/自动建）+ 三档渐进（新文件自动发现 → 按需自主取 → 主动预判）
+- 文件操作：Vera 主动要求才执行（放入/改名/移动），PathGuard 校验，绝不自主
 ### WO-23：PST 接线 + pyproject 对齐（📋 施工单已出，待执行）
 - import_pst.py remember 接线（F821 真缺陷）；pyproject 声明 openpyxl/oletools/python-multipart；uv.lock 重新生成入库
 - 施工单：docs/flash_specs/wo-23-pst-pyproject.md
