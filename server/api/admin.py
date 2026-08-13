@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api", tags=["admin"])
 @router.get("/version", response_model=VersionInfo)
 def get_version() -> VersionInfo:
     """返回应用版本号。"""
-    return VersionInfo(version="2.0.0", name="Vera Workbench")
+    return VersionInfo(version="2.1.0", name="Vera Workbench")
 
 
 @router.get("/health")
