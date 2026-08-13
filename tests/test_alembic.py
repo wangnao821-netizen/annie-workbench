@@ -78,7 +78,7 @@ def test_baseline_migration_covers_required_tables(tmp_path):
         required = {
             "actions", "cases", "processed_files", "case_checklist",
             "os_conditions", "case_knowledge", "case_timeline_events",
-            "import_records", "case_milestones",
+            "import_records", "case_milestones", "agent_states", "bank_platform_states",
         }
         assert required <= tables, f"基线迁移缺应用表: {sorted(required - tables)}"
     finally:

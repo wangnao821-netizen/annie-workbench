@@ -1,0 +1,111 @@
+version: 1
+items:
+  - key: agent-intake
+    name: "建档 Agent (Case Intake)"
+    description: "一键完成新客户或存量壳立项、支持文件/文本识别自动提取与预填"
+    category: agent
+    status: available
+    triggers: ["帮我建个案件", "新建贷款案件"]
+    capability: null
+    permission: null
+    enabled_default: true
+
+  - key: agent-followup
+    name: "跟进 Agent (Follow-up)"
+    description: "监控案件补件与进件状态，自动追踪未回复邮件与倒计时预警"
+    category: agent
+    status: pending
+    triggers: ["帮我跟进案件", "催一下补件"]
+    capability: null
+    permission: null
+    enabled_default: true
+
+  - key: agent-audit
+    name: "申报一致性检查 Agent (Audit & Cross-Check)"
+    description: "交叉比对客户申报材料与银行表单字段，自动识别勾稽冲突"
+    category: agent
+    status: available
+    triggers: ["检查材料一致性", "交叉比对申报"]
+    capability: null
+    permission: null
+    enabled_default: true
+
+  - key: agent-chaser
+    name: "催件 Agent (Chaser)"
+    description: "自动定时生成向客户或BD催进度/补件的提醒消息草稿"
+    category: agent
+    status: pending
+    triggers: ["生成催件草稿", "提醒客户补件"]
+    capability: null
+    permission: null
+    enabled_default: true
+
+  - key: agent-os-reply
+    name: "OS 回复 Agent (Condition Response)"
+    description: "解析银行 Outstanding Condition 邮件，自动搜集补件并拟定回复"
+    category: agent
+    status: pending
+    triggers: ["拟定 OS 回复", "处理银行补件要求"]
+    capability: null
+    permission: null
+    enabled_default: true
+
+  - key: agent-calculator
+    name: "服务能力计算器 Agent (Servicing Calculator)"
+    description: "多银行计算器试算与方案比对，评估贷款额度与能力上限"
+    category: agent
+    status: available
+    triggers: ["帮我算贷款能力", "服务能力计算"]
+    capability: null
+    permission: null
+    enabled_default: true
+
+  - key: tool-memory
+    name: "记忆工具 (Case Memory)"
+    description: "三层上下文持久化与案件历史检索"
+    category: tool
+    status: available
+    triggers: null
+    capability: "读写案件上下文/知识库"
+    permission: "仅内部轨迹"
+    enabled_default: true
+
+  - key: tool-ocr
+    name: "文件识别提取 (OCR & Parse)"
+    description: "智能识别工资单/Bank Statement/身份证件"
+    category: tool
+    status: available
+    triggers: null
+    capability: "提取文档结构化 Key-Value"
+    permission: "本地安全路由"
+    enabled_default: true
+
+  - key: tool-policy
+    name: "政策库查询 (Policy Search)"
+    description: "检索 22 家银行政策条文与差异比对"
+    category: tool
+    status: available
+    triggers: null
+    capability: "全文检索/向量检索政策"
+    permission: "无限制"
+    enabled_default: true
+
+  - key: tool-email
+    name: "邮件进度同步 (Email Sync)"
+    description: "自动读取 Outlook 邮件与进度提取"
+    category: tool
+    status: pending
+    triggers: null
+    capability: "读取/分拨收件箱邮件"
+    permission: "需 Vera 确认"
+    enabled_default: false
+
+  - key: tool-calendar
+    name: "智能日历对接 (Calendar)"
+    description: "提取关键节点并同步至系统日历"
+    category: tool
+    status: pending
+    triggers: null
+    capability: "创建/更新日历日程"
+    permission: "需 Vera 确认"
+    enabled_default: false

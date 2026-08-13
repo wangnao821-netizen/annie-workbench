@@ -449,6 +449,32 @@ class PlatformsResponse(BaseModel):
     platforms: list[PlatformItem] = Field(default_factory=list)
 
 
+class AgentItem(BaseModel):
+    key: str
+    name: str
+    description: str
+    category: str            # agent | tool
+    status: str              # available | pending
+    enabled: bool
+    triggers: list[str] = Field(default_factory=list)
+    capability: str | None = None
+    permission: str | None = None
+
+
+class AgentsResponse(BaseModel):
+    agents: list[AgentItem] = Field(default_factory=list)
+
+
+class AgentUpdateRequest(BaseModel):
+    enabled: bool
+
+
+class BankPlatformUpdateRequest(BaseModel):
+    platforms: list[str] = Field(default_factory=list)
+    vera_confirmed: bool = True
+
+
+
 class AnalyticsEfficiencyMetrics(BaseModel):
     tasks_done: int
     on_time_rate: float

@@ -711,3 +711,25 @@ class AiUsageLog(Base):  # type: ignore[misc]
     latency_ms = Column(Integer, default=0)
     layer_names = Column(Text, nullable=True)               # JSON 数组，如 ["role","case_brain","team","live","dialogue"]
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class AgentState(Base):  # type: ignore[misc]
+    """Agent / Tool 运行时状态表（WO-25）。"""
+
+    __tablename__ = "agent_states"
+
+    agent_key = Column(String, primary_key=True)
+    enabled = Column(Boolean, nullable=False, default=True)
+    config = Column(Text, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class BankPlatformState(Base):  # type: ignore[misc]
+    """银行×平台运行时覆盖表（WO-25）。"""
+
+    __tablename__ = "bank_platform_states"
+
+    bank_key = Column(String, primary_key=True)
+    platforms = Column(Text, nullable=False)  # JSON 数组字符串，如 '["mqg"]'
+    vera_confirmed = Column(Boolean, nullable=False, default=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
