@@ -106,6 +106,18 @@ class AiProviderConfig(BaseModel):
     base_url: str | None = None
 
 
+class AiRoutingConfig(BaseModel):
+    """AI 模型路由配置（WO-26b：DeepSeek 默认主力 / Gemini 仅英文写作可选）。"""
+
+    default_provider: str = "deepseek"
+    english_task_prefixes: list[str] = Field(
+        default_factory=lambda: ["写一封", "写英文", "draft an email", "broker note", "翻译", "translate"]
+    )
+    gemini_timeout_seconds: int = Field(default=8, ge=1)
+    gemini_skip_after_failures: int = Field(default=3, ge=1)
+    gemini_skip_seconds: int = Field(default=600, ge=1)
+
+
 class AiConfig(BaseModel):
     """AI API configuration."""
 
@@ -114,6 +126,7 @@ class AiConfig(BaseModel):
     max_retries: int = Field(ge=0, le=10)
     timeout_seconds: int = Field(gt=0)
     confidence_threshold: float = Field(ge=0.0, le=1.0)
+    routing: AiRoutingConfig = Field(default_factory=AiRoutingConfig)
 
 
 class WatchConfig(BaseModel):

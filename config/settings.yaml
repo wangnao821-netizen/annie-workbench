@@ -55,6 +55,13 @@ ai:
   timeout_seconds: 30
   # 置信度低于此值标记为 NEEDS_MANUAL_REVIEW
   confidence_threshold: 0.6
+  # 模型路由（WO-26b：DeepSeek 默认主力；Gemini 仅英文写作任务可选）
+  routing:
+    default_provider: "deepseek"
+    english_task_prefixes: ["写一封", "写英文", "draft an email", "broker note", "翻译", "translate"]
+    gemini_timeout_seconds: 8
+    gemini_skip_after_failures: 3
+    gemini_skip_seconds: 600
 
 parser:
   # LiteParse 配置
