@@ -29,7 +29,7 @@ logger = get_logger(__name__)
 _EXTRA_NAMES: frozenset[str] = frozenset({
     "Citibank", "Citi", "UBank", "Virgin Money",
     "Firstmac", "Athena", "Nano", "loans.com.au",
-    "AFG", "Connective", "Aggregator",
+    "AFG", "Connective", "Aggregator", "BankSA",
     "ATO", "ASIC", "APRA", "Centrelink",
 })
 

@@ -113,7 +113,7 @@ lenders:
     vera_confirmed: false
 
   - key: latrobe
-    display_name: "La Trobe"
+    display_name: "Latrobe"
     name_en: "La Trobe Financial"
     name_zh: "La Trobe 金融"
     aliases: ["La Trobe Financial", "Latrobe Financial"]

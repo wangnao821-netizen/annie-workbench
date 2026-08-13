@@ -124,6 +124,14 @@ class TestPiiNames:
 
 
 class TestConsistency:
+    @pytest.mark.parametrize("key", [l["key"] for l in _all_lenders() if l["policy_key"] is not None])
+    def test_display_name_matches_policy_key(self, key):
+        """policy_key 非空的 lender，display_name 必须与 policy_key 逐字一致（防政策引擎 miss）。"""
+        lender = next(l for l in _all_lenders() if l["key"] == key)
+        assert lender["display_name"] == lender["policy_key"], (
+            f"{key}: display_name={lender['display_name']!r} != policy_key={lender['policy_key']!r}"
+        )
+
     def test_platform_refs_and_full_tier_infynity(self):
         platform_keys = {p["key"] for p in _all_platforms()}
         full_keys = []
