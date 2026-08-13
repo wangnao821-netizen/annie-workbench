@@ -192,6 +192,20 @@ class WechatConfig(BaseModel):
     allowed_senders: list[str] = Field(default_factory=list)
 
 
+class CaseFolderAutoDiscoverConfig(BaseModel):
+    """三档渐进第 1 档：新文件自动发现（WO-31）。"""
+
+    enabled: bool = False
+    interval_minutes: int = Field(default=10, ge=1)
+    confidence_threshold: float = Field(default=0.8, ge=0.0, le=1.0)
+
+
+class CaseFolderConfig(BaseModel):
+    """案件文件夹三档渐进配置（WO-31/32/33；每档独立开关，默认关闭）。"""
+
+    auto_discover: CaseFolderAutoDiscoverConfig = Field(default_factory=CaseFolderAutoDiscoverConfig)
+
+
 class SchedulerConfig(BaseModel):
     """后台调度配置（Phase 2 数据保命：备份/委派超期/摘要刷新）。"""
 
@@ -215,6 +229,7 @@ class SettingsConfig(BaseModel):
     report: ReportConfig
     wechat: WechatConfig = Field(default_factory=WechatConfig)
     scheduler: SchedulerConfig = Field(default_factory=SchedulerConfig)
+    case_folder: CaseFolderConfig = Field(default_factory=CaseFolderConfig)
 
 
 # ---------------------------------------------------------------------------

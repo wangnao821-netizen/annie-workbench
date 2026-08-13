@@ -99,6 +99,22 @@ def _summary_job() -> None:
         logger.error("scheduler summary job failed: %s", exc)
 
 
+
+
+def _discover_job() -> None:
+    """案件文件夹新文件自动发现（三档渐进第 1 档，开关 case_folder.auto_discover）。"""
+    try:
+        from core.case_folder.discovery import scan_case_folders
+
+        db = get_session_factory()()
+        try:
+            events = scan_case_folders(db)
+            if events:
+                logger.info("folder discovery: %d new file(s)", len(events))
+        finally:
+            db.close()
+    except Exception as exc:  # noqa: BLE001 — 定时任务失败只记录
+        logger.error("scheduler folder discovery job failed: %s", exc)
 def init_scheduler() -> BackgroundScheduler | None:
     """初始化并启动全局调度器（按 settings.scheduler.enabled；幂等）。
 
@@ -126,6 +142,13 @@ def init_scheduler() -> BackgroundScheduler | None:
         _summary_job, IntervalTrigger(hours=cfg.summary_interval_hours),
         id="summary_refresh", max_instances=1, coalesce=True,
     )
+
+    fd = get_config().settings.case_folder.auto_discover
+    if fd.enabled:
+        _scheduler.add_job(
+            _discover_job, IntervalTrigger(minutes=fd.interval_minutes),
+            id="folder_discovery", max_instances=1, coalesce=True,
+        )
     _scheduler.start()
     logger.info("scheduler started: daily_backup / overdue_check / summary_refresh")
     return _scheduler

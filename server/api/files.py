@@ -203,3 +203,19 @@ def preview_file(
     if not path.is_file():
         raise HTTPException(status_code=404, detail="文件不存在")
     return FileResponse(str(path))
+
+
+@router.post("/cases/{case_id}/folder-files/{file_id}/revoke")
+def revoke_folder_file_match_endpoint(
+    case_id: str,
+    file_id: str,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> dict:
+    """撤销文件夹自动匹配（三档渐进第 1 档闭环）。"""
+    _get_case_or_404(case_id, db)
+    record = db.query(CaseFile).filter(CaseFile.id == file_id, CaseFile.case_id == case_id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="file not found")
+    from core.case_folder.discovery import revoke_folder_file_match
+    reverted = revoke_folder_file_match(db, case_id, file_id)
+    return {"case_id": case_id, "file_id": file_id, "reverted_items": reverted}

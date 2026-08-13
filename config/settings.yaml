@@ -115,3 +115,10 @@ scheduler:
   summary_interval_hours: 1
   summary_batch_limit: 20
 
+
+# 案件文件夹三档渐进（WO-31/32/33；每档独立开关，默认关闭）
+case_folder:
+  auto_discover:
+    enabled: false
+    interval_minutes: 10
+    confidence_threshold: 0.8
