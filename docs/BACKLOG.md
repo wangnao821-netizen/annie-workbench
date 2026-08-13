@@ -258,3 +258,9 @@
 - 前端：批 1-12（主题/布局/任务队列/详情/抽屉/草稿/聊天/通知/OS 三栏/看板拖拽/新建案件全字段）+ 修复（SSE、datetime、id/case_id、草稿 404、设置离线、下拉遮挡、附件预览）
 - 测试：pytest 336 passed, 1 skipped（skip = milestone_processor 待办）
 - 2026-08-13：WO-19 政策引擎 / WO-20 申报一致性检查 / WO-21 计算器 Agent 交付（5c58018 + edf96f1）；WO-22 银行主数据+平台、WO-23 PST+依赖 施工单已出；pytest **646 passed**，0 failed / 0 skipped
+
+### WO-29（✅ 已完成 2026-08-13，d715669，Gemini）：案件文件夹关联
+- core/case_engine/folder.py（link_existing/auto_create + 越界/冲突/幂等校验）+ POST /api/cases/{id}/folder + CaseFolderRequest/Response；全量 867
+
+### WO-30（✅ 已完成 2026-08-13，f479ddc）：意图路由升级
+- core/agents/router.py：规则唯一命中直接走（零 LLM）；撞车（≥2 命中）→ LLM 选流程包 + 规则保底；零命中不调 LLM（成本闸门）；出站脱敏/AiUsageLog(layer=router)；ai.routing.intent_routing_enabled 开关；全量 876
