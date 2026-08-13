@@ -215,6 +215,51 @@ platform:
       - 担保人必须单独访谈并记录（无申请人陪同）。
       - 各银行政策差异（如 VOI、ID、存款持有期）以 The Matrix（MAX）与银行门户为准。
 
+  - title: "Infynity 平台概览与工具"
+    lender: INFYNITY
+    tags: [Infynity, 平台, Finsure, AOL]
+    priority: high
+    content: |-
+      【Infynity 平台概览与工具】（Finsure 官网 / broker 文档站，2026-08 公开资料核）
+      - Infynity 为 Finsure 集团（finsure.com.au）自研的 CRM 与递交平台；broker 文档站：broker-docs.middle.finance。
+      - 常用集成：ApplyOnline (AOL) 递交申请、CitoPlus 商业贷款递交（2025 深度打通）、Annature 电子签署（2024）、Client Centre 客户门户、Middle Discovery Journey 问卷。
+      - 递交路径：Infynity 录案 → Fact Find（可经 Middle 发送）→ 上传支持文件 → AOL 递交 Lender Application。
+      - 前瞻：Finsure 已公布以新 CRM Metanoia 替换 Infynity（The Adviser 2026-03 报道，落地时间未定）；字段绑定设计不宜把 Infynity 写死。
+      - 注意：Finsure 自 2026 年起提高新 broker 准入（至少 2 年相关经验，否则须完成 Finsure Academy）。
+
+  - title: "Infynity 递交工作流（Virtual Assistant 服务清单）"
+    lender: INFYNITY
+    tags: [Infynity, 递交工作流, 服务清单]
+    priority: high
+    content: |-
+      【Infynity 递交工作流（Finsure Virtual Assistant 服务清单，官方页面 2026-08 核）】
+      - 收集支持文件（Collection of supporting documentation）
+      - 数据录入与文档上传：Infynity CRM + ApplyOnline (AOL)
+      - 准备 Statement of Credit Advice（SOCA）
+      - Quote（适用时）
+      - 估价安排（Valuation ordering）
+      - Pricing/利率申请（Pricing requests）
+      - Discharge Authority 表格（仅转贷）
+      - 与银行沟通（Liaising with Lender）
+      - 准备并递交 Lender Application
+      - 交割后支持（Post settlement support）
+      - 交割协调（Settlement coordination）
+      - 数据库维护（Database maintenance）
+
+  - title: "Infynity Fact Find 必填字段与 Middle 导入"
+    lender: INFYNITY
+    tags: [Infynity, Fact Find, Middle, 必填字段]
+    priority: high
+    content: |-
+      【Infynity Fact Find 必填字段与 Middle 导入（Finsure broker 文档站，2026-08 核）】
+      - 新线索发 Fact Find 前，主申请人与次申请人（joint application）均须完整准确填写：名字+姓氏、邮箱、电话；并指定主申请人。
+      - 发送方式：Client Account > Fact Find 页签 > Send Fact Find > 选 Middle；需确认客户符合 Middle 使用条件、选择申请类型并同意 Middle 条款。
+      - Credit Guide 在客户开始 Discovery Journey 时自动发送。
+      - 文档默认不随 Fact Find 索取，需手动配置请求清单。
+      - 导入流程：客户完成 DJ → Infynity Fact Find 页签状态 Complete → Review and import → 核对/补充申报数据 → Import to client details。
+      - 注意：Middle 导入会覆盖 Infynity 内既有 fact-find 数据；同一字段 Middle 同时有申报值与识别值时，只导入申报值。
+      - Middle 按邮箱匹配已有客户，避免重复建户。
+
 policy:
   - lender: ANZ
     title: "ANZ 贷款政策轮廓"
