@@ -13,14 +13,14 @@ Red Line compliance:
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
-# TODO: memory 接口对齐 # recall
-from core.pii.gateway import rehydrate
+from core.knowledge.memory import recall
 from core.logger import get_logger
 from core.models.orm import KnowledgeEntry
+from core.pii.gateway import rehydrate
 
 logger = get_logger(__name__)
 
@@ -64,7 +64,7 @@ def recall_for_context(case_id: str, query: str, db: Session, limit: int = 10) -
         if entry.vera_confirmed:
             score *= 1.5
         # 时间衰减：最近的分数更高
-        age_days = (datetime.utcnow() - (entry.created_at or datetime.utcnow())).days
+        age_days = (datetime.now(UTC).replace(tzinfo=None) - (entry.created_at or datetime.now(UTC).replace(tzinfo=None))).days
         score *= max(0.5, 1.0 - age_days * 0.01)
         content = rehydrate(entry.content, case_id, db)
         results.append((score, content, entry.vera_confirmed))
@@ -86,15 +86,12 @@ def recall_for_context(case_id: str, query: str, db: Session, limit: int = 10) -
         score = 0.6
         if entry.vera_confirmed:
             score *= 1.5
-        age_days = (datetime.utcnow() - (entry.created_at or datetime.utcnow())).days
+        age_days = (datetime.now(UTC).replace(tzinfo=None) - (entry.created_at or datetime.now(UTC).replace(tzinfo=None))).days
         score *= max(0.5, 1.0 - age_days * 0.01)
         content = rehydrate(entry.content, entry.case_id or case_id, db)
         results.append((score, content, entry.vera_confirmed))
 
     # 第三层：行业知识（lender-specific）
-    case_entry = db.query(KnowledgeEntry).filter(
-        KnowledgeEntry.case_id == case_id, KnowledgeEntry.layer == "case"
-    ).first()
     # Try to get lender from case knowledge entries or search broadly
     lender_entries = (
         db.query(KnowledgeEntry)
@@ -113,6 +110,17 @@ def recall_for_context(case_id: str, query: str, db: Session, limit: int = 10) -
         content = rehydrate(entry.content, case_id, db)
         results.append((score, content, entry.vera_confirmed))
 
+    # ── 1.5 BrainFact 语义检索（sqlite-vec，本地 BGE；不可用自动跳过） ──
+    try:
+        from core.knowledge.vector import semantic_search
+
+        semantic_hits = semantic_search(db, query, case_id=case_id, track="internal", limit=5)
+    except Exception as exc:  # noqa: BLE001 — 语义层失败不阻断，回退既有路径
+        logger.warning("semantic recall failed: %s", exc)
+        semantic_hits = []
+    for hit in semantic_hits:
+        results.append((0.9, f"[语义] {hit['key']}: {hit['value']}", True))
+
     # ── 2. Mem0 向量搜索补充（如果可用） ──────────────────────────
 
     try:
@@ -124,7 +132,7 @@ def recall_for_context(case_id: str, query: str, db: Session, limit: int = 10) -
                 line = line.strip()
                 if line and line not in [r[1] for r in results]:  # 去重
                     results.append((0.5, line, False))
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 — Mem0 兜底失败降级
         logger.warning("Mem0 recall failed in recall_for_context: %s", exc)
 
     # ── 3. 排序 + 格式化 ──────────────────────────────────────────

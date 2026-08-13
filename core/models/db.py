@@ -81,12 +81,19 @@ def get_engine(db_path: Path | None = None) -> Engine:
                 conn.execute(text("PRAGMA busy_timeout=30000"))
                 conn.execute(text("PRAGMA synchronous=NORMAL"))
                 conn.commit()
-        except Exception:
+        except Exception:  # noqa: BLE001 — WAL 设置失败非致命
             logger.warning("SQLite WAL pragma setup failed (non-fatal): continuing with defaults")
         # 确保新建列与表结构就绪
         try:
             init_sa_tables(path)
-        except Exception:  # noqa: S110
+        except Exception:  # noqa: BLE001, S110
+            pass
+        # WO-24：vec0 虚拟表幂等挂载（受控例外：不进 Alembic，见 vector.py）
+        try:
+            from core.knowledge.vector import ensure_vector_schema
+
+            ensure_vector_schema(_engine)
+        except Exception:  # noqa: BLE001, S110
             pass
     return _engine
 
@@ -281,7 +288,7 @@ def _sync_missing_columns(engine: Engine) -> None:
                         "Schema sync: added %s.%s (%s)", table_name, column.name, col_type
                     )
             conn.commit()
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 — 兼容层失败非致命
         logger.warning("Generic schema sync failed (non-fatal): %s", exc)
 
 

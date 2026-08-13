@@ -16,6 +16,8 @@ dependencies = [
     "openpyxl>=3.1",
     "oletools>=0.6",
     "python-multipart>=0.0.32",
+    "sqlite-vec>=0.1.9",
+    "fastembed>=0.8.0",
 ]
 
 [project.optional-dependencies]

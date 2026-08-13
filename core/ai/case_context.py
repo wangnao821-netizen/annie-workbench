@@ -120,6 +120,43 @@ def _build_track_memory(case: Case, db: Session, track: str) -> str:
     return case.context_summary or _build_case_brain(case, db)
 
 
+_SEMANTIC_BUDGET = 300
+
+
+def _build_semantic_memory(case_id: str, db: Session, track: str) -> str:
+    """语义召回（BrainFact 向量 top-5），并入 team_experience 槽；不可用返回空串。
+
+    只做 internal 轨（external 轨不注入语义召回，防内线泄漏——红线）。
+    响应字段不新增：语义片段合并进既有的 team_experience/memory 槽（≤300 字符预算）。
+    """
+    if track != "internal":
+        return ""
+    try:
+        from core.knowledge.vector import semantic_search
+
+        case = db.query(Case).filter(Case.id == case_id).first()
+        if case is None:
+            return ""
+        seed = (case.context_summary or _build_case_brain(case, db))[:200] or "案件"
+        hits = semantic_search(db, seed, case_id=case_id, track="internal", limit=5)
+    except Exception:  # noqa: BLE001 — 语义层不可用不阻断上下文构建
+        return ""
+    if not hits:
+        return ""
+    lines: list[str] = []
+    used = 0
+    for hit in hits:
+        line = f"[语义] {hit['key']}: {hit['value']}"
+        if used + len(line) > _SEMANTIC_BUDGET:
+            line = line[: max(0, _SEMANTIC_BUDGET - used)]
+            if line:
+                lines.append(line)
+            break
+        lines.append(line)
+        used += len(line)
+    return "\n".join(lines)
+
+
 def build_case_context(case_id: str, db: Session, track: str = "internal") -> dict:
     """统一案件上下文：AI 注入与客户全景共用。
 
@@ -153,6 +190,12 @@ def build_case_context(case_id: str, db: Session, track: str = "internal") -> di
     os = _build_os(case_id, db)
     deadlines = _build_deadlines(case)
 
+    memory = _build_track_memory(case, db, track)
+    if track == "internal":
+        semantic_memory = _build_semantic_memory(case_id, db, track)
+        if semantic_memory:
+            memory = f"{memory}\n{semantic_memory}" if memory else semantic_memory
+
     result = {
         "case_id": case_id,
         "track": track,
@@ -162,7 +205,7 @@ def build_case_context(case_id: str, db: Session, track: str = "internal") -> di
         "deadlines": deadlines,
         "risk": _build_risk(checklist, os, deadlines, case.lvr),
         "timeline": _build_timeline(case_id, db),
-        "memory": _build_track_memory(case, db, track),
+        "memory": memory,
         # 外线视图的 summary 不得取自内线蒸馏（context_summary 与一句话摘要同列，
         # 直接复用会泄漏内线内容），红线 S4
         "summary": get_case_one_liner(case_id, db) if track != "external" else None,
