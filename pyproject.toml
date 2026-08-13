@@ -13,6 +13,9 @@ dependencies = [
     "python-dotenv>=1.0",
     "apscheduler>=3.10",
     "liteparse>=1.0.0",
+    "openpyxl>=3.1",
+    "oletools>=0.6",
+    "python-multipart>=0.0.32",
 ]
 
 [project.optional-dependencies]

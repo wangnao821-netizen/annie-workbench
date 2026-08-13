@@ -32,8 +32,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.pii.gateway import desensitize
-# TODO(WO-08): memory module not yet migrated to core/
-# from core.memory import remember
+from core.knowledge.memory import remember
 from core.logger import get_logger, setup_file_logging
 from core.models.db import get_session_factory
 from core.models.orm import Case, CaseKnowledge
