@@ -1754,3 +1754,73 @@ src/components/panel/details/BrainPanel.tsx
 src/stores/caseStore.ts
 src/stores/toastStore.ts
 ```
+
+---
+
+# F-15：WO-27 共创 Dialog 卡片 + WO-28 技能中心（前端批次）
+
+> 后端契约已冻结（WO-26b/26c/27/28 验收通过，全量 843 测试全绿）。本批次只做前端，禁止改后端。
+
+## 一、共创 Dialog 卡片（WO-27）
+
+1. 新增三种流程卡类型渲染：`flow_followup` / `flow_chaser` / `flow_os_reply`，`presentation=dialog`，payload 遵循 DraftCardPayload 契约：
+   `{ schema_version, card_type, action, state:{version,branch_label,message_id}, result:{versions:[{subject,body,version,branch_label,message_id}]}, status }`
+2. 弹窗深谈交互：
+   - 展示 subject + body（英文正文，可编辑）
+   - V1/V2/V3 版本链：点"生成下一版" → 以当前 message_id 为 parent_message_id 重跑（action=version）
+   - 方案对比：branch_label A/B 分支（action=branch）
+   - "确认此版本" → action=confirm → 卡片 status=confirmed_draft，内容进草稿箱（DraftCard 出口，**只出草稿，绝不发送**）
+   - 重跑机制：操作提交 = 发一条新对话消息携带结构化参数（`$arg.action` / `$arg.parent_message_id` / `$arg.branch_label` / `$arg.recipient_hint`），后端走 chat → match_flow → run_flow 返回新卡片，前端**替换旧卡片**（不做实时双向绑定/流式）
+3. payload 版本兼容：按 schema_version 降级渲染，老卡片不白屏
+4. 红线 UI：任何地方不出现"发送"按钮，只有"确认 / 保存草稿"
+
+## 二、技能中心（WO-28）
+
+1. 设置页新增"技能中心"入口，对接 `/api/skills`：
+   - 列表（category/status 筛选）、详情（含版本）、创建草稿（draft，Vera 手动）
+   - 激活（仅 Vera 操作；draft 不可触发）、停用、回滚（选目标版本）
+   - AI 提议（created_by=ai_propose 的 draft）：展示理由 + 查看/修改/确认激活/拒绝
+2. 状态呈现：draft（灰）/ active（绿）/ deprecated（暗），版本号 + 历史版本可回滚
+3. 人闸：draft 永不参与触发；激活必须显式确认；拒绝可填反馈
+4. 内置技能（config/agent_flows 6 个流程包）只读展示，不可编辑
+
+## 三、约束
+
+- 只改前端（ui/vera-工作台 (N)），不碰 server/ 后端；接口契约以本文件 + server/api/schemas.py 为准
+- 卡片交互沿用现有 tool_cards 渲染体系，扩展而非重写
+- 自测：三触发语（跟进邮件 / 催件 / OS 回复）弹出 dialog 卡、V1→V2 版本链、确认进草稿箱；技能中心 CRUD + 人闸闭环
+---
+
+# F-15 补丁：真实后端对接（AI Studio）
+
+> 背景：F-15 UI 已完成（ui/vera-工作台 (40)），但**真实后端对接未打通**（mock 模式默认开掩盖了问题）。后端已补齐（e995c91，全量 855 测试全绿），本批次只改前端。
+
+## 后端已就绪的契约（以 server/api/schemas.py 为准）
+
+1. `POST /api/agent/cards/action` — 卡片动作通道
+   body: `{ flow_key, case_id?, action: new|version|branch|confirm, parent_message_id?, branch_label?, recipient_hint?, extra? }`
+   返回 WO-26 契约：`{ reply, tool_cards[], recorded_facts[], presentation }`（tool_cards[0].payload 为 DraftCardPayload）
+2. `PUT /api/skills/{key}` — 更新技能草稿（仅 draft）body `{ manifest, reason? }`
+3. `POST /api/skills/{key}/reject` — 拒绝 AI 提议 body `{ reason? }`
+4. 既有：`GET /api/skills`、`GET /api/skills/{key}`、`POST /api/skills`（body `{manifest, reason}`）、`POST /api/skills/propose`、`POST /api/skills/{key}/activate`（body `{version, operator:"vera"}`）、`POST /api/skills/{key}/deactivate?version=`、`POST /api/skills/{key}/rollback`（body `{target_version}`）
+
+## 要改的前端
+
+1. `src/services/api/skills.ts`（真实模式对齐，mock 保留）：
+   - `activateSkill(key, version)` → POST `/api/skills/{key}/activate` body `{version, operator:"vera"}`
+   - `deactivateSkill(key, version)` → POST `/api/skills/{key}/deactivate?version=...`
+   - `rollbackSkill(key, target_version)` → body `{target_version}`（不是 version）
+   - `rejectSkillProposal(key, reason)` → POST `/api/skills/{key}/reject` body `{reason}`
+   - `updateSkillDraft(key, manifest)` → PUT `/api/skills/{key}` body `{manifest}`
+   - `createSkillDraft` → POST `/api/skills` body `{manifest:{key,name,description,version,category,triggers,presentation,permission,steps,assets,confirm_required}, reason}`
+   - SkillItem 字段对齐后端 SkillResponse：`key/name/description/version/category(agent|tool|flow|knowledge)/status(draft|active|deprecated)/triggers/presentation/permission/steps/assets/confirm_required/db_id/created_by/reason`；前端展示层自行映射（`is_builtin` 用 `created_by==='system'` 推断；`versions` 历史列表可由列表接口返回的多版本记录组装）
+2. `src/components/brain/BrainChat.tsx`：
+   - `FlowDialogCard.onActionSubmit` 改为调 `POST /api/agent/cards/action`（flow_key 映射 card.type；action=version/branch 带 parent_message_id/branch_label；confirm 带 parent_message_id）→ 用返回的新卡片**替换旧卡片**
+   - confirm 成功后同步刷新草稿箱视图（或提示已入草稿箱）
+3. 红线保持：无发送按钮；确认只进草稿箱
+
+## 自测（关 mock：VITE_USE_MOCK=false）
+
+- 三张卡（跟进/催件/OS 回复）V1 → 生成下一版(V2) → 方案 B → 确认进草稿箱，链路全通
+- 技能中心：创建草稿 / 编辑草稿 / 激活（人闸确认） / 停用 / 回滚 / AI 提议拒绝（带理由）
+- 后端响应字段缺啥补啥时，先看 server/api/schemas.py，不要改后端
