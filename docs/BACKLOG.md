@@ -273,3 +273,10 @@
 - parse_folder_naming（broker/client/case-id 三段 + 末段清理兜底）+ GET /api/folders/parse（越界/穿越 422）；Electron/Web 共用预填
 - **browse 已补做（2026-08-14 修订）**：前端 (42) 已依赖 browse 契约；Electron 时经 folderPicker provider 切原生选择器，browse 保留 Web 过渡
 - 全量 909
+### 2026-08-14 全量核对 — 遗漏登记（待办）
+- 🔴 技能 active 未接入对话路由（route_flow 只匹配 flows；需小 WO：active 技能 triggers 并入路由候选）
+- 🔴 会话压缩未实现（长会话上下文膨胀；需小 WO：压缩前摘要写 CaseContextEvent）
+- 🟡 能力盘点矩阵滞后（跟进/催件/OS 回复、技能中心前端已在 Downloads(42)；流程包 6→8；待定稿后同步）
+- 🟢 policy_check 白名单死项（无流程包使用；建议清理或接 check_policy）
+- 🟢 tools/ + tasks.py 遗留 ruff 告警 13 条
+- 前端工作流（2026-08-14 拍板）：**定稿后仍由 AI Studio 改前端**（Codex 只出提示词 + 验收，不改前端）；Vera 问题先收集到 docs/前端问题清单.md，定稿前集中转 F 批次提示词；Codex 直接改前端仅限 AI Studio 不可用等紧急例外，且改后需 AI Studio 认领同步
