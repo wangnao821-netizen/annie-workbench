@@ -22,7 +22,10 @@
 | F-6d（最终版） | 侧栏内容上导航下 + 图标统一 + 搜索图标化 + 顶栏下拉优化 + 阶段节点 + 头部精简 + 动效统一 | ✅ 已交付（(32) 大部分落地） |
 | F-6e | 主导航上移顶栏：今日工作台/全局咨询 → TopNavBar（搜索栏旁）；侧栏底部只留 4 入口 + 更多；搜索保留图标式 | ✅ 已交付（(33)），待真机验收 |
 | F-6f | 全局咨询快捷发问 chips（空态引导：到期查询/建案/统计/政策/写邮件） | ✅ 已交付（(33)），待真机验收 |
-| F-7 | 统一建案表单 sheet（新客户/存量壳/历史导入；文件导入口 + 一段话识别 + 中断恢复）+ 今日待办间距修复 | 已出（下文） |
+| F-7 | 统一建案表单 sheet（新客户/存量壳/历史导入；文件导入口 + 一段话识别 + 中断恢复）+ 今日待办间距修复 | ✅ 已交付（(34)，底部空白修复 (35) 进行中） |
+| F-8 | 能力中心 V1（设置里 Agent/工具列表 + 启用开关 + 能力提示） | 已出（下文） |
+| F-9 | 政策提示卡 + 申报一致性检查功能卡（建档后/全景/对话触发，接 WO-19/20） | 已出（下文） |
+| F-10 | 提醒展示（对话内自然提醒 + 首页/全景联动，接 WO-21） | 已出（下文） |
 
 > ✅ **已定稿（2026-08-12）**：在现有 `ui/vera-工作台 (23)` 基础上**增量改造**（换壳不换内脏）——
 > 保留 services/types/stores/themes/已验证组件，换 AppShell 外壳 + 新增 `src/components/brain/` 目录；
@@ -290,6 +293,175 @@ src/stores/uiStore.ts
 - **F-4**：Apple 风格打磨——毛玻璃材质/弹簧动画细节/空态插画/reduced-motion 复查；旧页面入口收尾
 
 > 注：F-2b~F-4 的具体提示词待对应批次验收后按实际代码结构撰写。
+
+---
+
+## 批 F-8：能力中心 V1（设置里 Agent/工具管理）
+
+> 主文档"能力中心"定稿：前台用能力（BrainChat），后台管能力（能力中心）。V1 先做查看 + 启用/关闭 + 能力提示区；Agent 执行数据等后端 WO-20 后接真实（V1 mock/本地状态）。
+
+### 提示词正文（复制给 AI Studio）
+
+```
+# 任务：Vera Workbench — 能力中心 V1（设置页）
+
+## 背景
+产品要有"看得见的能力"：Vera 在设置里能看到系统有哪些业务 Agent 和工具、哪些启用、能说什么话触发。
+在 ui/vera-工作台 (34) 基础上，Settings 页新增"能力中心"分区。V1 用本地 mock 列表 + 本地开关状态（不接后端；标注"执行数据待后端接入"）。
+
+## 技术约束
+- TypeScript strict / React / Vite / Tailwind / motion/react / zustand（现有）
+- 不引入新依赖；颜色从现有 CSS 变量派生；动效 spring（damping 1.0 / response 0.3-0.4）；遵守 prefers-reduced-motion
+- 不接后端（V1 本地状态）；组件内 mock 数据即可
+
+## 改动范围（严禁超出）
+
+| 文件 | 操作 |
+|------|------|
+| src/pages/Settings.tsx | 修改：新增"能力中心"分区/入口 |
+| src/components/settings/AbilityCenter.tsx | 新建：能力中心面板（Agent 列表 + 工具列表 + 能力提示区） |
+
+⚠️ 严禁修改其他文件；严禁改动业务逻辑/接口/路由。
+
+## 接口契约（AbilityCenter.tsx）
+
+1. **业务 Agent 列表**（mock，含 5 个：建档 / 跟进 / 申报一致性检查 / 催件 / OS 回复）：
+   - 每项：名称 + 描述（一句话）+ 触发词（如"帮我建个案件"、"检查一下申报一致性"）+ 启用开关（本地 toggle）+ 状态徽章（V1：🟢 可用 / ⚪ 待接入）
+   - 建档 = 🟢（WO-18 已落地）；其余 = ⚪（"执行数据待后端接入"）
+2. **工具 BrainTool 列表**（mock）：记忆工具（记录/确认/撤销，🟢）、文件识别提取（🟢，权限说明"仅 Vera 主动上传/指定路径"）、政策库（🟢，WO-19 后）、邮件进度/日历/微信（⚪ 未接入，按需评估）
+3. **能力提示区**：示例触发语 chips（"帮我建个案件"、"检查申报一致性"、"今天有哪些到期？"、"写一封补件邮件"）——点击 Toast"可在全局咨询或案件对话中直接说出"
+4. 开关状态存组件 useState（不持久化，V1）；切换有 Toast
+5. 布局：Settings 页顶部导航或侧栏加入口；面板为卡片列表，开关用现有 accent 样式
+
+## 验证
+- npx tsc --noEmit → 零错误；npm run build → 成功
+
+## 验收参考（手动）
+1. 设置页能进入"能力中心"；Agent 列表 5 项（名称/描述/触发词/开关/状态徽章）
+2. 建档 Agent 显示 🟢；其余显示 ⚪ 待接入；工具列表含 5+ 项
+3. 开关可切换 + Toast；能力提示 chips 可点
+4. 动效顺滑；reduced-motion 生效
+
+⚠️ 执行纪律：只改 Settings.tsx + AbilityCenter.tsx；不接后端；不引入新依赖；失败先报告。
+```
+
+---
+
+## 批 F-9：政策提示卡 + 申报一致性检查功能卡（接 WO-19/20）
+
+> 数据源：`GET /api/cases/{id}/policy-check`（WO-19）、`POST /api/cases/{id}/declaration-check`（WO-20，输入文件/路径）。后端交付前 mock 分支兜底。
+
+### 提示词正文（复制给 AI Studio）
+
+```
+# 任务：Vera Workbench — 政策提示卡 + 申报一致性检查功能卡
+
+## 背景
+① 建档后显示政策提示卡（🟢🟡🔴 + 风险项 + 替代银行 + 免责）；② 阶段感知的"申报一致性检查"功能卡（清单将全绿/准备递交时主动推；点击选文件/贴路径 → 检查 → 结论卡）。V1 接 WO-19/20 端点，后端未交付时 mock 兜底。
+
+## 技术约束
+- TypeScript strict / React / Vite / Tailwind / motion/react / zustand（现有）
+- 不引入新依赖；颜色变量派生；动效 spring；reduced-motion
+- 接口契约（后端 WO-19/20 已定义，前端照此对接；未交付时 mock 分支）：
+  - `GET /api/cases/{id}/policy-check` → `{ lender, overall, issues: [{level,title,detail,suggestion}], alternative_lenders, summary, disclaimer }`
+  - `POST /api/cases/{id}/declaration-check` body `{ files?: string[], folder?: string }` → `{ status: "pass"|"warning"|"fail"|"unparseable", findings: [{item, evidence, level, suggestion}], summary }`
+
+## 改动范围（严禁超出）
+
+| 文件 | 操作 |
+|------|------|
+| src/types/api.ts | 修改：PolicyCheckResult / DeclarationCheckResult 类型 |
+| src/services/api/cases.ts | 修改：getPolicyCheck / runDeclarationCheck |
+| src/components/brain/PolicyHintCard.tsx | 新建：政策提示卡（🟢🟡🔴 + 风险项 + 替代银行 + 免责） |
+| src/components/brain/DeclarationCheckCard.tsx | 新建：申报一致性检查功能卡（触发/材料选择/结论分层） |
+| src/components/brain/CasePanorama.tsx | 修改：全景挂载 PolicyHintCard（建档后/事实变更时） |
+| src/components/brain/BrainChat.tsx | 修改：对话流可渲染 DeclarationCheckCard（后端 tool 卡或 mock） |
+| src/components/brain/HomePage.tsx | 修改：建案成功后 Toast 提示可查看政策提示（或卡片入口） |
+
+⚠️ 严禁修改其他文件；严禁改动后端/接口。
+
+## 一、PolicyHintCard
+- props: `{ result: PolicyCheckResult }`
+- 🟢 绿卡（无 issues）："政策画像良好" + summary
+- 🟡/🔴：标题（overall 中文映射：green=建议可行 / amber=注意 / red=高风险）+ issues 列表（level 色点 + title + detail + suggestion）+ 替代银行（alternative_lenders chips）+ 免责声明小字
+- 可关闭（本地 state）；卡片 hover 抬升；spring 入场
+
+## 二、DeclarationCheckCard
+- 触发：全景或对话中"开始申报一致性检查"按钮/建议卡；点击展开材料选择：
+  - 多选文件（本地 mock 文件列表 V1）或"贴文件夹路径"输入框 → [开始检查]（调 runDeclarationCheck）
+- 结论分层：✅ 通过（绿色）/ ⚠️ 预警（逐项 findings：item + evidence + level + suggestion，可展开）/ 🔴 无法解析（需人工）
+- 底部操作：预警时 [生成解释信草稿]（Toast"WO-20 交付后可用"）
+- 检查完成写一条上下文事件（V1 前端本地状态，标注待后端闭环）
+- mock 分支：MOCK_DECLARATION（含 1 条 warning：dependents 与银行流水不符）
+
+## 三、挂载
+- CasePanorama：policy 卡放"风险与注意事项"区上方（仅当有结果时）
+- BrainChat：declaration 卡可由工具卡/mock 渲染；无案件不显示
+
+## 验证
+- npx tsc --noEmit → 零错误；npm run build → 成功
+
+## 验收参考（手动）
+1. 打开案件全景 → 政策提示卡（mock 或真实）显示风险/替代银行/免责；可关闭
+2. 触发一致性检查 → 选材料/贴路径 → 结论卡（✅/⚠️/🔴）；预警逐项可展开；解释信按钮 Toast 占位
+3. 后端未启动 → Toast + mock 兜底不崩溃
+
+⚠️ 执行纪律：只改改动范围表中的文件；接口字段名照契约；不引入新依赖；失败先报告。
+```
+
+---
+
+## 批 F-10：提醒展示（对话内自然提醒 + 首页/全景联动）
+
+> 数据源：任务 deadline（现有 tasks）+ WO-21 reminders 端点（交付前 mock）。#11 三处落点补齐"对话内自然提醒"。
+
+### 提示词正文（复制给 AI Studio）
+
+```
+# 任务：Vera Workbench — 提醒展示（对话内自然提醒 + 首页/全景联动）
+
+## 背景
+#11 定稿：提醒三处落点——打开软件汇总横幅（首页已有 overdue banner）、全景待办卡（F-3b 已有）、**案件对话内自然提醒（缺）**。
+本批：案件对话打开时，若有到期/逾期待办或承诺 → 对话顶部显示提醒条 + AI 首句自然带出；与首页/全景数据同源。
+
+## 技术约束
+- TypeScript strict / React / Vite / Tailwind / motion/react / zustand（现有）
+- 不引入新依赖；颜色变量派生；动效 spring；reduced-motion
+- 数据：现有 useTaskStore（deadline/priority）；WO-21 reminders 端点交付后扩展（V1 用任务推导）
+
+## 改动范围（严禁超出）
+
+| 文件 | 操作 |
+|------|------|
+| src/components/brain/CaseReminderBanner.tsx | 新建：案件对话顶部到期/逾期提醒条 |
+| src/components/brain/BrainChat.tsx | 修改：案件打开时计算到期待办 → 挂提醒条 + 首条消息前自然提示（mock 分支可演示） |
+| src/types/api.ts · src/services/api/tasks.ts | 修改：如需 reminder 类型/端点（V1 可不改，用任务推导） |
+
+⚠️ 严禁修改其他文件；严禁改动后端/接口。
+
+## 接口契约
+
+1. CaseReminderBanner：
+   - props: `{ caseId: string; overdue: number; dueToday: number }`
+   - overdue > 0 → 红条"该案件有 N 个待办已逾期，建议优先处理"；dueToday > 0 → 琥珀条"N 个待办今日到期"
+   - 可关闭（本地 state）；点击条 → 跳到待办/对话相关（V1 Toast）
+2. BrainChat 集成：
+   - caseId 非空时：从 useTaskStore 过滤该案件待办 → 计算 overdue/dueToday → 挂 CaseReminderBanner（消息流上方）
+   - AI 首条自然提示（V1 mock：当 overdue>0 时，mock 首条 assistant 消息前插一条提醒气泡"记得先处理 XX 的逾期补件"；真实接入等 WO-21）
+   - 全局咨询（无案件）不显示
+3. 首页/全景联动：数据同源（同一 taskStore），首页 banner 与全景待办卡已存在，本批不改
+
+## 验证
+- npx tsc --noEmit → 零错误；npm run build → 成功
+
+## 验收参考（手动）
+1. 打开有逾期待办的案件对话 → 顶部红色提醒条；今日到期 → 琥珀条
+2. 提醒条可关闭；无到期 → 不显示
+3. mock 分支：首条消息前有自然提醒气泡
+4. 全局咨询不显示提醒条；动效顺滑；reduced-motion 生效
+
+⚠️ 执行纪律：只改改动范围表中的文件；数据与首页/全景同源（不新造）；失败先报告。
+```
 
 ---
 
