@@ -148,7 +148,7 @@
 - 110+6 测试；全量 pytest **646 passed**；`indicative: false` 语义修正
 - 遗留：prudent offset 未建模（补丁候选）；BOC 2 参数取契约表 + HEM 仅 Australia 块（notes 标注）
 
-### WO-22：银行主数据 + 聚合平台（📋 施工单已出，待执行）
+### WO-22：银行主数据 + 聚合平台（✅ 已完成 2026-08-13，c25acf0 + d69ca5e）
 - `config/bank_registry.yaml` 22 家分层 + 5 平台 key；`core/bank_registry.py` 别名解析
 - `Case.lender_ref` / `submission_platform_ref` + 幂等回填工具；4 消费点切 key；`GET /api/banks/` + `/api/platforms/`
 - 施工单：docs/flash_specs/wo-22-bank-registry.md
@@ -156,18 +156,27 @@
 ### WO-26（✅ 已完成 2026-08-13，492e193）：Agent 编排层 + 流程包框架
 - V1 轻量编排（match_flow 规则路由 + run_flow 执行器 + config/agent_flows 3 流程包 + 呈现分类 result_card/dialog）；pytest 783；Pydantic AI 不引
 
-### WO-26b（待办，Codex 直接实施）：Pydantic AI 编排内核
-- WO-26 验收通过后，由 Codex 直接实施：pydantic-ai 接入替换执行内核（接口契约不变），DeepSeek/Gemini OpenAI 兼容接入、版本锁定（解决主文档 §八 待拍板）、脱敏红线测试延续
+### WO-26b（✅ 已完成 2026-08-13，a2ff911）：Pydantic AI 编排内核
+- pydantic-ai 2.29.0 接入替换执行内核（接口契约不变）；模型路由（DeepSeek 默认/Gemini 英文，短超时+健康探测）；参数校验/确认钩子；缓存纪律 + flow 路径 AiUsageLog；全量 804 → 843
 - Pydantic AI 接入 + `agents/*.yaml` 流程包（triggers/steps/tools/confirm_required/acceptance）
 - 先把申报一致性/建档/计算器包装成流程包；对话路由 → 执行
 
-### WO-27（待开）：跟进 / 催件 / OS 回复 三个流程
-- 均为空壳注册条目；承诺/提醒/草稿链路补齐
+### WO-26c（✅ 已完成 2026-08-13，05de0a1）：StepContext 显式契约
+- runner 解析 $arg/$case_id/$step.output + required 校验 + 多步 output 累积；全量 814
+
+### WO-27（✅ 已完成 2026-08-13，fc9c532）：跟进 / 催件 / OS 回复 三个共创流程
+- followup/chaser/os_reply 流程包（dialog）+ draft_email 工具（V1-V3 版本链/branch/confirm→DraftCard）+ CaseChatMessage.parent_message_id/branch_label 迁移 + CardSchema；只出草稿、未确认不蒸馏；全量 825
+
+### WO-28（✅ 已完成 2026-08-13，40af981）：技能包系统
+- SkillManifest schema（白名单强制/assets 禁可执行）+ 注册表 CRUD/版本回滚 + AI 提议→Vera 确认人闸；7 端点；全量 843
+
+### 前端 F-15（📋 提示词已出 2026-08-13）：共创 Dialog 卡片 + 技能中心
+- flow_followup/chaser/os_reply dialog 卡 + DraftCard 出口；/api/skills 七端点 UI + 人闸/版本回滚
 
 ### V2 定稿（2026-08-13，主文档 §十三）：案件文件夹机制 + 文件操作
 - 案件文件夹关联（选已有/自动建）+ 三档渐进（新文件自动发现 → 按需自主取 → 主动预判）
 - 文件操作：Vera 主动要求才执行（放入/改名/移动），PathGuard 校验，绝不自主
-### WO-23：PST 接线 + pyproject 对齐（📋 施工单已出，待执行）
+### WO-23：PST 接线 + pyproject 对齐（✅ 已完成 2026-08-13，a30a4ef）
 - import_pst.py remember 接线（F821 真缺陷）；pyproject 声明 openpyxl/oletools/python-multipart；uv.lock 重新生成入库
 - 施工单：docs/flash_specs/wo-23-pst-pyproject.md
 ### WO-10：基础设施 + 调度（✅ 精简版 2026-08-13）
