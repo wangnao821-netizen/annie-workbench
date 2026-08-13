@@ -26,7 +26,7 @@ _SELF_EMPLOYED_RULES = {
 # 临时签证 → 多数主流行收紧（方向性）
 _TEMP_VISA_LENDERS = {"CBA", "ANZ", "NAB", "Westpac"}
 
-# 宽松度 → 替代排序权重（lenient 优先，风险从低到高）
+# 宽松度 → 替代银行排序权重（lenient 优先，风险从低到高）
 _STRICTNESS_RANK = {"lenient": 0, "medium": 1, "strict": 2}
 
 # 模块级 yaml 缓存：路径 → lenders dict（只读）
@@ -60,7 +60,7 @@ def load_lender_policies(config_dir: Path) -> dict[str, Any]:
 
 
 def _load_yaml(config_dir: Path) -> dict[str, Any]:
-    """读取并缓存 config/lender_policies.yaml 的 lenders 段（按 path 缓存）。"""
+    """读取并缓存 lender_policies.yaml 的 lenders 段（按 path 缓存）。"""
     path = config_dir / "lender_policies.yaml"
     if str(path) not in _yaml_cache:
         try:
@@ -73,13 +73,11 @@ def _load_yaml(config_dir: Path) -> dict[str, Any]:
 
 
 def _is_self_employed(employment_type: str | None) -> bool:
-    if not employment_type:
-        return False
-    return any(k in employment_type for k in ("自雇", "ABN", "self"))
+    return bool(employment_type) and any(k in employment_type for k in ("自雇", "ABN", "self"))
 
 
 def _match_detail(lender_data: dict[str, Any], keywords: tuple[str, ...], fallback: str) -> str:
-    """从 yaml special_requirements/avoid_for 找含关键词的文案，取不到用内置模板。"""
+    """从 yaml special_requirements/avoid_for 找含关键词文案，取不到用内置模板。"""
     for field_name in ("special_requirements", "avoid_for"):
         for it in lender_data.get(field_name) or []:
             if any(k in str(it) for k in keywords):
@@ -87,29 +85,16 @@ def _match_detail(lender_data: dict[str, Any], keywords: tuple[str, ...], fallba
     return fallback
 
 
-def _make_self_employed_issue(rule: dict, lender_data: dict[str, Any]) -> PolicyIssue:
-    strictness = rule["strictness"]
+def _self_employed_issue(strictness: str, lender_data: dict[str, Any]) -> PolicyIssue:
+    """自雇按宽松度生成 issue：strict=red / medium=amber / lenient=green。"""
     detail = _match_detail(lender_data, ("自雇",), "自雇需提供 2 年税表+会计师信")
     if strictness == "strict":
-        return PolicyIssue(
-            level="red",
-            title="自雇要求严格（需 2 年税表）",
-            detail=detail,
-            suggestion="建议改投接受 1 年税表的银行（如 CBA）",
-        )
+        return PolicyIssue("red", "自雇要求严格（需 2 年税表）", detail, "建议改投接受 1 年税表的银行（如 CBA）")
     if strictness == "medium":
-        return PolicyIssue(
-            level="amber",
-            title="自雇要求较严格（需 2 年税表）",
-            detail=detail,
-            suggestion="建议准备 2 年税表，或评估 CBA（接受 1 年税表）",
-        )
-    return PolicyIssue(
-        level="green",
-        title="自雇政策宽松（接受 add-backs）",
-        detail=_match_detail(lender_data, ("自雇",), "自雇政策相对宽松（接受 add-backs）"),
-        suggestion="准备 1 年完整税表即可",
-    )
+        return PolicyIssue("amber", "自雇要求较严格（需 2 年税表）", detail, "建议准备 2 年税表，或评估 CBA（接受 1 年税表）")
+    return PolicyIssue("green", "自雇政策宽松（接受 add-backs）",
+                       _match_detail(lender_data, ("自雇",), "自雇政策相对宽松（接受 add-backs）"),
+                       "准备 1 年完整税表即可")
 
 
 def check_policy(
@@ -123,65 +108,41 @@ def check_policy(
 ) -> PolicyCheckResult:
     """规则引擎主入口：按案件画像输出政策风险与替代银行建议。
 
-    规则（V1）：
-    - 自雇（employment_type 含 自雇/ABN/self）：对照 _SELF_EMPLOYED_RULES——
-      strict 且无 ABN 年限信息 → red "自雇要求严格（需 2 年税表）"；lenient → green/amber；
-    - 临时签证（residency == temp_visa 且 lender 在 _TEMP_VISA_LENDERS）→ amber "临时签证需银行逐案审核"；
-    - LVR > max_lvr_no_lmi（读 yaml）→ amber/red "LVR 超过 80% 需 LMI"；> max_lvr_with_lmi → red；
-    - 无 lender 数据 → 返回空结果（green，无提示）；
-    - 结果按最严重 level 汇总；alternative_lenders = 其余 lender 按 strictness 排序（lenient 优先）。
+    规则（V1）：自雇（含 自雇/ABN/self）对照 _SELF_EMPLOYED_RULES，strict 无 ABN 年限→red、
+    lenient→green/amber；temp_visa 且 lender 在 _TEMP_VISA_LENDERS→amber；LVR > max_lvr_no_lmi
+    （读 yaml）→amber、> max_lvr_with_lmi→red；无 lender 数据→green 空结果；overall 取最严重，
+    alternative_lenders 按 strictness 排序（lenient 优先）。
     """
     del loan_amount, property_value  # V1 仅用 lvr，金额字段预留给后续规则
     lenders = _load_yaml(config_dir)
     lender_data = lenders.get(lender) if lender else None
     if not lender or lender_data is None:
-        return PolicyCheckResult(
-            lender=lender or "", overall="green", issues=[], alternative_lenders=[]
-        )
+        return PolicyCheckResult(lender=lender or "", overall="green", issues=[], alternative_lenders=[])
 
     issues: list[PolicyIssue] = []
-
-    # 自雇规则
-    if _is_self_employed(employment_type):
-        rule = _SELF_EMPLOYED_RULES.get(lender)
-        if rule is not None:
-            issues.append(_make_self_employed_issue(rule, lender_data))
-
-    # 临时签证
+    if _is_self_employed(employment_type) and _SELF_EMPLOYED_RULES.get(lender):
+        issues.append(_self_employed_issue(_SELF_EMPLOYED_RULES[lender]["strictness"], lender_data))
     if residency == "temp_visa" and lender in _TEMP_VISA_LENDERS:
-        issues.append(
-            PolicyIssue(
-                level="amber",
-                title="临时签证需银行逐案审核",
-                detail="临时签证在主流银行通常需逐案审核，审批可能更久或受限",
-                suggestion="建议准备签证信并提前与银行确认资质",
-            )
-        )
-
-    # LVR（读 yaml 上限，金额/比例一律规则判断）
+        issues.append(PolicyIssue(
+            "amber", "临时签证需银行逐案审核",
+            "临时签证在主流银行通常需逐案审核，审批可能更久或受限",
+            "建议准备签证信并提前与银行确认资质",
+        ))
     max_no_lmi = float(lender_data.get("max_lvr_no_lmi") or 80)
     max_with_lmi = float(lender_data.get("max_lvr_with_lmi") or 95)
     if lvr is not None:
         if lvr > max_with_lmi:
-            issues.append(
-                PolicyIssue(
-                    level="red",
-                    title=f"LVR 超过 {max_with_lmi:.0f}% 需特殊产品",
-                    detail=f"当前 LVR {lvr:.0f}%，超过 {max_with_lmi:.0f}% 常规上限，主流行无法承接",
-                    suggestion="建议追加首付降低 LVR，或评估二贷/平层等特殊产品",
-                )
-            )
+            issues.append(PolicyIssue(
+                "red", f"LVR 超过 {max_with_lmi:.0f}% 需特殊产品",
+                f"当前 LVR {lvr:.0f}%，超过 {max_with_lmi:.0f}% 常规上限，主流行无法承接",
+                "建议追加首付降低 LVR，或评估二贷/平层等特殊产品",
+            ))
         elif lvr > max_no_lmi:
-            issues.append(
-                PolicyIssue(
-                    level="amber",
-                    title=f"LVR 超过 {max_no_lmi:.0f}% 需 LMI",
-                    detail=f"当前 LVR {lvr:.0f}%，超过 {max_no_lmi:.0f}% 免 LMI 上限",
-                    suggestion="需购买房贷保险（LMI），或追加首付降至 80% 以下",
-                )
-            )
-
-    # 按最严重 level 汇总
+            issues.append(PolicyIssue(
+                "amber", f"LVR 超过 {max_no_lmi:.0f}% 需 LMI",
+                f"当前 LVR {lvr:.0f}%，超过 {max_no_lmi:.0f}% 免 LMI 上限",
+                "需购买房贷保险（LMI），或追加首付降至 80% 以下",
+            ))
     if not issues:
         overall = "green"
     elif any(i.level == "red" for i in issues):
@@ -190,18 +151,10 @@ def check_policy(
         overall = "amber"
     else:
         overall = "green"
-
-    # 替代银行：除当前 lender 外，按 strictness 排序（lenient 优先）
     alternatives = [name for name in lenders if name != lender]
     alternatives.sort(
-        key=lambda n: _STRICTNESS_RANK.get(
-            _SELF_EMPLOYED_RULES.get(n, {}).get("strictness", "unknown"), 3
-        )
+        key=lambda n: _STRICTNESS_RANK.get(_SELF_EMPLOYED_RULES.get(n, {}).get("strictness", "unknown"), 3)
     )
-
     return PolicyCheckResult(
-        lender=lender,
-        overall=overall,
-        issues=issues,
-        alternative_lenders=alternatives,
+        lender=lender, overall=overall, issues=issues, alternative_lenders=alternatives,
     )
