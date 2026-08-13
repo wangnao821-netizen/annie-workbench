@@ -1897,3 +1897,27 @@ src/stores/toastStore.ts
 - **F-16 案件文件夹关联**：📋 待做（已在 (33) 核实不存在：建档无选文件夹/自动创建、详情无 folder_path 展示）
 - **F-17 三档渐进前端**：📋 待做（已在 (33) 核实不存在：无 file_discovered 提醒、无 folder_lookup/gap_analysis 卡片）
 - **F-18 全局咨询右栏统计分析**：✅ **已有，撤回**（`components/brain/GlobalStatsPanel.tsx` 右栏业务概览 + `pages/Analytics.tsx` 完整统计页已实现，无需再做）
+---
+
+# F-16 修订 v2（2026-08-14，Vera 拍板）：案件文件夹关联 UX
+
+> 替代原 F-16 的交互部分（目录选择器 + 自动预填）。后端配套端点见 WO-34（浏览/解析），契约以快照更新后为准。
+
+## 一、新建案件表单：关联文件夹按钮
+- 客户姓名等字段旁新增"关联文件夹"按钮 → 打开"选择文件夹"弹窗
+- 弹窗内两种方式：
+  1. **自动创建**：按 broker/client/case 命名自动建标准子目录（_Inbox / Send to Lender / Don't send 等）→ `POST /api/cases/{id}/folder` body `{"mode":"auto"}`
+  2. **浏览选择已有**：目录选择器（见二）→ 选完 → `{"mode":"existing","path":"相对路径"}`
+
+## 二、目录选择器弹窗（替代"输入路径"）
+- 后端 `GET /api/folders/browse?path=<rel>`：列出 CLIENT_FILES_ROOT 下子目录（安全边界内，拒绝越界/穿越）
+- 弹窗 = 文件夹树浏览：面包屑 + 子目录列表 + 搜索框（按名称过滤）；可逐级进入；选中 → 确认
+- 说明：浏览器拿不到电脑绝对路径，用"浏览案件根目录"弹窗替代系统文件选择器——案件文件夹都在 CLIENT_FILES_ROOT 下，安全且够用
+
+## 三、选完自动预填
+- 后端 `GET /api/folders/parse?path=<rel>` → `{client_name?, broker_name?, case_id?}`
+- 解析：优先按三段结构 broker/client/case-id；取末段清理（去下划线/连字符/数字尾巴）兜底
+- 选完文件夹 → 调 parse → 自动填入客户姓名（等字段），Vera 可改
+
+## 四、红线
+- 只读浏览；无文件操作按钮；路径校验全部由后端完成
