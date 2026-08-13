@@ -116,6 +116,7 @@ class AiRoutingConfig(BaseModel):
     gemini_timeout_seconds: int = Field(default=8, ge=1)
     gemini_skip_after_failures: int = Field(default=3, ge=1)
     gemini_skip_seconds: int = Field(default=600, ge=1)
+    intent_routing_enabled: bool = True   # WO-30：规则撞车时 LLM 选流程包
 
 
 class AiConfig(BaseModel):

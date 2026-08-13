@@ -80,29 +80,32 @@ def load_flows() -> dict[str, dict]:
     return flows
 
 
-def match_flow(message: str) -> dict | None:
-    """规则触发：消息包含任一 triggers 关键词 → 返回流程包 dict；否则 None。
-    匹配大小写不敏感；triggers 含正则时用 re.search。
-    """
+def match_flows(message: str) -> list[dict]:
+    """返回所有规则命中的流程包（保持 load_flows 顺序；WO-30 意图路由用）。"""
     if not message:
-        return None
-
+        return []
     try:
         flows = load_flows()
     except ValueError as exc:
         logger.warning("Failed to load flows during match: %s", exc)
-        return None
-
+        return []
+    hits: list[dict] = []
     for flow in flows.values():
-        triggers = flow.get("triggers", [])
-        for trig in triggers:
+        for trig in flow.get("triggers", []):
             if not trig or not isinstance(trig, str):
                 continue
             try:
                 if re.search(trig, message, re.IGNORECASE):
-                    return flow
+                    hits.append(flow)
+                    break
             except re.error:
                 if trig.lower() in message.lower():
-                    return flow
+                    hits.append(flow)
+                    break
+    return hits
 
-    return None
+
+def match_flow(message: str) -> dict | None:
+    """规则触发：返回首个命中的流程包；否则 None。"""
+    hits = match_flows(message)
+    return hits[0] if hits else None

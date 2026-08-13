@@ -36,11 +36,11 @@ def run_chat_with_tools(
     Returns:
         {"reply": str, "tool_cards": list[dict], "recorded_facts": list[dict]}
     """
-    # ── Agent 流程包路由（WO-26）：命中 → 执行流程包；未命中 → 原工具循环 ──
-    from core.agents.flows import match_flow
+    # ── Agent 流程包路由（WO-26 + WO-30）：命中 → 执行流程包；未命中 → 原工具循环 ──
+    from core.agents.router import route_flow
     from core.agents.runner import run_flow
 
-    flow = match_flow(message)
+    flow = route_flow(message, db, case_id=case_id)
     if flow is not None:
         args = {}  # V1：参数由前端/对话补全，流程包先做触发与卡片壳
         return run_flow(flow, case_id, args, db, track=track)
