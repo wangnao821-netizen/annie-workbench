@@ -1946,7 +1946,7 @@ src/stores/toastStore.ts
 - 只读浏览；无文件操作按钮；路径校验全部由后端完成
 ---
 
-# F-19 补丁：GapAnalysisCard 字段对齐（WO-33 契约）
+# F-19 补丁：GapAnalysisCard 字段对齐 + 设置页顶栏拥挤（WO-33 契约 / 布局）
 
 > 后端 gap_analysis payload 契约（WO-33，已验收）：
 > `{ missing: [{master_id, name, reason}], matched: [{master_id, name}], suggestions: [{type, title, description, action_type, status, item_name}], summary }`
@@ -1957,3 +1957,8 @@ src/stores/toastStore.ts
 2. suggestions 展示：`s.item` → `s.title`；`s.suggestion` → `s.description`（可在 description 前加"建议："）
 3. 保留 summary 直显；matched 可加"已收"徽标（可选）
 4. mock 数据同步改为后端字段名（name/title/description）
+---
+
+## F-19 之二：设置页顶栏拥挤（src/pages/Settings.tsx）
+- 现状：标题块 + 5 个标签挤在同一行（`flex-col sm:flex-row ... justify-between`），长标题挤压标签，标签 `gap-1` 太紧
+- 期望：顶栏改两行——第一行标题+副标题；第二行 5 个标签整行铺开（`flex flex-col gap-4 pb-4 border-b` + 标签行 `flex flex-wrap items-center gap-2 p-1.5 rounded-xl ... w-full`），换行不挤
