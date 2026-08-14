@@ -44,12 +44,15 @@ def build_chat_layers(
         {"layer": "case_brain", "text": ctx.case_brain},
         {"layer": "team", "text": ctx.team_experience},
         {"layer": "live", "text": ctx.live_data},
-        {"layer": "dialogue", "text": _build_dialogue(case_id, db)},
+        {"layer": "dialogue", "text": _build_dialogue(case_id, db, track)},
     ]
 
 
-def _build_dialogue(case_id: str, db: Session) -> str:
+def _build_dialogue(case_id: str, db: Session, track: str = "internal") -> str:
     """对话追加区：最近 DIALOGUE_WINDOW_ROUNDS 轮（旧→新），超预算从头部截断。"""
+    from core.chat.compression import ensure_session_compression
+
+    summary = ensure_session_compression(case_id, db, track)
     rows = (
         db.query(CaseChatMessage)
         .filter(CaseChatMessage.case_id == case_id)
@@ -63,4 +66,6 @@ def _build_dialogue(case_id: str, db: Session) -> str:
     while len(text) > budget_chars and len(blocks) > 1:
         blocks.pop(0)
         text = "\n".join(blocks)
+    if summary:
+        text = f"【历史对话摘要】\n{summary}\n\n{text}" if text else f"【历史对话摘要】\n{summary}"
     return text

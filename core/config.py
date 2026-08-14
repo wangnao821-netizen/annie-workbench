@@ -119,6 +119,15 @@ class AiRoutingConfig(BaseModel):
     intent_routing_enabled: bool = True   # WO-30：规则撞车时 LLM 选流程包
 
 
+class SessionCompressionConfig(BaseModel):
+    """会话压缩（WO-35）：长对话窗口外消息蒸馏为摘要事件。"""
+
+    enabled: bool = True
+    trigger_messages: int = Field(default=30, ge=10, le=200)
+    keep_messages: int = Field(default=20, ge=10, le=100)
+    summary_max_chars: int = Field(default=600, ge=200, le=2000)
+
+
 class AiConfig(BaseModel):
     """AI API configuration."""
 
@@ -128,6 +137,7 @@ class AiConfig(BaseModel):
     timeout_seconds: int = Field(gt=0)
     confidence_threshold: float = Field(ge=0.0, le=1.0)
     routing: AiRoutingConfig = Field(default_factory=AiRoutingConfig)
+    session_compression: SessionCompressionConfig = Field(default_factory=SessionCompressionConfig)
 
 
 class WatchConfig(BaseModel):

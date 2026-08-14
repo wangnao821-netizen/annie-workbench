@@ -63,6 +63,11 @@ ai:
     gemini_skip_after_failures: 3
     gemini_skip_seconds: 600
     intent_routing_enabled: true
+  session_compression:
+    enabled: true
+    trigger_messages: 30
+    keep_messages: 20
+    summary_max_chars: 600
 
 parser:
   # LiteParse 配置
