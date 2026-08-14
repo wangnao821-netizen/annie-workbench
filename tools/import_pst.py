@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """Offline tool to import historical emails and attachments from a local PST file.
 
 # This tool is designed to be executed via the command line and NEVER integrated
@@ -31,7 +30,6 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from core.pii.gateway import desensitize
 from core.knowledge.memory import remember
 from core.logger import get_logger, setup_file_logging
 from core.models.db import get_session_factory
@@ -174,7 +172,7 @@ def process_pst(
         total_messages = sum(
             folder.get_number_of_sub_messages() for folder in archive.folders()
         )
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 — PST 计数容错，失败仅降级
         logger.warning("无法计算总邮件数，将只打印已处理数量: %s", exc)
         total_messages = 0
 
@@ -271,20 +269,20 @@ def process_pst(
                     # 4.3 Save memory in Mem0 (remember() automatically desensitizes text)
                     try:
                         remember(case_id, body, db)
-                    except Exception as mem_exc:
+                    except Exception as mem_exc:  # noqa: BLE001 — Mem0 写入失败不阻断导入
                         logger.warning(
                             "写入 Mem0 失败 (案件 %s): %s", case_id, mem_exc
                         )
                 except Exception as db_exc:
                     db.rollback()
                     logger.error("邮件入库失败: %s", db_exc)
-                    raise db_exc
+                    raise
                 finally:
                     db.close()
 
                 success_count += 1
 
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 — 单邮件失败不崩脚本
                 # Stream safety: single email failure shouldn't crash the script
                 fail_count += 1
                 logger.error("解析单封邮件失败: %s", exc)

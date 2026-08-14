@@ -25,9 +25,9 @@ from uuid import uuid4
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from core.logger import get_logger  # noqa: E402
-from core.models.db import get_sa_session_direct, init_sa_tables  # noqa: E402
-from core.models.orm import Case  # noqa: E402
+from core.logger import get_logger
+from core.models.db import get_sa_session_direct, init_sa_tables
+from core.models.orm import Case
 
 logger = get_logger(__name__)
 
@@ -78,7 +78,7 @@ def backfill_client_ids(dry_run: bool = False) -> dict[str, int]:
 
         # 按邮箱分组赋值
         groups_count = 0
-        for email, group_cases in email_groups.items():
+        for group_cases in email_groups.values():
             client_id = _generate_client_id()
             groups_count += 1
             for case in group_cases:

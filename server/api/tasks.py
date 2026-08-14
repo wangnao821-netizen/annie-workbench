@@ -8,7 +8,12 @@ from sqlalchemy.orm import Session
 from core.models.orm import Action, Case
 from core.task_engine.boss_decision import record_boss_reply
 from core.task_engine.delegation import delegate_to
-from core.task_engine.dispatcher import create_task, dispatch_task, list_tasks, to_task_response
+from core.task_engine.dispatcher import (
+    create_task,
+    dispatch_task,
+    list_tasks,
+    to_task_response,
+)
 from server.api.schemas import (
     BossReplyRequest,
     CreateTaskRequest,
