@@ -866,3 +866,34 @@ class HolidaysResponse(BaseModel):
     dls: dict[str, DlsStatus]             # key = sydney/brisbane/beijing
     china: list[HolidayItem] = []         # 中国主要长假首日（state="CN"）
     next_china: HolidayItem | None = None # 下一个中国长假首日
+
+
+# ── B 收尾：知识中心 CRUD ─────────────────────────────────────────
+
+
+class KnowledgeEntryResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    layer: str                 # case | global | industry
+    case_id: str | None = None
+    content: str
+    source: str
+    vera_confirmed: bool = False
+    lender: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class KnowledgeCreateRequest(BaseModel):
+    layer: Literal["case", "global", "industry"]
+    content: str = Field(min_length=1)
+    case_id: str | None = None
+    lender: str | None = None
+    source: str = "vera_manual"
+
+
+class KnowledgeUpdateRequest(BaseModel):
+    content: str | None = Field(default=None, min_length=1)
+    lender: str | None = None
+    vera_confirmed: bool | None = None
