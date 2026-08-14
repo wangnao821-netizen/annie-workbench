@@ -3139,3 +3139,79 @@ LLM 调 `record_fact` 且内容命中其他案件客户名时，后端**不写�
   2. 无标记事实时标题无角标；
   3. 展开后行内红标与标题角标一致；
   4. `npx tsc --noEmit` 零错误。
+
+# F-39（2026-08-15 定稿）：中栏底部收纳 + 快捷发问 + 顶部数量徽章 + 发文件识别入口
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (56)`。
+> 背景：Vera 对 (56) 中栏提出四件事——① 底部常驻「已记录 N 条」挂栏不美观，收进小入口，同区域放快捷发问；
+> ② 中栏顶部「清单」「任务」按钮显示数量徽章；③ 待确认（pending）记录要有可见提醒防漏确认；
+> ④ 中栏输入框加「发文件/图片给 VERA 识别」入口（OCR：工资单/银行流水/证件），后端 WO-44 的
+> `import` + `preview` 端点已就绪，本批纯前端接线。
+
+## 一、中栏底部（BrainChat.tsx）
+
+现状（(56) 代码位置）：
+- `L1075-1085`：`confirmedEvents.length > 0` 时整行渲染紫色挂栏「📌 已记录 N 条」+「查看」→ 打开 RecordedEventsDrawer；
+- `L1060-1074`：pendingEvents 待确认卡（ConfirmCard）混在消息流底部；
+- `L1087-1100`：输入框 footer（Sparkles + input + 发送）。
+
+改法：
+1. **删除整行「已记录 N 条」挂栏**，改为输入框 footer 左侧（Sparkles 之前）的小胶囊按钮：
+   - `id="recorded-events-pill"`，图标 📌 + 数字（`confirmedEvents.length`）；为 0 时不显示；
+   - 点击打开现有 RecordedEventsDrawer（复用 `drawerOpen` 状态）；
+   - `pendingEvents.length > 0` 时胶囊右上角加红色脉冲小圆点（`title="有待确认记录 N 条"`）。
+2. **快捷发问 chips 行**（消息流与输入框之间，`flex-shrink-0`）：
+   - 复用现有 `QUICK_ASKS`（8 项，BrainChat.tsx L32-42），横向滚动 `overflow-x-auto no-scrollbar`；
+   - chip 样式沿用现有按钮：`var(--bg-card)`/`var(--border)`，hover `border-purple-500/40`；
+   - 点击 = 等价输入并发送：`action === 'ask'` → 直接发消息；`'calculator'` → 打开 CalculatorPanel；
+     `'new_case'` → 触发建案（现有 handler）；`'compose_email'` → 触发写邮件流程（现有 mock 分支 L331-549 的对应映射）；
+   - 全局咨询（无案件）与案件模式都显示。
+3. 待确认卡区块（pendingEvents → ConfirmCard）保持现状不折叠——确认是高频动作要保持显眼；胶囊红点仅作入口提醒。
+
+## 二、中栏顶部数量徽章（BrainChat.tsx header，L645-676）
+
+1. **「任务」按钮**：右上角数字徽章 = 当前案件未完成任务数（`completed === false`）；
+   数据源与现有 `overdueCount/dueTodayCount` 同源（taskStore），可新增 `uncompletedCount`；
+   `overdueCount > 0` 时徽章红色，否则紫色系。
+2. **「清单」按钮**：右上角数字徽章 = 未收完数（`status !== 'received' && status !== 'confirmed'`）；
+   ChecklistDrawer 目前自己 fetch `getChecklist`（L90-110），BrainChat 拿不到 →
+   方案 A（推荐）：BrainChat 新增 `checklistPendingCount` state，caseId 变化时调
+   `getChecklist(caseId)`（services/api/cases 已导出）计算未收完数；
+   方案 B：抽公共 hook `src/hooks/useDrawerCounts.ts` 返回 `{taskUncompleted, taskOverdue, checklistPending, fileCount}`。
+   二选一，推荐 A（改动面最小）。
+3. **「文件」按钮**：可选。显示文件夹文件数（FileDrawer 列表长度）；做则一致显示，不做保持现状（本批不强制）。
+4. 徽章样式：按钮右上角绝对定位小圆点/胶囊（按钮已可加 `relative`）；数字 ≤99 显示数字，>99 显示 `99+`；
+   颜色沿用按钮主色系（清单绿/文件蓝/任务紫），逾期任务用红色。
+
+## 三、中栏输入框附件入口（BrainChat.tsx input footer）
+
+1. 输入框左侧（Sparkles 之前）加「📎 附件」按钮：`id="brain-chat-attach-btn"`；
+   隐藏 `input type="file"`：`accept=".pdf,.doc,.docx,.xlsx,.xls,.msg,.txt,.jpg,.jpeg,.png,.csv"`（与 WO-44 白名单一致，单选）。
+2. **仅案件模式显示**（有 `activeCaseInfo/caseId`）；全局咨询不显示（无案件可归属的文件夹）。
+3. 选择文件后的流程：
+   - `importCaseFile(caseId, file, '')`（services/api/fileOps.ts L165）→ 复制进案件文件夹根目录（保留原文件语义）
+     → 成功拿到 rel_path；重名 409 → toast「同名文件已存在」；
+   - `previewCaseFile(caseId, rel_path)`（fileOps.ts L104）→ 拿 `text_preview`（≤2000 字符，即 OCR 识别文本）；
+     `parse_error` 时 toast 提示但对话继续；
+   - 成功后向对话流 append 一条 **assistant 系统上下文消息**（视觉标「📄 文件识别」小标签）：
+     `已识别文件《{name}》：\n{text_preview 截断 800 字}`；
+   - 后续用户消息自动附带文件上下文（prompt 前缀「已识别文件《name》，请基于以上内容处理：」或 payload
+     带 `attached_file`，二选一，推荐前缀法，改动最小）；
+   - 失败：toast 错误，不阻塞输入。
+4. 识别中状态：按钮 loading（旋转图标）防重复点击；后端 60s 超时已有，前端仅 loading，不额外计时。
+
+## 四、范围与红线
+
+- 只改：`BrainChat.tsx`（必改）、`ChecklistDrawer.tsx` 或新增 `src/hooks/useDrawerCounts.ts`（徽章计数，二选一）、
+  `RecordedEventsDrawer.tsx`（可选微调胶囊/标题）；
+- 不改后端、不新增 npm 依赖、不直接访问文件系统（浏览器 File 对象走现有 API）；
+- 附件入口与 FileDrawer 导入并存：附件入口 = 「发文件让 VERA 识别」，FileDrawer = 「管理文件夹」；
+- 附件按钮只在有案件时出现；不自动改名/移动（WO-44 语义：import=复制、原文件保留）；文本预览只进对话上下文。
+
+## 五、验收
+
+1. 底部不再有整行「已记录 N 条」挂栏，只有小胶囊；点击打开记录抽屉；有待确认时红点可见；
+2. 快捷发问 chips 在输入框上方一行、横向滚动可用，点击能发出消息/打开计算器等；
+3. 「任务」按钮显示未完成数、逾期红色；「清单」按钮显示未收完数；确认/完成操作后数字实时更新；
+4. 输入框附件按钮仅案件模式可见；选文件后自动导入+识别，对话出现「📄 文件识别」消息含 OCR 文本；重名/失败有 toast；
+5. `npx tsc --noEmit` 零错误。
