@@ -155,7 +155,9 @@ def parse_file(file_path: Path) -> ParseResult:
         ocr_text = ""
         try:
             lp_text, is_ocr, _ = _parse_with_liteparse(file_path)
-            if lp_text and len(lp_text.strip()) >= 50:
+            # 有效字符判定：过滤 markdown 代码块包装（```text\n\n```）等空白噪音，
+            # 要求至少 10 个字母/数字/中文字符才算有效 OCR 文本
+            if lp_text and sum(1 for ch in lp_text if ch.isalnum()) >= 10:
                 ocr_text = lp_text.strip()
         except Exception as ocr_err:
             logger.debug("Image OCR via LiteParse failed (non-critical): %s", ocr_err)
