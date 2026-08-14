@@ -2123,3 +2123,49 @@ interface AnalyticsUsage {
 4. 导入历史、数据迁移无任何导航入口（页面文件保留）
 5. 全站无窗口控制按钮
 6. `npx tsc --noEmit` 零错误；未引入新依赖
+
+---
+
+# F-24 补丁（2026-08-14）：顶栏澳洲时间 + 时区/日历/假期面板
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (45)`。Vera 团队总部堪培拉（ACT）、客户集中在悉尼（NSW）与布里斯班（QLD），中国与澳洲协同。后端 WO-39 提供 `GET /api/holidays`（today 三州状态 / upcoming / next / dls），本批次消费它 + 浏览器 Intl 实时时钟（零新依赖）。
+
+## 一、顶栏（src/components/layout/TopNavBar.tsx，与 F-23 同批）
+
+1. 通知铃铛左侧新增**澳洲时间按钮**：显示"堪培拉 16:32"（`Intl.DateTimeFormat('en-AU', { timeZone: 'Australia/Sydney', hour: '2-digit', minute: '2-digit', hour12: false })`，每分钟刷新；`Australia/Sydney` 自动含夏令时）。点击 → 打开下面的时区面板（复用通知下拉的 AnimatePresence 样式）。
+2. 折叠/窄屏（md 以下）时按钮只显示时间不显示"堪培拉"前缀。
+
+## 二、时区/日历/假期面板（建议新文件 src/components/layout/AuTimePanel.tsx，≤200 行）
+
+1. **三时区对照**（三列）：堪培拉（大号，标注 = 悉尼时区）/ 布里斯班（QLD 无夏令时，夏令时期间与悉尼差 1 小时，可加小标注"无夏令时"）/ 北京。全部 Intl timeZone 实时刷新，夏令时由浏览器自动处理。
+2. **今日银行工作日状态**（数据 `GET /api/holidays` 的 `today`）：ACT / NSW / QLD 三行，各自 ✅ 银行工作日 或 ⛔ 休息日（周末或假期名，如 "Good Friday"）。
+3. **中澳办公重叠提示**：北京 09:00-17:00 与 悉尼/堪培拉 09:00-17:00 的换算——当前若双方均在办公时段显示"当前中澳均在办公 ✅"，否则显示"仅 X 在办公"。计算用两时区当前小时（堪培拉 09-17 且 北京 09-17 = 双方办公；规则写在注释里便于校对）。
+4. **本月日历**：小月份视图（当前月），三州假期分别用三种颜色圆点标记（ACT 紫 / NSW 蓝 / QLD 绿），底部图例。
+5. **未来假期列表**（`upcoming`，默认 10 条）：日期 + 名称 + 州徽标（ACT/NSW/QLD），按日期升序。
+6. **下一个假期倒计时**（`next`，默认州）："距 Good Friday（2026-04-03）还有 7 天"。
+7. **夏令时提示**（`dls`）：sydney.dls_active 时显示"悉尼已进入夏令时（AEDT，UTC+11，与北京差 3 小时）"，否则"悉尼标准时（AEST，UTC+10，与北京差 2 小时）"；布里斯班恒 UTC+10。
+8. 加载失败/空库：显示"—"，不报错；`getHolidays()` 服务方法失败时回退 mock 数据（按现有 service 模式）。
+
+## 三、服务层（src/services/api/holidays.ts，新建）
+
+```typescript
+export interface HolidayStateToday { date: string; state: string; is_working_day: boolean; holiday_name?: string | null; weekday: number; }
+export interface HolidayItem { date: string; name: string; state: string; display: string; }
+export interface DlsStatus { utc_offset_hours: number; dls_active: boolean; }
+export interface HolidaysResponse { today: Record<string, HolidayStateToday>; upcoming: HolidayItem[]; next: HolidayItem | null; dls: Record<string, DlsStatus>; }
+export async function getHolidays(state?: string, limit?: number): Promise<HolidaysResponse>;  // GET /api/holidays?state=&limit=
+```
+
+`types/api.ts` 同步追加上述接口（**允许改 types/api.ts，本次唯一例外**）；`services/api/index.ts` 导出。
+
+## 四、红线
+- 只改/新建：`TopNavBar.tsx`（时间按钮 + 面板入口）、`src/components/layout/AuTimePanel.tsx`（新建）、`src/services/api/holidays.ts`（新建）、`src/types/api.ts`（追加接口）、`src/services/api/index.ts`（导出）
+- 后端已就绪（WO-39），不改后端；不新增 npm 依赖（Intl 原生）
+- 面板为纯只读展示，无任何写操作
+- `npx tsc --noEmit` 零错误
+
+## 五、验收
+1. 顶栏显示堪培拉实时时间（每分钟跳动），点击弹出面板
+2. 面板含：三时区（堪培拉/布里斯班/北京）、三州今日状态、办公重叠提示、本月日历（三色假期点+图例）、未来假期列表、倒计时、夏令时提示
+3. 夏令时期间堪培拉与布里斯班差 1 小时正确显示
+4. 无新依赖、编译零错误；后端未就绪时 mock 兜底不报错
