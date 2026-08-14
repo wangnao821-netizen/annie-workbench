@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from core.context.accumulator import append_context_event
 from core.escalation.service import create_escalation
 from core.logger import get_logger
+from core.pii.gateway import rehydrate
 from core.task_engine.dispatcher import create_task
 
 logger = get_logger(__name__)
@@ -210,7 +211,7 @@ def _create_task(arguments: dict, case_id: str, db: Session) -> dict:
 
 
 def _record_fact(arguments: dict, case_id: str, track: str, db: Session) -> dict:
-    """record_fact 实现：高置信直接 confirmed，低置信 pending（#6）。"""
+    """record_fact 实现：高置信直接 confirmed，低置信 pending（#6）+ 防串案归属校验（②）。"""
     if not case_id:
         return {"ok": False, "error": "全局对话禁止写事实"}
     content = str(arguments.get("content", "")).strip()
@@ -219,6 +220,20 @@ def _record_fact(arguments: dict, case_id: str, track: str, db: Session) -> dict
     confidence = arguments.get("confidence", "low")
     status = "confirmed" if confidence == "high" else "pending"
     try:
+        real_content = rehydrate(content, case_id, db)
+        conflict = _find_attribution_conflict(real_content, case_id, db)
+        if conflict:
+            logger.info(
+                "防串案：事实归属冲突，未写入 case=%s matched=%s",
+                case_id,
+                conflict["matched_client"],
+            )
+            return {
+                "ok": False,
+                "attribution": conflict,
+                "content": real_content,
+                "track": track,
+            }
         event = append_context_event(
             case_id=case_id,
             source_type="manual_note",
@@ -239,6 +254,35 @@ def _record_fact(arguments: dict, case_id: str, track: str, db: Session) -> dict
     except Exception as exc:  # noqa: BLE001 — 工具失败不阻断对话
         logger.warning("record_fact failed: %s", exc)
         return {"ok": False, "error": str(exc)}
+
+
+def _find_attribution_conflict(content: str, case_id: str, db: Session) -> dict | None:
+    """防串案协议②：内容中出现其他案件客户名 → 返回归属冲突信息（未确认不写入）。
+
+    Args:
+        content: 已还原为真实文本的事实原文。
+        case_id: 当前会话绑定案件。
+        db: SQLAlchemy session。
+
+    Returns:
+        {"matched_case_id", "matched_client", "matched_lender"}；无冲突返回 None。
+    """
+    from core.models.orm import Case
+
+    norm = (content or "").replace(" ", "").lower()
+    if not norm:
+        return None
+    others = db.query(Case).filter(Case.id != case_id).all()
+    for case in others:
+        name = (case.client_name or "").strip()
+        name_norm = name.replace(" ", "").lower()
+        if name_norm and name_norm in norm:
+            return {
+                "matched_case_id": case.id,
+                "matched_client": name,
+                "matched_lender": case.lender or "",
+            }
+    return None
 
 
 def _checklist_query(arguments: dict, case_id: str, db: Session) -> dict:

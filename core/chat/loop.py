@@ -127,12 +127,27 @@ def _tool_result_text(out: dict) -> str:
 
 
 def _collect_cards(out: dict, tool_cards: list[dict], recorded_facts: list[dict]) -> None:
-    """record_fact low → record_confirm 卡；high → recorded_facts；suggest_submission → submission_suggest 卡。"""
+    """record_fact low → record_confirm 卡；high → recorded_facts；attribution → 防串案建议卡；
+    suggest_submission → submission_suggest 卡。"""
     if out.get("suggest"):
         tool_cards.append({
             "type": "submission_suggest",
             "title": "进入递交模式？",
             "payload": {"message": "检测到递交/写银行内容意图，要进入递交模式吗？"},
+        })
+        return
+    if out.get("attribution"):
+        attr = out["attribution"]
+        tool_cards.append({
+            "type": "attribution_suggest",
+            "title": "这条信息看起来属于其他客户",
+            "payload": {
+                "content": out.get("content", ""),
+                "matched_client": attr.get("matched_client", ""),
+                "matched_lender": attr.get("matched_lender", ""),
+                "matched_case_id": attr.get("matched_case_id", ""),
+                "track": out.get("track", "internal"),
+            },
         })
         return
     if not out.get("ok"):
