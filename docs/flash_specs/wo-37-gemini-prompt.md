@@ -18,6 +18,7 @@
 3. **PII 红线**：先例文本只取本地结构化字段（Action.title / ai_suggestion / vera_note / boss_decision），本单不做 LLM、不出外网
 4. 注入仅限 `task_type == "case_chat"`；不改 `LAYER_ORDER` / 其他 budget；检索失败仅 `logger.warning` 不阻断
 5. context_builder.py 内用**函数内局部导入**（`from core.knowledge.precedent import ...`），避免循环依赖
+6. **签名修订（2026-08-14 已确认）**：`_build_team_experience` 追加可选关键字参数 `case_id: str | None = None`；唯一调用点 `assemble_context` L226 传 `case_id=case.id`；默认 None 不注入，其他调用零影响
 
 ## 接口契约速览（完整签名见施工单「二、接口契约」，一字不改）
 

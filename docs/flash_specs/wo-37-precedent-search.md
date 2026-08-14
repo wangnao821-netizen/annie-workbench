@@ -69,6 +69,7 @@ def build_precedent_block(precedents: list[dict], max_chars: int = 800) -> str:
 ### 上下文注入（core/ai/context_builder.py，最小改动）
 
 - 仅 `task_type == "case_chat"` 时注入；其他任务类型零影响
+- **签名扩展（修订 2026-08-14）**：`_build_team_experience(lender, task_type, db)` → 追加可选关键字参数 `case_id: str | None = None`；唯一调用点 `assemble_context`（L226）改为 `_build_team_experience(case.lender, task_type, db, case_id=case.id)`；默认 None 时行为与现状完全一致（其他调用零影响）
 - 在 `_build_team_experience` 返回文本末尾追加先例块：`\n【决策先例】\n{block}`
 - 先例检索失败仅 `logger.warning` 并返回原团队经验文本（不阻断）
 - 总长度仍受 `BUDGET_TEAM_EXP`（1500 字符）截断约束；**不改 `LAYER_ORDER` / 其他 budget**
@@ -84,8 +85,9 @@ def build_precedent_block(precedents: list[dict], max_chars: int = 800) -> str:
 
 ### Step 2：上下文注入
 - [ ] `core/ai/context_builder.py`：`_build_team_experience` 内 `from core.knowledge.precedent import build_precedent_block, find_precedents`（函数内局部导入，避免循环依赖）
+- [ ] `_build_team_experience` 签名追加 `case_id: str | None = None`；`assemble_context` L226 调用处传 `case_id=case.id`
 - [ ] `case_chat` 分支：`precs = find_precedents(case_id, db)` → `block = build_precedent_block(precs)` → 非空时追加到 experiences 末尾
-- [ ] 不改变函数签名；其他调用点零影响
+- [ ] 其他调用点零影响（唯一调用点已传参，默认 None 不注入）
 - [ ] 验证：`pytest tests/test_core/test_precedent.py -q` → 全绿
 
 ### Step 3：测试
