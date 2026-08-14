@@ -10,8 +10,10 @@ from fastapi import APIRouter, HTTPException, Query
 
 from core.holidays import (
     STATES,
+    china_holidays,
     dls_status,
     load_holidays,
+    next_china_holiday,
     next_holiday,
     state_today_status,
     upcoming_holidays,
@@ -31,7 +33,7 @@ def get_holidays(
     state: str | None = Query(None),
     limit: int = Query(10, ge=1, le=60),
 ) -> HolidaysResponse:
-    """today：三州各自今日状态；upcoming：未来假期；next：默认州下一个假期；dls：夏令时。"""
+    """today：三州各自今日状态；upcoming：未来假期；next：默认州下一个假期；dls：夏令时；china：中国长假首日。"""
     if state is not None and state not in STATES:
         raise HTTPException(status_code=422, detail=f"state 必须为 {list(STATES)} 之一，实际 {state!r}")
 
@@ -51,9 +53,16 @@ def get_holidays(
         key: DlsStatus(**value)
         for key, value in dls_status().items()
     }
+    china = [
+        HolidayItem(**{**item, "state": "CN"})
+        for item in china_holidays()
+    ]
+    nxt_cn = next_china_holiday()
     return HolidaysResponse(
         today=today,
         upcoming=upcoming,
         next=HolidayItem(**nxt) if nxt else None,
         dls=dls,
+        china=china,
+        next_china=HolidayItem(**{**nxt_cn, "state": "CN"}) if nxt_cn else None,
     )

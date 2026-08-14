@@ -55,6 +55,17 @@ def _validate(data: dict) -> None:
             if date_str in seen:
                 raise ValueError(f"holidays_au.yaml: {state} 日期重复 {date_str}")
             seen.add(date_str)
+    china = data.get("china")
+    if china is not None:
+        if not isinstance(china, dict) or not isinstance(china.get("display"), str):
+            raise ValueError("holidays_au.yaml: china 缺少 display 字符串")
+        for date_str, name in (china.get("holidays") or {}).items():
+            try:
+                dt.date.fromisoformat(date_str)
+            except (TypeError, ValueError):
+                raise ValueError(f"holidays_au.yaml: china 非法日期 {date_str!r}") from None
+            if not isinstance(name, str) or not name.strip():
+                raise ValueError(f"holidays_au.yaml: china 的日期 {date_str} 缺假期名")
 
 
 def load_holidays() -> dict:
@@ -148,3 +159,23 @@ def dls_status() -> dict:
             "dls_active": False,
         },
     }
+
+
+def china_holidays(limit: int = 4) -> list[dict]:
+    """中国主要长假首日（春节/国庆），未来按日期升序。
+    [{"date": "YYYY-MM-DD", "name": str, "display": str}]"""
+    data = load_holidays()
+    china = data.get("china") or {}
+    today = _sydney_today()
+    rows: list[dict] = []
+    for date_str, name in (china.get("holidays") or {}).items():
+        if dt.date.fromisoformat(date_str) > today:
+            rows.append({"date": date_str, "name": name, "display": china.get("display", "中国假期")})
+    rows.sort(key=lambda r: r["date"])
+    return rows[:limit]
+
+
+def next_china_holiday() -> dict | None:
+    """下一个中国主要长假首日；无则 None。"""
+    rows = china_holidays(limit=1)
+    return rows[0] if rows else None

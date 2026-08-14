@@ -864,3 +864,5 @@ class HolidaysResponse(BaseModel):
     upcoming: list[HolidayItem]
     next: HolidayItem | None
     dls: dict[str, DlsStatus]             # key = sydney/brisbane/beijing
+    china: list[HolidayItem] = []         # 中国主要长假首日（state="CN"）
+    next_china: HolidayItem | None = None # 下一个中国长假首日

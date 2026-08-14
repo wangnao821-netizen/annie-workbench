@@ -13,9 +13,11 @@ from fastapi.testclient import TestClient
 
 from core.ai.case_context import build_case_context
 from core.holidays import (
+    china_holidays,
     dls_status,
     is_working_day,
     load_holidays,
+    next_china_holiday,
     next_holiday,
     upcoming_holidays,
 )
@@ -118,3 +120,33 @@ class TestCaseRiskFinance:
         test_db.commit()
         ctx = build_case_context("HOL-2", test_db, track="external")
         assert not any("银行休息日" in r for r in ctx["risk"]), ctx["risk"]
+
+
+class TestChinaHolidays:
+    """中国主要长假首日（春节/国庆）——协同场景倒计时数据（WO-39b）。"""
+
+    def test_china_holidays_sorted(self):
+        rows = china_holidays()
+        assert len(rows) <= 4
+        dates = [r["date"] for r in rows]
+        assert dates == sorted(dates)
+        assert all(r["display"] for r in rows)
+        assert any("春节" in r["name"] or "国庆" in r["name"] for r in rows)
+
+    def test_next_china_holiday_consistent(self):
+        nxt = next_china_holiday()
+        first = china_holidays(limit=1)
+        if first:
+            assert nxt == first[0]
+        else:
+            assert nxt is None
+
+    def test_api_holidays_contains_china(self):
+        client = TestClient(app)
+        resp = client.get("/api/holidays")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert isinstance(body["china"], list) and body["china"]
+        assert body["china"][0]["state"] == "CN"
+        assert set(body["china"][0]) == {"date", "name", "state", "display"}
+        assert body["next_china"] is not None
