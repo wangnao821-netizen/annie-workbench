@@ -8,10 +8,12 @@
 from __future__ import annotations
 
 import json
+import re
 
 from sqlalchemy.orm import Session
 
 from core.agents.flows import load_flows, match_flows
+from core.agents.registry import effective_agents
 from core.ai.gateway import ApiCallResult, ApiGateway
 from core.config import get_config
 from core.logger import get_logger
@@ -28,6 +30,41 @@ def _candidate_prompt(flows: dict[str, dict]) -> str:
     """稳定候选清单（缓存纪律：无动态内容）。"""
     lines = [f"- {key}：{f.get('name', key)} — {f.get('description', '')}" for key, f in flows.items()]
     return "\n".join(lines)
+
+
+def _skill_hits(message: str, db: Session, flows: dict[str, dict]) -> list[dict]:
+    """active 技能触发语命中 → 映射到对应流程包（WO-36）。
+
+    只接入 status=available 且 enabled=true 且 flow_key 指向已加载流程包的 agent；
+    pending/禁用/tool 类一律不接入。注册表读取失败仅 warning，不阻断路由。
+    """
+    try:
+        agents = effective_agents(db)
+    except Exception:  # 注册表异常不阻断路由
+        logger.warning("effective_agents failed in skill routing", exc_info=True)
+        return []
+
+    hits: list[dict] = []
+    for agent in agents:
+        if agent.get("category") != "agent":
+            continue
+        if agent.get("status") != "available" or not agent.get("enabled"):
+            continue
+        flow_key = agent.get("flow_key")
+        if not flow_key or flow_key not in flows:
+            continue
+        for trig in agent.get("triggers") or []:
+            if not trig or not isinstance(trig, str):
+                continue
+            try:
+                if re.search(trig, message, re.IGNORECASE):
+                    hits.append(flows[flow_key])
+                    break
+            except re.error:
+                if trig.lower() in message.lower():
+                    hits.append(flows[flow_key])
+                    break
+    return hits
 
 
 def _log_usage(db: Session, case_id: str | None, result: ApiCallResult) -> None:
@@ -76,13 +113,26 @@ def _llm_pick(message: str, flows: dict[str, dict], db: Session, case_id: str | 
 
 
 def route_flow(message: str, db: Session, case_id: str | None = None) -> dict | None:
-    """两阶段意图路由：规则唯一命中直接走；撞车走 LLM；失败/关闭回退规则；零命中 None。"""
+    """两阶段意图路由：规则唯一命中直接走；撞车走 LLM；失败/关闭回退规则；零命中 None。
+
+    WO-36：active 技能（available+enabled+flow_key）触发语并入规则候选，
+    与 flow 触发语去重后走同一套唯一/撞车逻辑。
+    """
     if not message:
         return None
     flows = load_flows()
     if not flows:
         return None
-    hits = match_flows(message)
+    hits = match_flows(message) + _skill_hits(message, db, flows)
+    # 去重：同一流程包可能同时被 flow 触发语与技能触发语命中
+    seen: set[str] = set()
+    unique_hits: list[dict] = []
+    for hit in hits:
+        key = str(hit.get("key", ""))
+        if key not in seen:
+            seen.add(key)
+            unique_hits.append(hit)
+    hits = unique_hits
     if len(hits) == 1:
         return hits[0]
     if len(hits) > 1:

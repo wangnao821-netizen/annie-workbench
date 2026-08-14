@@ -43,6 +43,8 @@ def load_seed(seed_path: Path | None = None) -> list[dict]:
             raise ValueError(f"{path}: key '{item.get('key')}' category 必须为 agent 或 tool")
         if item.get("status") not in ("available", "pending"):
             raise ValueError(f"{path}: key '{item.get('key')}' status 必须为 available 或 pending")
+        if item.get("flow_key") is not None and not isinstance(item.get("flow_key"), str):
+            raise ValueError(f"{path}: key '{item.get('key')}' flow_key 必须为字符串或 null")
 
     return items
 
@@ -91,6 +93,7 @@ def effective_agents(db: Session, seed_path: Path | None = None) -> list[dict]:
                 "status": str(item.get("status", "")),
                 "enabled": bool(enabled),
                 "triggers": list(item.get("triggers") or []),
+                "flow_key": item.get("flow_key"),
                 "capability": item.get("capability"),
                 "permission": item.get("permission"),
             }

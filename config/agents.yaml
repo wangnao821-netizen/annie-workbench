@@ -6,6 +6,7 @@ items:
     category: agent
     status: available
     triggers: ["帮我建个案件", "新建贷款案件"]
+    flow_key: case_intake
     capability: null
     permission: null
     enabled_default: true
@@ -16,6 +17,7 @@ items:
     category: agent
     status: pending
     triggers: ["帮我跟进案件", "催一下补件"]
+    flow_key: followup
     capability: null
     permission: null
     enabled_default: true
@@ -26,6 +28,7 @@ items:
     category: agent
     status: available
     triggers: ["检查材料一致性", "交叉比对申报"]
+    flow_key: declaration_check
     capability: null
     permission: null
     enabled_default: true
@@ -36,6 +39,7 @@ items:
     category: agent
     status: pending
     triggers: ["生成催件草稿", "提醒客户补件"]
+    flow_key: chaser
     capability: null
     permission: null
     enabled_default: true
@@ -46,6 +50,7 @@ items:
     category: agent
     status: pending
     triggers: ["拟定 OS 回复", "处理银行补件要求"]
+    flow_key: os_reply
     capability: null
     permission: null
     enabled_default: true
@@ -56,6 +61,7 @@ items:
     category: agent
     status: available
     triggers: ["帮我算贷款能力", "服务能力计算"]
+    flow_key: calculator
     capability: null
     permission: null
     enabled_default: true
