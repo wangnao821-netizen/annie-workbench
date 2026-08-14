@@ -3215,3 +3215,71 @@ LLM 调 `record_fact` 且内容命中其他案件客户名时，后端**不写�
 3. 「任务」按钮显示未完成数、逾期红色；「清单」按钮显示未收完数；确认/完成操作后数字实时更新；
 4. 输入框附件按钮仅案件模式可见；选文件后自动导入+识别，对话出现「📄 文件识别」消息含 OCR 文本；重名/失败有 toast；
 5. `npx tsc --noEmit` 零错误。
+
+# F-40（2026-08-16 定稿）：中栏快捷折叠 + 邮件悬浮窗 + 文件原文预览
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (57)`。
+> 背景：Vera 对 (57) 提出三问题——① 文件预览显示的是解析文本而非原文；② 中栏底部快捷按钮太多；
+> ③ 邮件没有独立悬浮窗，「写补件邮件」点击无反应。后端配套 = WO-46（raw 原文流端点 + POST /api/drafts
+> 手动建草稿），F-40 纯前端接线；WO-46 未交付前相关功能保持 mock/占位不报错。
+
+## 一、中栏快捷按钮折叠（BrainChat.tsx）
+
+1. **删除 QUICK_ASKS chips 行**（现状 (57) L1215-1230 一整行横向滚动）；
+2. 输入框左侧按钮组固定为三件：`📌 已记录`（现有 recorded-events-pill）｜`📎 附件`（现有 brain-chat-attach-btn）｜
+   **新增「⚡ 工具」按钮**（id="brain-tools-btn"，样式同附件按钮，紫/琥珀色系区分）；
+3. 点击 ⚡ 弹出**小浮层菜单**（Popover，向上展开，AnimatePresence，点击外部/选择后关闭），分组：
+   - **工具动作**：🧮 服务能力计算器（`setIsCalculatorOpen(true)`）／✉️ 写补件邮件（打开 MailComposeModal，见二）／
+     🆕 帮我建案件（`setNewCaseOpen(true)`）／📂 去案件文件夹找材料（`handleSend('去案件文件夹找材料')`）；
+   - **快捷提问**：🔍 材料缺口主动预判／📄 检查申报一致性／今日到期·逾期／查 CBA 政策（均 `handleSend(label)`）；
+   - **全局咨询（无 activeCaseInfo）**：只显示 计算器／建案件／查政策；邮件/文件夹/缺口/申报置灰或隐藏，
+     title 提示「请先选择案件」；
+4. 移除旧的 `handleQuickAsk`/`handleQuickAskClick` 中 chips 专属分支，统一走新菜单 handler
+   （compose_email 不再只 toast，见二）。
+
+## 二、邮件悬浮窗（新建 src/components/brain/MailComposeModal.tsx）
+
+1. Props：`{ open, onClose, caseId, clientName?, lender?, initialSubject?, initialBody? }`；
+2. 布局（居中悬浮，同 TaskDrawer/ChecklistDrawer 风格：遮罩 + 圆角卡片 + 关闭按钮，id="mail-compose-modal"）：
+   - 标题「写补件邮件」+ 披露徽章（外线模式显示「只引用已披露内容」提示行）；
+   - 收件人 input（可空，placeholder 银行/审贷团队）；
+   - 主题 input（预填 `Re: {lender} 贷款补件材料递交 - {clientName}`，可改）；
+   - 正文 textarea（英文，≥8 行，等宽字体；若对话已有 draft 卡 payload 则预填 subject/body）；
+   - 版本行：V1（后续版本迭代预留，本批只显示版本号）；
+3. 操作（**无发送按钮，红线**）：
+   - 「保存草稿」→ `POST /api/drafts`（body `{case_id, subject, body}`，WO-46）→ 成功 toast「已存入草稿箱」+ 关闭；
+     WO-46 未交付/mock 模式 → 先 localStorage 暂存 + toast「草稿已暂存（后端就绪后自动入库）」；
+   - 「复制英文」→ `navigator.clipboard.writeText(body)` → toast「已复制」；
+4. BrainChat 挂载 `<MailComposeModal>`；state `mailComposeOpen`；⚡ 菜单「写补件邮件」：
+   有案件 → `setMailComposeOpen(true)`（预填案件名/银行）；无案件 → toast「请先选择左侧案件再写邮件」。
+
+## 三、文件原文预览（FileDrawer.tsx + services/api/fileOps.ts）
+
+1. `fileOps.ts` 新增 `previewRawFileUrl(caseId, path): Promise<string>`：
+   `GET /api/cases/{id}/folder/files/raw?path=` → fetch blob → `URL.createObjectURL(blob)` 返回；
+   （如后端为 cookie/session 认证可直接返回 URL 字符串，实现时二选一，blob 方式最稳）；
+2. FileDrawer 预览面板（现状 L468-507「解析与内容预览」）改**双 tab**：
+   - **Tab「原文」（默认）**：按 doc_type/扩展名渲染——
+     pdf → `<iframe src={rawUrl} className="w-full h-96 rounded-xl border" />`；
+     jpg/jpeg/png → `<img src={rawUrl} className="max-h-96 object-contain mx-auto" />`；
+     txt/md/csv → `<pre>` 显示原文文本；doc/docx/xlsx/xls/msg → 占位文案
+     「该格式暂不支持在线原文预览，请打开本地案件文件夹查看」+ 仍可切解析 tab；
+   - **Tab「解析内容」**：保留现有 text_preview 面板内容（解析/OCR 文本，仍有用）；
+   - 加载中 spinner；raw 失败（404/422/413）→ 显示错误行 + 自动切解析 tab 兜底；mock 模式显示占位；
+3. 面板默认打开即懒加载原文；预览面板标题改为「文件预览」。
+
+## 四、范围与红线
+
+- 只改前端：`BrainChat.tsx` / `FileDrawer.tsx` / `services/api/fileOps.ts` / 新建 `MailComposeModal.tsx`
+  （+ `types/api.ts` 若需 DraftCreate 类型）；
+- 依赖后端 WO-46（raw + POST /api/drafts）；未交付前 mock/localStorage 占位，不报错；
+- 不新增 npm 依赖；**不出现发送按钮**（只出草稿）；文件预览只读不落盘；
+- `npx tsc --noEmit` 零错误。
+
+## 五、验收
+
+1. 中栏底部无 chips 行；输入框左侧 = 📌已记录｜📎附件｜⚡工具；⚡ 菜单分组显示、点击动作正确；
+   全局咨询只显示全局可用项；
+2. 「写补件邮件」打开 MailComposeModal（案件模式）；保存草稿成功（或暂存）；复制可用；**无发送按钮**；
+3. 文件预览默认显示原文（PDF/图片/文本），可切「解析内容」tab；不支持格式有占位提示；raw 失败有兜底；
+4. `npx tsc --noEmit` 零错误。
