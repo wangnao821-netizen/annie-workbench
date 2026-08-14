@@ -34,13 +34,13 @@ def build_chat_layers(
     """
     if not case_id:
         return [
-            {"layer": "role", "text": _build_role_prompt()},
+            {"layer": "role", "text": _build_role_prompt(db)},
             {"layer": "live", "text": message},
         ]
 
     ctx = assemble_context(case_id, "case_chat", db, extra_data=message)
     return [
-        {"layer": "role", "text": _build_role_prompt()},
+        {"layer": "role", "text": _build_role_prompt(db)},
         {"layer": "case_brain", "text": ctx.case_brain},
         {"layer": "team", "text": ctx.team_experience},
         {"layer": "live", "text": ctx.live_data},

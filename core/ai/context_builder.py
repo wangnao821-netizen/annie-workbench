@@ -65,10 +65,26 @@ TASK_TYPES = [
 ]
 
 
-def _build_role_prompt() -> str:
-    """Layer 1 角色定义：优先人格配置（config/persona.yaml），异常/缺失回退旧文案。"""
+def _build_role_prompt(db: Session | None = None) -> str:
+    """Layer 1 角色定义：人格配置 + 运行期身份称呼；异常/缺失回退旧文案。
+
+    Args:
+        db: SQLAlchemy session；提供时读取 system_settings 中的
+            ai_name / user_address / persona_key，覆盖 YAML 默认人格。
+    """
+    persona_key = ai_name = user_address = None
+    if db is not None:
+        try:
+            from core.persona import get_runtime_persona
+
+            rt = get_runtime_persona(db)
+            persona_key = rt.get("persona_key")
+            ai_name = rt.get("ai_name")
+            user_address = rt.get("user_address")
+        except Exception:
+            logger.warning("runtime persona read failed, fallback to defaults", exc_info=True)
     try:
-        prompt = build_system_prompt()
+        prompt = build_system_prompt(persona_key, ai_name=ai_name, user_address=user_address)
         if prompt:
             return prompt
     except Exception:
@@ -243,14 +259,14 @@ def assemble_context(
     if not case:
         logger.warning("assemble_context: case %s not found", case_id)
         return AssembledContext(
-            role_prompt=_build_role_prompt(),
+            role_prompt=_build_role_prompt(db),
             team_experience="",
             case_brain="",
             live_data=extra_data,
             total_chars=len(extra_data),
         )
 
-    role = _build_role_prompt()[:BUDGET_ROLE]
+    role = _build_role_prompt(db)[:BUDGET_ROLE]
     team_exp = _build_team_experience(case.lender, task_type, db, case_id=case.id)[:BUDGET_TEAM_EXP]
     brain = _build_case_brain(case, db)[:BUDGET_CASE_BRAIN]
     live = _build_live_data(case_id, task_type, db)[:BUDGET_LIVE_DATA]

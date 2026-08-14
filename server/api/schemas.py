@@ -913,3 +913,38 @@ class KnowledgeUpdateRequest(BaseModel):
     content: str | None = Field(default=None, min_length=1)
     lender: str | None = None
     vera_confirmed: bool | None = None
+
+
+# ── AI 助手设置（人格/名字/称呼，2026-08-14） ────────────────────────
+
+
+class PersonaItem(BaseModel):
+    """内置人格条目（来自 config/persona.yaml）。"""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    key: str
+    name: str
+    role: str
+    style: str
+
+
+class AssistantSettingsResponse(BaseModel):
+    """AI 助手设置当前值 + 内置人格列表 + 是否待引导。"""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    ai_name: str | None = None
+    user_address: str | None = None
+    persona_key: str | None = None
+    default_persona: str
+    personas: list[PersonaItem]
+    onboarding_needed: bool
+
+
+class AssistantSettingsUpdate(BaseModel):
+    """更新 AI 助手设置；字段省略表示不修改，空字符串表示清除。"""
+
+    ai_name: str | None = Field(default=None, max_length=40)
+    user_address: str | None = Field(default=None, max_length=20)
+    persona_key: str | None = Field(default=None, max_length=20)

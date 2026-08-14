@@ -71,6 +71,7 @@ from server.api.holidays import router as holidays_router
 from server.api.imports import router as imports_router
 from server.api.inbox import router as inbox_router
 from server.api.knowledge import router as knowledge_router
+from server.api.settings import router as settings_router
 from server.api.skills import router as skills_router
 from server.api.sync import router as sync_router
 from server.api.tasks import router as tasks_router
@@ -97,6 +98,7 @@ app.include_router(drafts_router)
 app.include_router(wechat_router)
 app.include_router(sync_router)
 app.include_router(events_router)
+app.include_router(settings_router)
 
 # ── 静态文件（生产模式：serve frontend/dist） ──────────
 frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"

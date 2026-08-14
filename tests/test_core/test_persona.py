@@ -6,7 +6,14 @@ import pytest
 
 import core.persona as persona_mod
 from core.ai.context_builder import BUDGET_ROLE, _build_role_prompt
-from core.persona import build_system_prompt, get_default_key, load_persona
+from core.models.orm import SystemSetting
+from core.persona import (
+    build_system_prompt,
+    get_default_key,
+    get_runtime_persona,
+    list_personas,
+    load_persona,
+)
 
 LEGACY_ROLE = (
     "你是澳洲贷款经纪团队的 AI 助手。你了解每个客户的具体情况和团队的历史经验。"
@@ -55,6 +62,44 @@ class TestSystemPrompt:
         )
         assert build_system_prompt() == ""
 
+    def test_prompt_injects_identity(self) -> None:
+        prompt = build_system_prompt("a", ai_name="小V", user_address="Vera姐")
+        assert "你的名字是「小V」" in prompt
+        assert "用「Vera姐」称呼 Vera" in prompt
+        assert "仅限内线" in prompt
+        assert "外线草稿" in prompt
+
+    def test_prompt_without_identity_has_no_name_lines(self) -> None:
+        assert "你的名字是" not in build_system_prompt("a")
+
+
+class TestListPersonas:
+    def test_four_builtin_personas_in_order(self) -> None:
+        items = list_personas()
+        assert [p["key"] for p in items] == ["a", "b", "c", "d"]
+        assert items[0]["name"] == "专业稳重型"
+        assert items[3]["name"] == "活泼幽默型"
+
+
+class TestRuntimePersona:
+    def test_reads_settings_from_db(self, test_db) -> None:
+        test_db.add(SystemSetting(key="ai_name", value="小V"))
+        test_db.add(SystemSetting(key="user_address", value="Vera姐"))
+        test_db.add(SystemSetting(key="persona_key", value="d"))
+        test_db.commit()
+        assert get_runtime_persona(test_db) == {
+            "ai_name": "小V",
+            "user_address": "Vera姐",
+            "persona_key": "d",
+        }
+
+    def test_missing_settings_returns_none(self, test_db) -> None:
+        assert get_runtime_persona(test_db) == {
+            "ai_name": None,
+            "user_address": None,
+            "persona_key": None,
+        }
+
 
 class TestRoleInjection:
     def test_role_prompt_uses_persona(self) -> None:
@@ -67,3 +112,13 @@ class TestRoleInjection:
     ) -> None:
         monkeypatch.setattr(persona_mod, "_load", dict)
         assert _build_role_prompt() == LEGACY_ROLE
+
+    def test_role_prompt_uses_runtime_settings(self, test_db) -> None:
+        test_db.add(SystemSetting(key="ai_name", value="小V"))
+        test_db.add(SystemSetting(key="user_address", value="Vera姐"))
+        test_db.add(SystemSetting(key="persona_key", value="d"))
+        test_db.commit()
+        prompt = _build_role_prompt(test_db)
+        assert "活泼幽默型" in prompt
+        assert "你的名字是「小V」" in prompt
+        assert "用「Vera姐」称呼 Vera" in prompt
