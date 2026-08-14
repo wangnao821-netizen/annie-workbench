@@ -309,6 +309,9 @@
   - 📋 **WO-45 已出**（2026-08-15）：OCR 链路验证加固——复用老项目已迁入的 LiteParse 链路（core/pipeline/parser.py），补 pymupdf/pdfplumber/pypdf/python-docx 兜底依赖 + 合成样本实测；效果不足再评估 RapidOCR/Qwen2.5-VL 作补充引擎（V2 兜底）
   - 📋 **F-40 已出**（2026-08-16，(57) 反馈）：① 中栏快捷 chips 折叠进「⚡ 工具」菜单（计算器/邮件/建案/文件夹/提问，输入框左侧 = 📌已记录｜📎附件｜⚡工具）；② 新建 MailComposeModal 邮件悬浮窗（保存草稿进草稿箱 + 复制英文，无发送按钮，仅案件模式）；③ 文件预览默认显示原文（PDF/图片内嵌），解析内容为第二 tab
   - 📋 **WO-46 已出**（2026-08-16）：GET .../files/raw 只读原文流端点（PathGuard 同案件、≤20MB、白名单扩展名）+ POST /api/drafts 手动建草稿（挂 EmailDraft status=draft，与 DraftsBox 打通）
+  - 📋 **F-40 v2 已出**（2026-08-16，方案 A）：三共创通用弹窗深谈 CoCreateDialog（邮件/催件/OS 回复统一对齐主文档 §二——拉全景/澄清 1-3 轮/V1-V3+A-B/确认收尾/恢复会话；触发语不再主对话出共创卡）；DraftCard「复制/翻译」占位按钮修复（真复制 + 中文对照）；⚡ 工具折叠 + 文件原文预览（同 F-40 v1）
+  - 📋 **WO-46b 已出**（2026-08-16）：POST /api/agent/co-create/chat（clarify/generate/version/branch/confirm）——案件全景注入（当前 draft_email 不注入全景，LLM 不知案件细节）+ 澄清环节 + confirm 可选建待办；draft session（draft: 前缀）不显示于主对话流
+  - 📋 **WO-47 已出**（2026-08-16）：跟进提醒 job——普通任务截止/承诺到期 → FOLLOWUP_REMINDER 待办（去重幂等、默认关闭观察后开；现有 overdue job 只覆盖委派任务）
 - **A 发布前**：Electron（WO-05：窗口/托盘/系统通知/自动更新/端口冲突/首装引导）→ S5 真机试用 + V1 验收（日均记录 ≥5 / AI 上下文命中 / 愿继续用 / 每周开统计 ≥2 次）→ 版本发布（version 三处同步 + CHANGELOG）
 - **V2 延后**：云同步（WO-06）、微信（WO-11 PoC）、邮件/日历自动化、文件主动扫描、历史导入、团队共享、Screenpipe、**联网搜索（SearXNG 自托管元搜索，本地零 API key，过工具准入三关后接入；2026-08-15 定方向）**
 

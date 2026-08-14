@@ -3216,12 +3216,15 @@ LLM 调 `record_fact` 且内容命中其他案件客户名时，后端**不写�
 4. 输入框附件按钮仅案件模式可见；选文件后自动导入+识别，对话出现「📄 文件识别」消息含 OCR 文本；重名/失败有 toast；
 5. `npx tsc --noEmit` 零错误。
 
-# F-40（2026-08-16 定稿）：中栏快捷折叠 + 邮件悬浮窗 + 文件原文预览
+# F-40（2026-08-16 定稿 v2）：中栏快捷折叠 + 三共创弹窗深谈 + 文件原文预览
 
 > 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (57)`。
 > 背景：Vera 对 (57) 提出三问题——① 文件预览显示的是解析文本而非原文；② 中栏底部快捷按钮太多；
-> ③ 邮件没有独立悬浮窗，「写补件邮件」点击无反应。后端配套 = WO-46（raw 原文流端点 + POST /api/drafts
-> 手动建草稿），F-40 纯前端接线；WO-46 未交付前相关功能保持 mock/占位不报错。
+> ③ 邮件没有独立悬浮窗，「写补件邮件」点击无反应。
+> **v2 升级（2026-08-16 拍板）**：按主文档 §二 定稿，共创类（邮件/催件/OS 回复）= **弹窗深谈（独立子会话）**，
+> 三个共创流程统一对齐（不只邮件）；DraftCard 的"翻译/复制"占位按钮一并修复。
+> 后端配套 = WO-46（raw 原文流 + POST /api/drafts）+ WO-46b（共创对话端点：案件全景注入/澄清/版本链/收尾）；
+> WO-46/WO-46b 未交付前相关功能保持 mock/占位不报错。
 
 ## 一、中栏快捷按钮折叠（BrainChat.tsx）
 
@@ -3229,29 +3232,47 @@ LLM 调 `record_fact` 且内容命中其他案件客户名时，后端**不写�
 2. 输入框左侧按钮组固定为三件：`📌 已记录`（现有 recorded-events-pill）｜`📎 附件`（现有 brain-chat-attach-btn）｜
    **新增「⚡ 工具」按钮**（id="brain-tools-btn"，样式同附件按钮，紫/琥珀色系区分）；
 3. 点击 ⚡ 弹出**小浮层菜单**（Popover，向上展开，AnimatePresence，点击外部/选择后关闭），分组：
-   - **工具动作**：🧮 服务能力计算器（`setIsCalculatorOpen(true)`）／✉️ 写补件邮件（打开 MailComposeModal，见二）／
+   - **工具动作**：🧮 服务能力计算器（`setIsCalculatorOpen(true)`）／✉️ 写补件邮件（打开 CoCreateDialog flowKey='followup'，见二）／
      🆕 帮我建案件（`setNewCaseOpen(true)`）／📂 去案件文件夹找材料（`handleSend('去案件文件夹找材料')`）；
    - **快捷提问**：🔍 材料缺口主动预判／📄 检查申报一致性／今日到期·逾期／查 CBA 政策（均 `handleSend(label)`）；
    - **全局咨询（无 activeCaseInfo）**：只显示 计算器／建案件／查政策；邮件/文件夹/缺口/申报置灰或隐藏，
      title 提示「请先选择案件」；
 4. 移除旧的 `handleQuickAsk`/`handleQuickAskClick` 中 chips 专属分支，统一走新菜单 handler
-   （compose_email 不再只 toast，见二）。
+   （compose_email 不再只 toast，见二）；
+5. **触发语联动**：对话命中 followup/chaser/os_reply 流程包时，**不再在主对话消息流出共创卡**，
+   改为打开 CoCreateDialog（flowKey 对应 followup/chaser/os_reply）；主对话只保留一条
+   「已进入 {流程} 共创弹窗」的轻提示消息 + 「继续共创」恢复入口（sessionId）。
 
-## 二、邮件悬浮窗（新建 src/components/brain/MailComposeModal.tsx）
+## 二、三共创通用弹窗深谈（新建 src/components/brain/CoCreateDialog.tsx，替代原 MailComposeModal）
 
-1. Props：`{ open, onClose, caseId, clientName?, lender?, initialSubject?, initialBody? }`；
-2. 布局（居中悬浮，同 TaskDrawer/ChecklistDrawer 风格：遮罩 + 圆角卡片 + 关闭按钮，id="mail-compose-modal"）：
-   - 标题「写补件邮件」+ 披露徽章（外线模式显示「只引用已披露内容」提示行）；
-   - 收件人 input（可空，placeholder 银行/审贷团队）；
-   - 主题 input（预填 `Re: {lender} 贷款补件材料递交 - {clientName}`，可改）；
-   - 正文 textarea（英文，≥8 行，等宽字体；若对话已有 draft 卡 payload 则预填 subject/body）；
-   - 版本行：V1（后续版本迭代预留，本批只显示版本号）；
-3. 操作（**无发送按钮，红线**）：
-   - 「保存草稿」→ `POST /api/drafts`（body `{case_id, subject, body}`，WO-46）→ 成功 toast「已存入草稿箱」+ 关闭；
-     WO-46 未交付/mock 模式 → 先 localStorage 暂存 + toast「草稿已暂存（后端就绪后自动入库）」；
-   - 「复制英文」→ `navigator.clipboard.writeText(body)` → toast「已复制」；
-4. BrainChat 挂载 `<MailComposeModal>`；state `mailComposeOpen`；⚡ 菜单「写补件邮件」：
-   有案件 → `setMailComposeOpen(true)`（预填案件名/银行）；无案件 → toast「请先选择左侧案件再写邮件」。
+1. Props：`{ open, onClose, caseId, flowKey: 'followup'|'chaser'|'os_reply', sessionId?, clientName?, lender? }`；
+2. 布局（居中悬浮，**两栏**，宽约 900px，同 TaskDrawer 风格：遮罩 + 圆角卡片 + 关闭按钮，
+   id="co-create-dialog"）：
+   - **左栏「和 VERA 说」（对话区）**：独立消息流（不写主对话 UI）+ 输入框 +
+     快捷意图 chips（「正式一点」「简短点」「加上礼金信说明」「语气委婉」）；
+   - **右栏「草稿预览」**：Subject + Body（英文，只读展示）+ 版本链（V1/V2/V3 切换）+ A/B 分支切换 +
+     披露徽章（外线模式「只引用已披露内容」；有未披露项时红色警告行）；
+   - **底部操作条**：保存草稿 / 确认此版本 / 复制英文 / 中文对照；
+3. 交互流（对 WO-46b 端点，见后端契约；未交付/mock 时本地模拟引导+模板草稿，不报错）：
+   - **打开 → action=clarify**：VERA 首条消息 = 已拉案件全景摘要（客户/银行/阶段/补件要求/相关待办）+
+     澄清问题（1-3 轮：「想跟进什么？语气？重点？收件人？」）；
+   - 你回答意图 → **action=generate** → 出 V1 到草稿预览区；
+   - 继续对话改稿（「语气正式点」「加上估值报告」）→ **action=version** → V2/V3（存差异，保留最终版）；
+   - **action=branch** → 生成 B 分支，版本区 A/B 切换对比；
+   - 满意 → **action=confirm** → 后端写事件 + 可选建待办 → 草稿进草稿箱 → 弹窗显示「已确认 V3」+ 关闭；
+   - 中途关闭 → 主对话保留「继续写{流程}」入口（sessionId 恢复，不丢版本链）；
+4. 触发：⚡ 工具菜单「✉️ 写补件邮件」→ flowKey='followup'；触发语命中 followup/chaser/os_reply →
+   对应 flowKey；无案件 → toast「请先选择左侧案件再写邮件」；
+5. BrainChat 挂载 `<CoCreateDialog>`；state `coCreateOpen` + `coCreateFlowKey` + `coCreateSessionId`；
+6. **红线**：任何地方不出现「发送」按钮；只出草稿；外线模式禁止引用内线内容（披露徽章硬提示）。
+
+## 二b、DraftCard 出口修复（DraftCard.tsx）
+
+1. **「复制」按钮**：现状是占位 toast（handleActionToast「WO-18 后可 用」）→ 改为真复制：
+   `navigator.clipboard.writeText(draft.body)` → toast「已复制」；
+2. **「翻译英文」按钮**：草稿已是英文，按钮语义不明 → 改为「中文对照」：点击在卡片内展开中文翻译区
+   （WO-46b 交付前先本地 mock 或收起按钮；交付后调后端翻译）；
+3. 无发送按钮（保持）。
 
 ## 三、文件原文预览（FileDrawer.tsx + services/api/fileOps.ts）
 
@@ -3271,8 +3292,9 @@ LLM 调 `record_fact` 且内容命中其他案件客户名时，后端**不写�
 ## 四、范围与红线
 
 - 只改前端：`BrainChat.tsx` / `FileDrawer.tsx` / `services/api/fileOps.ts` / 新建 `MailComposeModal.tsx`
-  （+ `types/api.ts` 若需 DraftCreate 类型）；
-- 依赖后端 WO-46（raw + POST /api/drafts）；未交付前 mock/localStorage 占位，不报错；
+  → 新建 `CoCreateDialog.tsx`（替代 MailComposeModal）/ `DraftCard.tsx`（复制/中文对照）
+  （+ `types/api.ts` 若需 CoCreate/DraftCreate 类型）；
+- 依赖后端 WO-46（raw + POST /api/drafts）+ WO-46b（co-create 对话端点）；未交付前 mock/localStorage 占位，不报错；
 - 不新增 npm 依赖；**不出现发送按钮**（只出草稿）；文件预览只读不落盘；
 - `npx tsc --noEmit` 零错误。
 
@@ -3280,6 +3302,9 @@ LLM 调 `record_fact` 且内容命中其他案件客户名时，后端**不写�
 
 1. 中栏底部无 chips 行；输入框左侧 = 📌已记录｜📎附件｜⚡工具；⚡ 菜单分组显示、点击动作正确；
    全局咨询只显示全局可用项；
-2. 「写补件邮件」打开 MailComposeModal（案件模式）；保存草稿成功（或暂存）；复制可用；**无发送按钮**；
-3. 文件预览默认显示原文（PDF/图片/文本），可切「解析内容」tab；不支持格式有占位提示；raw 失败有兜底；
-4. `npx tsc --noEmit` 零错误。
+2. 「写补件邮件」打开 CoCreateDialog 弹窗深谈（案件模式）：VERA 首条消息含案件全景 + 澄清问题；
+   对话出 V1、改稿出 V2/V3、A/B 分支可切换；确认后进草稿箱；中途关闭可恢复；**无发送按钮**；
+3. 触发语「跟进/催件/OS 回复」→ 打开对应 flowKey 的 CoCreateDialog，主对话不再出共创卡；
+4. DraftCard「复制」真复制到剪贴板；「中文对照」可用（或 mock）；
+5. 文件预览默认显示原文（PDF/图片/文本），可切「解析内容」tab；不支持格式有占位提示；raw 失败有兜底；
+6. `npx tsc --noEmit` 零错误。
