@@ -65,7 +65,12 @@ def _build_role_prompt() -> str:
     return "你是澳洲贷款经纪团队的 AI 助手。你了解每个客户的具体情况和团队的历史经验。回答要具体到这个客户，不要给通用建议。"
 
 
-def _build_team_experience(lender: str | None, task_type: str, db: Session) -> str:
+def _build_team_experience(
+    lender: str | None,
+    task_type: str,
+    db: Session,
+    case_id: str | None = None,
+) -> str:
     """从 Knowledge Base (knowledge_entries) 检索与当前银行 + 任务类型相关的团队经验。"""
     experiences: list[str] = []
     lender_entries: list[KnowledgeEntry] = []
@@ -111,6 +116,18 @@ def _build_team_experience(lender: str | None, task_type: str, db: Session) -> s
     for e in general_entries:
         if e not in lender_entries:
             experiences.append(f"[团队经验] {e.content[:200]}")
+
+    # 3. 决策先例：仅 case_chat 注入已确认执行的同类先例（WO-37）
+    if task_type == "case_chat" and case_id:
+        try:
+            from core.knowledge.precedent import build_precedent_block, find_precedents
+
+            precs = find_precedents(case_id, db)
+            block = build_precedent_block(precs)
+            if block:
+                experiences.append(f"\n【决策先例】\n{block}")
+        except Exception:  # 先例检索失败不阻断上下文组装
+            logger.warning("precedent retrieval failed for case %s", case_id, exc_info=True)
 
     return "\n".join(experiences) if experiences else "暂无团队经验记录。"
 
@@ -223,7 +240,7 @@ def assemble_context(
         )
 
     role = _build_role_prompt()[:BUDGET_ROLE]
-    team_exp = _build_team_experience(case.lender, task_type, db)[:BUDGET_TEAM_EXP]
+    team_exp = _build_team_experience(case.lender, task_type, db, case_id=case.id)[:BUDGET_TEAM_EXP]
     brain = _build_case_brain(case, db)[:BUDGET_CASE_BRAIN]
     live = _build_live_data(case_id, task_type, db)[:BUDGET_LIVE_DATA]
 
