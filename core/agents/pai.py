@@ -25,7 +25,7 @@ logger = get_logger(__name__)
 _AGENTS: dict[str, Any] = {}
 _gemini_failures = 0
 _gemini_skipped_until = 0.0
-_TOOL_NAMES = frozenset({"declaration_check", "calculator_assess", "policy_check", "context_event_write", "draft_email", "folder_lookup", "gap_analysis", "task_create", "checklist_query", "checklist_preview"})
+_TOOL_NAMES = frozenset({"declaration_check", "calculator_assess", "policy_check", "context_event_write", "draft_email", "folder_lookup", "gap_analysis", "task_create", "checklist_query", "checklist_preview", "file_ops_open"})
 _DEFAULT_TIMEOUT_S = 30
 _SYSTEM_PROMPT = "你是澳洲贷款经纪团队的 AI 助手。按流程包意图调用白名单工具，回答具体到这个客户，不要给通用建议。"
 
@@ -166,8 +166,18 @@ def _checklist_preview(ctx, lender: str = "") -> dict:
             "summary": f"按画像预选 {len(preview)} 项：{items_summary}"}
 
 
+def _file_ops_open(ctx, action: str = "browse", target: str = "") -> dict:
+    """打开文件操作面板（WO-44）：dialog 卡由前端消费，参数由抽屉补全，Vera 确认后走 API。"""
+    case_id = ctx.deps.case_id
+    if not case_id:
+        return {"ok": False, "case_id": "", "status": "error",
+                "summary": "文件操作必须在案件对话中进行"}
+    return {"ok": True, "case_id": case_id, "status": "success",
+            "summary": "已打开文件操作面板，请在弹窗中选择要预览/改名/移动/放入的文件"}
+
+
 def _tool_defs() -> list[Any]:
-    return [_declaration_check, _calculator_assess, _policy_check, _context_event_write, _folder_lookup, _gap_analysis, _task_create, _checklist_query, _checklist_preview]
+    return [_declaration_check, _calculator_assess, _policy_check, _context_event_write, _folder_lookup, _gap_analysis, _task_create, _checklist_query, _checklist_preview, _file_ops_open]
 
 
 def _pick_provider(task_text: str, cfg) -> str:

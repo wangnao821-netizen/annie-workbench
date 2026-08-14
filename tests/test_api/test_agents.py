@@ -27,13 +27,13 @@ def client(test_db):
 
 
 def test_list_agents(client):
-    """1. GET /api/agents/ → 200，13 项，含 agent-calculator。"""
+    """1. GET /api/agents/ → 200，14 项，含 agent-calculator。"""
     resp = client.get("/api/agents/")
     assert resp.status_code == 200
     data = resp.json()
     assert "agents" in data
     agents = data["agents"]
-    assert len(agents) == 13
+    assert len(agents) == 14
     calc = next((a for a in agents if a["key"] == "agent-calculator"), None)
     assert calc is not None
     assert calc["status"] == "available"

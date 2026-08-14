@@ -255,6 +255,14 @@ def run_flow(
                         res = {"status": "success", "count": len(preview), "items": preview[:10],
                                "summary": f"按画像预选 {len(preview)} 项：{items_summary}"}
 
+            elif tool_name == "file_ops_open":
+                if not case_id:
+                    res = {"ok": False, "case_id": "", "status": "error",
+                           "summary": "文件操作必须在案件对话中进行"}
+                else:
+                    res = {"ok": True, "case_id": case_id, "status": "success",
+                           "summary": "已打开文件操作面板，请在弹窗中选择要预览/改名/移动/放入的文件"}
+
             if step.get("output"):
                 step_ctx[str(step["output"])] = res
 

@@ -25,6 +25,7 @@ _TOOL_WHITELIST = frozenset({
     "task_create",
     "checklist_query",
     "checklist_preview",
+    "file_ops_open",
 })
 
 

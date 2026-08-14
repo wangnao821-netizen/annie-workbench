@@ -138,3 +138,14 @@ items:
     capability: "清单查询/更新/预选/递交检查"
     permission: "仅本系统清单；文件匹配不写客户文件夹"
     enabled_default: true
+
+  - key: agent-file
+    name: "文件 Agent (File Ops)"
+    description: "打开案件文件夹/预览文件/按规范改名/移动归档/放入文件"
+    category: agent
+    status: available
+    triggers: ["打开文件", "文件", "预览文件", "改文件名", "把文件放进", "移动文件", "归档文件"]
+    flow_key: file_ops
+    capability: "案件文件夹浏览/预览/改名/移动/放入（Vera 确认后执行）"
+    permission: "仅当前案件文件夹；Vera 确认后执行；绝不自主操作"
+    enabled_default: true

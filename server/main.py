@@ -65,6 +65,7 @@ from server.api.chat import router as chat_router
 from server.api.commission import router as commission_router
 from server.api.drafts import router as drafts_router
 from server.api.events import router as events_router
+from server.api.file_ops import router as file_ops_router
 from server.api.files import router as files_router
 from server.api.folders import router as folders_router
 from server.api.holidays import router as holidays_router
@@ -98,6 +99,7 @@ app.include_router(drafts_router)
 app.include_router(wechat_router)
 app.include_router(sync_router)
 app.include_router(events_router)
+app.include_router(file_ops_router)
 app.include_router(settings_router)
 
 # ── 静态文件（生产模式：serve frontend/dist） ──────────

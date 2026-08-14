@@ -963,3 +963,78 @@ class FactDisclosureRequest(BaseModel):
     """设置事实披露标记请求（WO-42）。"""
 
     disclosure: str | None = None       # 'disclosed' | 'internal_only' | None（None=清除标记）
+
+
+# ── 文件操作（WO-44） ──────────────────────────────────────────────
+
+
+class FileOpsItem(BaseModel):
+    """案件文件夹条目（目录或文件）。"""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    name: str
+    rel_path: str
+    is_dir: bool
+    size: int | None = None
+    mtime: str | None = None
+    doc_type: str | None = None
+
+
+class FileOpsListResponse(BaseModel):
+    """案件文件夹一层列表（子目录在前）。"""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    current_path: str
+    items: list[FileOpsItem]
+
+
+class FilePreviewResponse(BaseModel):
+    """文件预览（文本摘要 ≤2000 字符；解析失败返回 parse_error）。"""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    rel_path: str
+    size: int
+    mtime: str
+    doc_type: str | None = None
+    text_preview: str = ""
+    parse_error: str | None = None
+
+
+class FileOpsResult(BaseModel):
+    """改名/移动/放入操作结果。"""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    ok: bool
+    source: str
+    target: str
+    event_id: str | None = None
+
+
+class RenameRequest(BaseModel):
+    """改名请求（Vera 确认后调用）。"""
+
+    source: str
+    new_name: str
+
+
+class MoveRequest(BaseModel):
+    """移动请求（Vera 确认后调用）。"""
+
+    source: str
+    target_dir: str
+
+
+class NamingSuggestResponse(BaseModel):
+    """规范命名建议（纯确定性规则，不调 LLM）。"""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    doc_type: str | None = None
+    suggested: str
+    template_key: str | None = None
+    matched: bool
+    reasons: list[str]

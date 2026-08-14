@@ -1,0 +1,11 @@
+key: file_ops
+name: "文件操作"
+description: "打开案件文件夹抽屉，Vera 预览/改名/移动/放入文件"
+triggers: ["打开文件", "预览文件", "改文件名", "移动文件", "归档文件"]
+presentation: dialog
+steps:
+  - tool: file_ops_open
+    params: {}
+    output: result
+confirm_required: true
+acceptance: []
