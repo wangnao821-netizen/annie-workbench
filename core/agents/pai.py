@@ -25,7 +25,7 @@ logger = get_logger(__name__)
 _AGENTS: dict[str, Any] = {}
 _gemini_failures = 0
 _gemini_skipped_until = 0.0
-_TOOL_NAMES = frozenset({"declaration_check", "calculator_assess", "policy_check", "context_event_write", "draft_email", "folder_lookup", "gap_analysis", "task_create"})
+_TOOL_NAMES = frozenset({"declaration_check", "calculator_assess", "policy_check", "context_event_write", "draft_email", "folder_lookup", "gap_analysis", "task_create", "checklist_query", "checklist_preview"})
 _DEFAULT_TIMEOUT_S = 30
 _SYSTEM_PROMPT = "你是澳洲贷款经纪团队的 AI 助手。按流程包意图调用白名单工具，回答具体到这个客户，不要给通用建议。"
 
@@ -117,8 +117,57 @@ def _task_create(ctx) -> dict:
     return {"status": "success", "task_id": action.id, "title": action.title, "summary": f"已创建任务：{action.title}"}
 
 
+def _checklist_query(ctx, use_ai: bool = False) -> dict:
+    """查询清单缺口/进度，可选 AI 重选推荐（WO-43，只推荐不落库）。"""
+    case_id = ctx.deps.case_id
+    db = ctx.deps.db
+    if not case_id:
+        return {"ok": False, "error": "清单查询必须在案件对话中进行"}
+    from core.models.orm import Case, CaseChecklist
+    items = db.query(CaseChecklist).filter(CaseChecklist.case_id == case_id).order_by(CaseChecklist.id).all()
+    done = sum(1 for it in items if it.status == "received")
+    total = len(items)
+    missing = [it.item_name for it in items if it.status != "received"][:10]
+    summary = f"清单进度 {done}/{total}；缺失：{'、'.join(missing) if missing else '无'}"
+    if use_ai:
+        from core.checklist.master_picker import pick_checklist
+        case_obj = db.query(Case).filter(Case.id == case_id).first()
+        if case_obj:
+            recs = pick_checklist(
+                {"case_id": case_id, "lender": case_obj.lender or "CBA",
+                 "employment_type": case_obj.employment_type or "PAYG",
+                 "residency": case_obj.residency or "PR", "purpose": case_obj.purpose or "Purchase"},
+                db, use_ai=True,
+            )
+            if recs:
+                summary += "；AI 推荐补充：" + "、".join(f"{p['name_zh']}" for p in recs[:5])
+    return {"ok": True, "done": done, "total": total, "missing": missing, "summary": summary}
+
+
+def _checklist_preview(ctx, lender: str = "") -> dict:
+    """按案件画像纯规则预选推荐（WO-43，不覆盖已存清单）。"""
+    case_id = ctx.deps.case_id
+    db = ctx.deps.db
+    if not case_id:
+        return {"status": "error", "message": "清单预选必须在案件对话中进行", "summary": "清单预选必须在案件对话中进行", "items": []}
+    from core.checklist.master_picker import pick_checklist
+    from core.models.orm import Case
+    case_obj = db.query(Case).filter(Case.id == case_id).first()
+    if not case_obj:
+        return {"status": "error", "message": "案件不存在", "summary": "案件不存在", "items": []}
+    preview = pick_checklist(
+        {"case_id": case_id, "lender": lender or case_obj.lender or "CBA",
+         "employment_type": case_obj.employment_type or "PAYG",
+         "residency": case_obj.residency or "PR", "purpose": case_obj.purpose or "Purchase"},
+        db, use_ai=False,
+    )
+    items_summary = "、".join(f"{p['name_zh']}" for p in preview[:10])
+    return {"status": "success", "count": len(preview), "items": preview[:10],
+            "summary": f"按画像预选 {len(preview)} 项：{items_summary}"}
+
+
 def _tool_defs() -> list[Any]:
-    return [_declaration_check, _calculator_assess, _policy_check, _context_event_write, _folder_lookup, _gap_analysis, _task_create]
+    return [_declaration_check, _calculator_assess, _policy_check, _context_event_write, _folder_lookup, _gap_analysis, _task_create, _checklist_query, _checklist_preview]
 
 
 def _pick_provider(task_text: str, cfg) -> str:

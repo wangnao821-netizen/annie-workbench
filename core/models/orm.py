@@ -753,3 +753,22 @@ class SkillVersion(Base):  # type: ignore[misc]
     superseded_by = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+
+class ChecklistLibraryCustom(Base):  # type: ignore[misc]
+    """自定义清单总项库（WO-43）：Vera 新增项沉淀，参与后续预选。
+
+    经验埋点：use_count 随案件采用递增（V1 只埋点不统计）。
+    """
+
+    __tablename__ = "checklist_library_custom"
+
+    id = Column(String, primary_key=True)          # 格式 custom_{uuid8}
+    name_zh = Column(String, nullable=False)
+    name_en = Column(String, nullable=True)
+    category = Column(String, nullable=False)      # 枚举同 checklist_master
+    applicable_when = Column(JSON, nullable=True)  # 可选不强制；null = 全适用
+    bank_specific = Column(String, nullable=True)  # 可选不强制；null = 所有银行
+    source_case_id = Column(String, nullable=True)
+    use_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+

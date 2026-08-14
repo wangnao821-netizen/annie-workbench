@@ -127,3 +127,14 @@ items:
     capability: "任务 CRUD + 委派 + 升级"
     permission: "仅本系统任务，不触外部"
     enabled_default: true
+
+  - key: agent-checklist
+    name: "清单 Agent (Checklist Ops)"
+    description: "查材料缺口/标记已收/撤销匹配/按银行产品预选/递交前全绿检查"
+    category: agent
+    status: available
+    triggers: ["这个案件还缺什么", "材料收齐了吗", "清单全绿了吗", "把 XX 标记已收", "预选清单"]
+    flow_key: checklist_ops
+    capability: "清单查询/更新/预选/递交检查"
+    permission: "仅本系统清单；文件匹配不写客户文件夹"
+    enabled_default: true

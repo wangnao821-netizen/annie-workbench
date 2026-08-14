@@ -10,8 +10,9 @@ from sqlalchemy.orm import Session
 
 from core.ai.case_summary import mark_case_summary_dirty
 from core.checklist.generator import generate_checklist_draft
-from core.models.orm import Case, CaseChecklist, CaseFile
+from core.models.orm import Case, CaseChecklist, CaseFile, ChecklistLibraryCustom
 from server.api.schemas import (
+    ChecklistAddRequest,
     ChecklistConfirmRequest,
     ChecklistItemResponse,
     FileItemResponse,
@@ -184,6 +185,62 @@ def revoke_checklist_item(
     db.refresh(item)
     mark_case_summary_dirty(case_id, db)
     return _to_checklist_item(item)
+
+
+@router.post("/cases/{case_id}/checklist", response_model=ChecklistItemResponse, status_code=201)
+def add_checklist_item(
+    case_id: str,
+    req: ChecklistAddRequest,
+    db: Session = Depends(get_db),  # noqa: B008
+):
+    """新增清单项：写案件清单 + 沉淀到自定义总项库（同名+同分类幂等，use_count+1）。"""
+    _get_case_or_404(case_id, db)
+    name = req.name_zh.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="清单项名称不能为空")
+    allowed_categories = {
+        "identity", "income_payg", "income_self_employed",
+        "bank_specific", "special", "property", "settlement",
+    }
+    if req.category not in allowed_categories:
+        raise HTTPException(status_code=422, detail=f"category 不合法，必须为 {sorted(allowed_categories)} 之一")
+    try:
+        norm = "".join(name.split()).lower()
+        existing = None
+        for row in db.query(ChecklistLibraryCustom).filter(ChecklistLibraryCustom.category == req.category).all():
+            if "".join((row.name_zh or "").split()).lower() == norm:
+                existing = row
+                break
+        if existing:
+            existing.use_count = (existing.use_count or 0) + 1
+            custom_id = existing.id
+        else:
+            custom_id = f"custom_{uuid.uuid4().hex[:8]}"
+            db.add(ChecklistLibraryCustom(
+                id=custom_id,
+                name_zh=name,
+                name_en=req.name_en,
+                category=req.category,
+                applicable_when=req.applicable_when,
+                bank_specific=req.bank_specific,
+                source_case_id=case_id,
+                use_count=1,
+            ))
+        new_item = CaseChecklist(
+            case_id=case_id,
+            item_name=req.name_zh,
+            category=req.category,
+            is_required=req.is_required,
+            status="pending",
+            master_id=custom_id,
+        )
+        db.add(new_item)
+        db.commit()
+        db.refresh(new_item)
+        return _to_checklist_item(new_item)
+    except Exception:  # noqa: BLE001 — 事务失败回滚并报 500
+        db.rollback()
+        raise HTTPException(status_code=500, detail="新增清单项失败")
 
 
 @router.get("/files/{file_id}/preview")

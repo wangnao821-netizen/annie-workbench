@@ -82,6 +82,23 @@ TOOL_SCHEMAS: list[dict] = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "checklist_query",
+            "description": (
+                "Vera 询问案件材料清单/缺口/进度时调用；"
+                "use_ai=true 时按案件画像执行一次 AI 重选推荐（不覆盖已存清单）。"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "use_ai": {"type": "boolean", "description": "默认 false；Vera 要求优化/智能推荐时 true"}
+                },
+                "required": [],
+            },
+        },
+    },
 ]
 
 
@@ -112,6 +129,8 @@ def execute_tool(
         return _escalate_to_boss(arguments, case_id, db)
     if name == "create_task":
         return _create_task(arguments, case_id, db)
+    if name == "checklist_query":
+        return _checklist_query(arguments, case_id, db)
     return {"ok": False, "error": f"unknown tool: {name}"}
 
 
@@ -219,4 +238,40 @@ def _record_fact(arguments: dict, case_id: str, track: str, db: Session) -> dict
         }
     except Exception as exc:  # noqa: BLE001 — 工具失败不阻断对话
         logger.warning("record_fact failed: %s", exc)
+        return {"ok": False, "error": str(exc)}
+
+
+def _checklist_query(arguments: dict, case_id: str, db: Session) -> dict:
+    """checklist_query：查清单缺口/进度；use_ai=true 时附 AI 重选推荐（只推荐不落库，WO-43）。"""
+    if not case_id:
+        return {"ok": False, "error": "清单查询必须在案件对话中进行"}
+    try:
+        from core.models.orm import Case, CaseChecklist
+
+        items = (
+            db.query(CaseChecklist)
+            .filter(CaseChecklist.case_id == case_id)
+            .order_by(CaseChecklist.id)
+            .all()
+        )
+        done = sum(1 for it in items if it.status == "received")
+        total = len(items)
+        missing = [it.item_name for it in items if it.status != "received"][:10]
+        summary = f"清单进度 {done}/{total}；缺失：{'、'.join(missing) if missing else '无'}"
+        if arguments.get("use_ai"):
+            from core.checklist.master_picker import pick_checklist
+
+            case_obj = db.query(Case).filter(Case.id == case_id).first()
+            if case_obj:
+                recs = pick_checklist(
+                    {"case_id": case_id, "lender": case_obj.lender or "CBA",
+                     "employment_type": case_obj.employment_type or "PAYG",
+                     "residency": case_obj.residency or "PR", "purpose": case_obj.purpose or "Purchase"},
+                    db, use_ai=True,
+                )
+                if recs:
+                    summary += "；AI 推荐补充：" + "、".join(f"{p['name_zh']}" for p in recs[:5])
+        return {"ok": True, "done": done, "total": total, "missing": missing, "summary": summary}
+    except Exception as exc:  # noqa: BLE001 — 工具失败不阻断对话
+        logger.warning("checklist_query failed: %s", exc)
         return {"ok": False, "error": str(exc)}

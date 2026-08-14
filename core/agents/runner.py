@@ -210,6 +210,51 @@ def run_flow(
                     )
                     res = {"status": "success", "task_id": action.id, "title": action.title, "summary": f"已创建任务：{action.title}"}
 
+            elif tool_name == "checklist_query":
+                from core.models.orm import CaseChecklist
+                if not case_id:
+                    res = {"status": "error", "message": "清单查询必须在案件对话中进行", "summary": "清单查询必须在案件对话中进行", "missing": []}
+                else:
+                    items = db.query(CaseChecklist).filter(CaseChecklist.case_id == case_id).order_by(CaseChecklist.id).all()
+                    done = sum(1 for it in items if it.status == "received")
+                    missing = [it.item_name for it in items if it.status != "received"][:10]
+                    use_ai = bool(params.get("use_ai") or args.get("use_ai"))
+                    suggestion = ""
+                    if use_ai:
+                        from core.checklist.master_picker import pick_checklist
+                        from core.models.orm import Case
+                        case_obj = db.query(Case).filter(Case.id == case_id).first()
+                        if case_obj:
+                            recs = pick_checklist(
+                                {"case_id": case_id, "lender": case_obj.lender or "CBA",
+                                 "employment_type": case_obj.employment_type or "PAYG",
+                                 "residency": case_obj.residency or "PR", "purpose": case_obj.purpose or "Purchase"},
+                                db, use_ai=True,
+                            )
+                            if recs:
+                                suggestion = "AI 推荐补充：" + "、".join(f"{p['name_zh']}" for p in recs[:5])
+                    res = {"status": "success", "done": done, "total": len(items), "missing": missing,
+                           "summary": f"清单进度 {done}/{len(items)}；缺失：{'、'.join(missing) if missing else '无'}" + (f"；{suggestion}" if suggestion else "")}
+            elif tool_name == "checklist_preview":
+                from core.checklist.master_picker import pick_checklist
+                from core.models.orm import Case
+                if not case_id:
+                    res = {"status": "error", "message": "清单预选必须在案件对话中进行", "summary": "清单预选必须在案件对话中进行", "items": []}
+                else:
+                    case_obj = db.query(Case).filter(Case.id == case_id).first()
+                    if not case_obj:
+                        res = {"status": "error", "message": "案件不存在", "summary": "案件不存在", "items": []}
+                    else:
+                        preview = pick_checklist(
+                            {"case_id": case_id, "lender": params.get("lender") or case_obj.lender or "CBA",
+                             "employment_type": case_obj.employment_type or "PAYG",
+                             "residency": case_obj.residency or "PR", "purpose": case_obj.purpose or "Purchase"},
+                            db, use_ai=False,
+                        )
+                        items_summary = "、".join(f"{p['name_zh']}" for p in preview[:10])
+                        res = {"status": "success", "count": len(preview), "items": preview[:10],
+                               "summary": f"按画像预选 {len(preview)} 项：{items_summary}"}
+
             if step.get("output"):
                 step_ctx[str(step["output"])] = res
 

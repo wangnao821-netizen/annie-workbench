@@ -39,14 +39,34 @@ _DEFAULT_CASE_INFO = {
 _SIZE_MIN, _SIZE_MAX = 15, 25
 
 
-def _load_master() -> list[dict]:
-    """读取 config/checklist_master.yaml 的 items 列表。
+def _load_master(db: Session | None = None) -> list[dict]:
+    """config/checklist_master.yaml items + （db 存在时）checklist_library_custom 合并。
 
-    直接按模块路径定位，避免依赖配置加载（离线/测试环境可用）。
+    无 db → 仅 config（保持离线/测试兼容）；有 db → 追加自定义总项库行。
     """
     path = _PROJECT_ROOT / "config" / "checklist_master.yaml"
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
-    return data["items"]
+    items = data["items"]
+    if db is None:
+        return items
+    try:
+        from core.models.orm import ChecklistLibraryCustom
+
+        customs = db.query(ChecklistLibraryCustom).all()
+        items = items + [
+            {
+                "id": row.id,
+                "name_zh": row.name_zh,
+                "name_en": row.name_en or "",
+                "category": row.category,
+                "applicable_when": row.applicable_when or {},
+                "bank_specific": row.bank_specific,
+            }
+            for row in customs
+        ]
+    except Exception as exc:  # noqa: BLE001 — 自定义库不可用降级为仅 config，不阻断
+        logger.warning("Failed to load custom checklist library: %s", exc)
+    return items
 
 
 def _norm(text: object) -> str:
@@ -172,7 +192,7 @@ def pick_checklist(case_info: dict, db: Session, use_ai: bool = True) -> list[di
     Returns:
         [{"id", "name_zh", "required", "reason"}, ...]（15-25 项）
     """
-    items = _load_master()
+    items = _load_master(db)
     picked = _rule_pick(items, case_info)
     if not picked or len(picked) < _SIZE_MIN:
         return picked

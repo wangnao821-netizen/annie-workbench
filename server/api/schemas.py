@@ -325,6 +325,15 @@ class ChecklistConfirmRequest(BaseModel):
     received_file_id: str | None = None
 
 
+class ChecklistAddRequest(BaseModel):
+    name_zh: str
+    name_en: str | None = None
+    category: str                      # 枚举同 checklist_master
+    is_required: bool = True
+    applicable_when: dict | None = None
+    bank_specific: str | None = None
+
+
 class FileItemResponse(BaseModel):
     id: str
     case_id: str

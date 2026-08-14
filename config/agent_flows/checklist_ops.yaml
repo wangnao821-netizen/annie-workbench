@@ -1,0 +1,16 @@
+key: checklist_ops
+name: "清单操作"
+description: "查询案件清单缺口/进度，按画像预选推荐，按需 AI 重选"
+triggers: ["这个案件还缺什么", "材料收齐了吗", "清单全绿了吗", "优化一下清单", "智能推荐清单", "预选清单"]
+presentation: result_card
+steps:
+  - tool: checklist_query
+    params:
+      use_ai: "$arg.use_ai"
+    output: result
+  - tool: checklist_preview
+    params:
+      lender: "$arg.lender"
+    output: preview
+confirm_required: false
+acceptance: []

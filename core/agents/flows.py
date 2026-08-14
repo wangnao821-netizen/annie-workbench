@@ -23,6 +23,8 @@ _TOOL_WHITELIST = frozenset({
     "folder_lookup",
     "gap_analysis",
     "task_create",
+    "checklist_query",
+    "checklist_preview",
 })
 
 
