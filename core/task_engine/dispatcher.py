@@ -23,6 +23,19 @@ VALID_DISPATCH_ACTIONS = frozenset({"approve", "reject", "defer", "delegate"})
 _PRIORITY_MAP = {"urgent": "urgent", "high": "high", "medium": "normal", "low": "low"}
 
 
+def _boss_problem(action) -> str | None:
+    """升级事项的卡点问题摘要（vera_note JSON 的 problem；非升级返回 None）。"""
+    if not getattr(action, "escalated_at", None):
+        return None
+    note = getattr(action, "vera_note", "") or ""
+    try:
+        data = json.loads(note)
+        problem = str(data.get("problem") or "")
+        return problem or None
+    except (TypeError, ValueError):
+        return action.title
+
+
 def _serialize_context(context: dict[str, Any]) -> str:
     """把结构化上下文序列化成 JSON 存入 ai_suggestion（TEXT 列）。"""
     if not context:
@@ -161,10 +174,12 @@ def to_task_response(action: Action, case: Case | None) -> dict[str, Any]:
         "source_channel": action.source_channel or "email",
         "match_status": action.match_status or "confirmed",
         "created_at": action.created_at.isoformat() if action.created_at else None,
-        "deadline": action.delegation_deadline.isoformat() if action.delegation_deadline else None,
-        "delegated_to": action.delegated_to,
-        "source_msg_id": action.source_msg_id,
-    }
+          "deadline": action.delegation_deadline.isoformat() if action.delegation_deadline else None,
+          "delegated_to": action.delegated_to,
+          "source_msg_id": action.source_msg_id,
+          "escalated_to_boss": getattr(action, "escalated_at", None) is not None,
+          "boss_decision": _boss_problem(action),
+      }
 
 
 def list_tasks(filter: str = "today", db: Session = ...) -> list[dict[str, Any]]:

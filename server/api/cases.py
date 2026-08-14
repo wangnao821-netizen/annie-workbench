@@ -28,6 +28,7 @@ from core.context.accumulator import append_context_event, get_context_events
 from core.events.timeline import get_timeline
 from core.facts.extract import sync_brain_facts
 from core.models.orm import (
+    Action,
     BrainFact,
     Case,
     CaseChecklist,
@@ -102,6 +103,17 @@ def _to_case_response(case: Case, db: Session) -> CaseResponse:
         )
         .count()
     )
+    has_boss = (
+        db.query(Action)
+        .filter(
+            Action.case_id == case.id,
+            Action.assignee == "brandon",
+            Action.status == "pending",
+            Action.escalated_at.isnot(None),
+        )
+        .first()
+        is not None
+    )
     return CaseResponse(
         case_id=case.id,
         client_name=case.client_name,
@@ -114,6 +126,7 @@ def _to_case_response(case: Case, db: Session) -> CaseResponse:
         progress_pct=round(done / total * 100.0, 1) if total else 0.0,
         last_activity=last.created_at if last else None,
         finance_deadline=case.finance_deadline,
+        has_boss_pending=has_boss,
         os_pending_count=os_pending,
     )
 

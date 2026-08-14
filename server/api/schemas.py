@@ -24,6 +24,8 @@ class TaskResponse(BaseModel):
     deadline: datetime | None = None
     delegated_to: str | None = None
     source_msg_id: str | None = None  # 复用 Action.source_msg_id，前端静音/分析用
+    escalated_to_boss: bool = False   # 已升级给老板、待拍板（escalated_at 非空）
+    boss_decision: str | None = None  # 升级时的卡点问题摘要（vera_note JSON problem）
 
 
 class CaseResponse(BaseModel):
@@ -39,6 +41,7 @@ class CaseResponse(BaseModel):
     last_activity: datetime | None = None
     finance_deadline: datetime | None = None  # Finance Clause / 关键截止日
     os_pending_count: int = 0                 # 待处理 OS 条件数
+    has_boss_pending: bool = False            # 该案件存在升级未决事项（待老板拍板）
 
 
 class CaseDetailResponse(BaseModel):

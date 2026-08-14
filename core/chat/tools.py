@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from sqlalchemy.orm import Session
 
 from core.context.accumulator import append_context_event
+from core.escalation.service import create_escalation
 from core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -38,6 +41,25 @@ TOOL_SCHEMAS: list[dict] = [
             "parameters": {"type": "object", "properties": {}, "required": []},
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "escalate_to_boss",
+            "description": (
+                "Vera 要把某个卡点/事项升级给老板拍板时调用：新建一条待老板拍板任务"
+                "（assignee=brandon，进入老板队列）。可在对话里带截止时间。"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "problem": {"type": "string", "description": "卡点问题描述（必填，中文）"},
+                    "preference": {"type": "string", "description": "Vera 倾向的方案/建议（可选）"},
+                    "deadline": {"type": "string", "description": "期望老板答复的截止时间（ISO 8601，可选）"},
+                },
+                "required": ["problem"],
+            },
+        },
+    },
 ]
 
 
@@ -64,7 +86,46 @@ def execute_tool(
         return _record_fact(arguments, case_id, track, db)
     if name == "suggest_submission":
         return {"suggest": True}
+    if name == "escalate_to_boss":
+        return _escalate_to_boss(arguments, case_id, db)
     return {"ok": False, "error": f"unknown tool: {name}"}
+
+
+def _escalate_to_boss(arguments: dict, case_id: str, db: Session) -> dict:
+    """escalate_to_boss：升级卡点到老板队列（新建 ESCALATION Action）。"""
+    if not case_id:
+        return {"ok": False, "error": "升级老板必须在案件对话中进行"}
+    problem = str(arguments.get("problem", "")).strip()
+    if not problem:
+        return {"ok": False, "error": "problem 不能为空"}
+    preference = str(arguments.get("preference", "")).strip() or None
+    deadline_raw = arguments.get("deadline")
+    try:
+        action = create_escalation(
+            db=db,
+            case_id=case_id,
+            problem=problem,
+            preference=preference,
+            source="ai_chat",
+            context=f"聊天升级：{problem[:80]}",
+        )
+        deadline = None
+        if deadline_raw:
+            deadline = datetime.fromisoformat(str(deadline_raw))
+            action.scheduled_at = deadline
+            db.commit()
+            db.refresh(action)
+        return {
+            "ok": True,
+            "action_id": action.id,
+            "title": action.title,
+            "escalated_at": action.escalated_at.isoformat() if action.escalated_at else None,
+            "deadline": deadline.isoformat() if deadline else None,
+            "assignee": "brandon",
+        }
+    except Exception as exc:  # noqa: BLE001 — 工具失败不阻断对话
+        logger.warning("escalate_to_boss failed: %s", exc)
+        return {"ok": False, "error": str(exc)}
 
 
 def _record_fact(arguments: dict, case_id: str, track: str, db: Session) -> dict:
