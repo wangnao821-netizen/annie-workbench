@@ -26,6 +26,7 @@ from core.models.orm import (
     KnowledgeEntry,
     OsCondition,
 )
+from core.persona import build_system_prompt
 
 if TYPE_CHECKING:
     pass
@@ -44,7 +45,10 @@ class AssembledContext:
 
 
 # 每层的 token 预算（字符数，~3 字符/token）
-BUDGET_ROLE = 300
+# 角色层预算 300 → 600：人格 system prompt（common_rules + 人格规则）实测约 430-470 字符，
+# 300 会把末尾的人格规则截掉；600 容纳完整人格并留 V2 自定义人格余量。
+# 角色层是每个 prompt 的固定前缀，DeepSeek 前缀缓存命中后成本可忽略。
+BUDGET_ROLE = 600
 BUDGET_TEAM_EXP = 1500
 BUDGET_CASE_BRAIN = 1800
 BUDGET_LIVE_DATA = 3000
@@ -62,6 +66,13 @@ TASK_TYPES = [
 
 
 def _build_role_prompt() -> str:
+    """Layer 1 角色定义：优先人格配置（config/persona.yaml），异常/缺失回退旧文案。"""
+    try:
+        prompt = build_system_prompt()
+        if prompt:
+            return prompt
+    except Exception:
+        logger.warning("persona prompt build failed, fallback to legacy role", exc_info=True)
     return "你是澳洲贷款经纪团队的 AI 助手。你了解每个客户的具体情况和团队的历史经验。回答要具体到这个客户，不要给通用建议。"
 
 
