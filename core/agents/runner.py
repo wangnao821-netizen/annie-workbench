@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from sqlalchemy.orm import Session
 
 from core.agents.flows import flow_tool_whitelist
@@ -179,6 +181,34 @@ def run_flow(
                         res = {"status": "skipped", "message": "案件未关联文件夹", "summary": "案件未关联文件夹", "missing": [], "matched": [], "suggestions": []}
                     else:
                         res = analyze_gaps(case_obj, db)
+
+            elif tool_name == "task_create":
+                from core.task_engine.dispatcher import (
+                    create_task as create_task_action,
+                )
+                title = str(params.get("title") or args.get("title") or "").strip()
+                if not title:
+                    res = {"status": "error", "message": "任务标题不能为空", "summary": "任务标题不能为空"}
+                elif not case_id:
+                    res = {"status": "error", "message": "创建任务必须在案件对话中进行", "summary": "创建任务必须在案件对话中进行"}
+                else:
+                    deadline_raw = params.get("deadline") or args.get("deadline")
+                    try:
+                        deadline = datetime.fromisoformat(str(deadline_raw)) if deadline_raw else None
+                    except ValueError:
+                        deadline = None
+                    action = create_task_action(
+                        case_id=case_id,
+                        task_type="general",
+                        source_channel="manual",
+                        title=title,
+                        context={"wo41": True},
+                        deadline=deadline,
+                        priority=str(params.get("priority") or args.get("priority") or "normal"),
+                        assignee=params.get("assignee") or args.get("assignee"),
+                        db=db,
+                    )
+                    res = {"status": "success", "task_id": action.id, "title": action.title, "summary": f"已创建任务：{action.title}"}
 
             if step.get("output"):
                 step_ctx[str(step["output"])] = res

@@ -215,6 +215,10 @@ class CreateTaskRequest(BaseModel):
     source_channel: str = "manual"
     title: str
     context: dict = {}
+    # ── WO-41 追加 ──
+    deadline: str | None = None          # ISO 8601，可选；端点解析为 datetime 写 scheduled_at
+    priority: str = "normal"             # urgent | high | normal | low
+    assignee: str | None = None          # 空 → 默认 "vera"；老板用 "brandon"
 
 
 class DelegateRequest(BaseModel):

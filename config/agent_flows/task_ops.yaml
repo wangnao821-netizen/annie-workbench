@@ -1,0 +1,15 @@
+key: task_ops
+name: "任务操作"
+description: "在对话中创建任意任务（关联当前案件）"
+triggers: ["帮我建个任务", "创建任务", "提醒我", "周五前", "记得", "建一个待办"]
+presentation: result_card
+steps:
+  - tool: task_create
+    params:
+      title: "$arg.title"
+      deadline: "$arg.deadline"
+      priority: "$arg.priority"
+      assignee: "$arg.assignee"
+    output: result
+confirm_required: false
+acceptance: []

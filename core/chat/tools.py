@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from core.context.accumulator import append_context_event
 from core.escalation.service import create_escalation
 from core.logger import get_logger
+from core.task_engine.dispatcher import create_task
 
 logger = get_logger(__name__)
 
@@ -60,6 +61,27 @@ TOOL_SCHEMAS: list[dict] = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_task",
+            "description": (
+                "Vera 在对话里要创建任意任务（含截止时间/优先级/负责人）时调用。"
+                "任务与当前案件自动关联；升级给老板用 escalate_to_boss，不要用本工具。"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string", "description": "任务标题（必填，中文）"},
+                    "deadline": {"type": "string", "description": "截止时间 ISO 8601（可选）"},
+                    "priority": {"type": "string", "enum": ["urgent", "high", "normal", "low"], "description": "默认 normal"},
+                    "assignee": {"type": "string", "description": "负责人，默认 vera"},
+                    "context": {"type": "object", "description": "补充上下文（可选）"},
+                },
+                "required": ["title"],
+            },
+        },
+    },
 ]
 
 
@@ -88,6 +110,8 @@ def execute_tool(
         return {"suggest": True}
     if name == "escalate_to_boss":
         return _escalate_to_boss(arguments, case_id, db)
+    if name == "create_task":
+        return _create_task(arguments, case_id, db)
     return {"ok": False, "error": f"unknown tool: {name}"}
 
 
@@ -125,6 +149,44 @@ def _escalate_to_boss(arguments: dict, case_id: str, db: Session) -> dict:
         }
     except Exception as exc:  # noqa: BLE001 — 工具失败不阻断对话
         logger.warning("escalate_to_boss failed: %s", exc)
+        return {"ok": False, "error": str(exc)}
+
+
+def _create_task(arguments: dict, case_id: str, db: Session) -> dict:
+    """create_task：对话里创建任意任务（WO-41）。"""
+    if not case_id:
+        return {"ok": False, "error": "创建任务必须在案件对话中进行"}
+    title = str(arguments.get("title", "")).strip()
+    if not title:
+        return {"ok": False, "error": "title 不能为空"}
+    deadline = None
+    if arguments.get("deadline"):
+        try:
+            deadline = datetime.fromisoformat(str(arguments["deadline"]))
+        except ValueError:
+            return {"ok": False, "error": "deadline 不是合法 ISO 时间"}
+    try:
+        action = create_task(
+            case_id=case_id,
+            task_type="general",
+            source_channel="manual",
+            title=title,
+            context=arguments.get("context") or {},
+            deadline=deadline,
+            priority=arguments.get("priority") or "normal",
+            assignee=arguments.get("assignee"),
+            db=db,
+        )
+        return {
+            "ok": True,
+            "task_id": action.id,
+            "title": action.title,
+            "priority": action.priority,
+            "deadline": action.scheduled_at.isoformat() if action.scheduled_at else None,
+            "assignee": action.assignee,
+        }
+    except Exception as exc:  # noqa: BLE001 — 工具失败不阻断对话
+        logger.warning("create_task failed: %s", exc)
         return {"ok": False, "error": str(exc)}
 
 

@@ -58,6 +58,12 @@ def create_task_endpoint(
     case = db.get(Case, req.case_id)
     if not case:
         raise HTTPException(status_code=404, detail="案件不存在")
+    deadline: datetime | None = None
+    if req.deadline:
+        try:
+            deadline = datetime.fromisoformat(req.deadline)
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail="deadline 不是合法 ISO 时间") from e
     try:
         action = create_task(
             case_id=req.case_id,
@@ -65,6 +71,9 @@ def create_task_endpoint(
             source_channel=req.source_channel,
             title=req.title,
             context=req.context,
+            deadline=deadline,
+            priority=req.priority,
+            assignee=req.assignee,
             db=db,
         )
     except ValueError as e:

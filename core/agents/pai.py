@@ -25,7 +25,7 @@ logger = get_logger(__name__)
 _AGENTS: dict[str, Any] = {}
 _gemini_failures = 0
 _gemini_skipped_until = 0.0
-_TOOL_NAMES = frozenset({"declaration_check", "calculator_assess", "policy_check", "context_event_write", "draft_email", "folder_lookup", "gap_analysis"})
+_TOOL_NAMES = frozenset({"declaration_check", "calculator_assess", "policy_check", "context_event_write", "draft_email", "folder_lookup", "gap_analysis", "task_create"})
 _DEFAULT_TIMEOUT_S = 30
 _SYSTEM_PROMPT = "你是澳洲贷款经纪团队的 AI 助手。按流程包意图调用白名单工具，回答具体到这个客户，不要给通用建议。"
 
@@ -95,8 +95,30 @@ def _gap_analysis(ctx) -> dict:
     return analyze_gaps(case_obj, ctx.deps.db)
 
 
+def _task_create(ctx) -> dict:
+    """创建任务（WO-41）。"""
+    title = str(ctx.get("title") or "").strip()
+    if not title:
+        return {"status": "error", "message": "任务标题不能为空", "summary": "任务标题不能为空"}
+    if not ctx.get("case_id"):
+        return {"status": "error", "message": "创建任务必须在案件对话中进行", "summary": "创建任务必须在案件对话中进行"}
+    from core.task_engine.dispatcher import create_task as create_task_action
+    action = create_task_action(
+        case_id=ctx["case_id"],
+        task_type="general",
+        source_channel="manual",
+        title=title,
+        context={"wo41": True},
+        deadline=ctx.get("deadline"),
+        priority=str(ctx.get("priority") or "normal"),
+        assignee=ctx.get("assignee"),
+        db=ctx.get("db"),
+    )
+    return {"status": "success", "task_id": action.id, "title": action.title, "summary": f"已创建任务：{action.title}"}
+
+
 def _tool_defs() -> list[Any]:
-    return [_declaration_check, _calculator_assess, _policy_check, _context_event_write, _folder_lookup, _gap_analysis]
+    return [_declaration_check, _calculator_assess, _policy_check, _context_event_write, _folder_lookup, _gap_analysis, _task_create]
 
 
 def _pick_provider(task_text: str, cfg) -> str:

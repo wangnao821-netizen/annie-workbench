@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -18,6 +19,9 @@ from core.models.orm import Action, Case
 
 # 有效派单动作
 VALID_DISPATCH_ACTIONS = frozenset({"approve", "reject", "defer", "delegate"})
+
+# 有效优先级（WO-41 create_task 校验枚举）
+VALID_PRIORITIES = frozenset({"urgent", "high", "normal", "low"})
 
 # Action.priority (low/medium/high) → TaskResponse.priority (urgent/high/normal/low)
 _PRIORITY_MAP = {"urgent": "urgent", "high": "high", "medium": "normal", "low": "low"}
@@ -68,6 +72,9 @@ def create_task(
     title: str,
     context: dict,
     routing_options: list[dict] | None = None,
+    deadline: datetime | None = None,
+    priority: str | None = None,
+    assignee: str | None = None,
     db: Session = ...,
 ) -> Action:
     """创建一个任务到 Vera 的 Action Inbox。
@@ -79,16 +86,25 @@ def create_task(
         title: 任务标题（前端卡片展示）。
         context: 结构化上下文（JSON 序列化后存 ai_suggestion；source_msg_id 单独回填）。
         routing_options: 可执行建议元数据，如 [{action: "approve", label: "批准"}]。
+        deadline: 截止时间（ISO 8601 解析后的 datetime），非空写 scheduled_at。
+        priority: urgent | high | normal | low；None 时回退 context.get("priority", "low")。
+        assignee: 负责人；空值默认 "vera"。
         db: SQLAlchemy session。
 
     Returns:
         已持久化的 Action 实例。
 
     Raises:
-        ValueError: case_id / task_type / title 为空时。
+        ValueError: case_id / task_type / title 为空，或 priority 非法时。
     """
     if not case_id or not task_type or not title:
         raise ValueError("case_id, task_type, title 均不能为空")
+
+    if priority is None:
+        priority = str(context.get("priority", "low"))
+    if priority not in VALID_PRIORITIES:
+        raise ValueError(f"非法优先级: {priority}，仅支持 {sorted(VALID_PRIORITIES)}")
+    assignee = assignee or "vera"
 
     action = Action(
         case_id=case_id,
@@ -96,12 +112,14 @@ def create_task(
         title=title,
         source_channel=source_channel or "email",
         status="pending",
-        assignee="vera",
+        assignee=assignee,
         ai_suggestion=_serialize_context(context),
         routing_options=routing_options,
         source_msg_id=context.get("source_msg_id"),
-        priority=str(context.get("priority", "low")),
+        priority=priority,
     )
+    if deadline is not None:
+        action.scheduled_at = deadline
     db.add(action)
     db.commit()
     db.refresh(action)

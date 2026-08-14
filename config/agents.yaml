@@ -115,3 +115,15 @@ items:
     capability: "创建/更新日历日程"
     permission: "需 Vera 确认"
     enabled_default: false
+
+  - key: agent-task
+    name: "任务 Agent (Task Ops)"
+    description: "自然语言建任务/查任务/委派/改截止/升级老板"
+    category: agent
+    status: available
+    triggers: ["帮我建个任务", "创建任务", "提醒我", "周五前", "记得", "建一个待办"]
+    # V1 只挂"建任务"触发语；查/委派/升级触发语 V2（升级已由 WO-40 escalate_to_boss 处理）
+    flow_key: task_ops
+    capability: "任务 CRUD + 委派 + 升级"
+    permission: "仅本系统任务，不触外部"
+    enabled_default: true

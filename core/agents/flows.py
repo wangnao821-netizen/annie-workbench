@@ -22,6 +22,7 @@ _TOOL_WHITELIST = frozenset({
     "draft_email",
     "folder_lookup",
     "gap_analysis",
+    "task_create",
 })
 
 
