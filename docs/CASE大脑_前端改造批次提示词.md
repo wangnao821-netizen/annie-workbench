@@ -2908,3 +2908,43 @@ LLM 调 `record_fact` 且内容命中其他案件客户名时，后端**不写�
 7. 后端 422/404/409 时前端显示对应错误 toast，不白屏；
 8. 对话说"打开文件"→ 出现 dialog 卡并可打开抽屉；
 9. `npx tsc --noEmit` 零错误。
+
+# F-35 补丁（2026-08-14 定稿）：中栏三件套（清单/任务/文件）改居中悬浮面板
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (54)`。
+> 背景：清单/任务/文件三个抽屉目前都是**右侧滑出**（`flex justify-end` + `x:100%` 动画），悬在中栏与右栏全景
+> 之间，视觉重心偏右且与客户全景抢注意力。拍板：改成**中栏居中的悬浮面板**——浮在中栏正中，
+> 左右两侧露出左栏案件列表与右栏全景；轻量操作小面板，深度详情（TaskDetailOverlay）保持大覆盖层不变。
+
+## 一、容器与定位（三个文件各改一处）
+
+- `src/components/brain/TaskDrawer.tsx`、`ChecklistDrawer.tsx`、`FileDrawer.tsx`：
+  - 遮罩容器：`absolute inset-0 bg-black/20 dark:bg-black/40 z-30 backdrop-blur-xs flex justify-end`
+    → `flex items-center justify-center`（FileDrawer 若用 `fixed inset-0` 也统一改 `absolute inset-0`，
+    三者都相对中栏容器居中）；
+  - 面板：右侧整高面板 → **居中悬浮卡片**：
+    - 任务/清单：`w-[480px] max-w-[92%] h-[min(760px,90%)] rounded-2xl border shadow-2xl bg-[var(--bg-panel)] flex flex-col overflow-hidden`；
+    - 文件：`w-[640px] max-w-[94%] h-[min(820px,92%)] rounded-2xl border shadow-2xl bg-[var(--bg-panel)] flex flex-col overflow-hidden`（需要预览空间）；
+  - 动画（motion）：遮罩 `opacity 0→1`；面板 `initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }}`
+    `exit={{ opacity: 0, scale: 0.96 }}`（从中心淡入缩放，**去掉 `x:'100%'` 右滑**）；reduced motion 时仅 opacity；
+  - 关闭：保留现有 X；补上点击遮罩关闭 + Esc 关闭（如未实现）。
+
+## 二、内容零改动
+
+- 三个抽屉**内部内容结构、状态、交互全部不动**（任务列表/清单维护/文件浏览预览改名移动放入），
+  只改容器定位与动画；顶部标题栏保留（案件名 + 当前功能名 + 关闭 X）。
+- TaskDetailOverlay（F-31 深度详情大覆盖层）**不在本批范围**，保持大覆盖层形态。
+
+## 三、范围与红线
+
+- 只改：`TaskDrawer.tsx` / `ChecklistDrawer.tsx` / `FileDrawer.tsx` 三个文件的容器层；
+- 不改后端、不新增 npm 依赖；`npx tsc --noEmit` 零错误。
+
+## 四、验收
+
+1. 案件对话态点「清单」「任务」「文件」→ 三个面板均**居中于中栏**（左右两栏可见），从中心缩放淡入；
+2. 关闭：X / 点遮罩 / Esc 均可，退出动画反向；
+3. 文件抽屉 640px、清单/任务 480px，内部内容与操作完全不变（预览/改名/移动/放入/标记已收/建任务照常）；
+4. 全局咨询态不显示三个按钮（现状保持）；
+5. TaskDetailOverlay 大覆盖层不受影响；
+6. `npx tsc --noEmit` 零错误。
