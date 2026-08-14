@@ -306,7 +306,7 @@
   - ✅ **F-38 补丁一/二/三 已交付**（(56)，Codex 审查通过）：右栏披露标记 / 逾期提醒开任务抽屉 / 全景页文案 / 关键截止·下一步·风险空态占位 / 快照折叠 🔒 角标；**用户反馈"披露标记仍不见"已代码核对 = 已实现**，mock 模式（VITE_USE_MOCK≠false）无 internal_only 数据故不显示，连真后端即出（详见前端问题清单 §三）
   - ✅ **F-31 已交付**（(55)）：待办工作台退役，详情抽 TaskDetailOverlay；**OsWorkbench 保留**（能力核对确认：OS 攻坚/任务详情/催件全在）
   - 📋 **F-39 已出**（2026-08-15）：中栏底部「已记录 N 条」收进胶囊 + 待确认红点 / 快捷发问 chips / 顶部任务·清单数量徽章 / 输入框发文件→import+preview OCR 识别入口（纯前端，接 WO-44 端点）
-  - 📋 **WO-45 已出**（2026-08-15）：OCR 链路验证加固——复用老项目已迁入的 LiteParse 链路（core/pipeline/parser.py），补 pymupdf/pdfplumber/pypdf/python-docx 兜底依赖 + 合成样本实测；效果不足再评估 RapidOCR/Qwen2.5-VL 作补充引擎（V2 兜底）
+  - ✅ **WO-45 已完成**（2026-08-16，6ffd776）：补 pymupdf 1.28.2/pdfplumber 0.11.10/pypdf 6.16.1/python-docx 1.2.0；实测发现 liteparse OCR 依赖 tessdata（默认报 os error 183 → 设 TESSDATA_PREFIX 解决，已下载 eng/chi_sim 语言包）；修 parser.py 图片 OCR 50 字符阈值 bug（→ 10 有效字符 + 过滤 markdown 空包装）；合成样本测试 8 用例；全量 1067 passed。**生产部署要点：OCR 需配 TESSDATA_PREFIX（或装 Tesseract），否则图片/扫描 OCR 走占位兜底**
   - 📋 **F-40 已出**（2026-08-16，(57) 反馈）：① 中栏快捷 chips 折叠进「⚡ 工具」菜单（计算器/邮件/建案/文件夹/提问，输入框左侧 = 📌已记录｜📎附件｜⚡工具）；② 新建 MailComposeModal 邮件悬浮窗（保存草稿进草稿箱 + 复制英文，无发送按钮，仅案件模式）；③ 文件预览默认显示原文（PDF/图片内嵌），解析内容为第二 tab
   - 📋 **WO-46 已出**（2026-08-16）：GET .../files/raw 只读原文流端点（PathGuard 同案件、≤20MB、白名单扩展名）+ POST /api/drafts 手动建草稿（挂 EmailDraft status=draft，与 DraftsBox 打通）
   - 📋 **F-40 v2 已出**（2026-08-16，方案 A）：三共创通用弹窗深谈 CoCreateDialog（邮件/催件/OS 回复统一对齐主文档 §二——拉全景/澄清 1-3 轮/V1-V3+A-B/确认收尾/恢复会话；触发语不再主对话出共创卡）；DraftCard「复制/翻译」占位按钮修复（真复制 + 中文对照）；⚡ 工具折叠 + 文件原文预览（同 F-40 v1）
