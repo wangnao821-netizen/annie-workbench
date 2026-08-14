@@ -67,6 +67,7 @@ from server.api.drafts import router as drafts_router
 from server.api.events import router as events_router
 from server.api.files import router as files_router
 from server.api.folders import router as folders_router
+from server.api.holidays import router as holidays_router
 from server.api.imports import router as imports_router
 from server.api.inbox import router as inbox_router
 from server.api.skills import router as skills_router
@@ -88,6 +89,7 @@ app.include_router(tasks_router)
 app.include_router(files_router)
 app.include_router(inbox_router)
 app.include_router(imports_router)
+app.include_router(holidays_router)
 app.include_router(chat_router)
 app.include_router(drafts_router)
 app.include_router(wechat_router)

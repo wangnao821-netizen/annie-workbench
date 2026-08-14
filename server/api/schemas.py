@@ -827,3 +827,40 @@ class CaseSnapshotResponse(BaseModel):
     facts: list[SnapshotFact]
     events: list[SnapshotEvent]
     timeline: list[SnapshotTimelineItem]
+
+
+# ── WO-39 澳洲时区/假期/银行工作日 Schemas ───────────────────────────────
+
+class HolidayStateToday(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    date: str
+    state: str
+    is_working_day: bool
+    holiday_name: str | None = None
+    weekday: int
+
+
+class HolidayItem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    date: str
+    name: str
+    state: str
+    display: str
+
+
+class DlsStatus(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    utc_offset_hours: int
+    dls_active: bool
+
+
+class HolidaysResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    today: dict[str, HolidayStateToday]   # key = act/nsw/qld
+    upcoming: list[HolidayItem]
+    next: HolidayItem | None
+    dls: dict[str, DlsStatus]             # key = sydney/brisbane/beijing

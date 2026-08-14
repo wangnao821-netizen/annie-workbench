@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from core.ai.case_summary import get_case_one_liner
 from core.ai.context_builder import _build_case_brain
+from core.holidays import is_working_day, load_holidays
 from core.logger import get_logger
 from core.models.orm import Case, CaseChecklist, CaseTimelineEvent, OsCondition
 
@@ -75,8 +76,18 @@ def _build_deadlines(case: Case) -> dict:
     return {"finance_due": case.finance_deadline.isoformat(), "days_left": days_left}
 
 
-def _build_risk(checklist: dict, os: dict, deadlines: dict, lvr) -> list[str]:
-    """风险推导：到期<7天 / OS 待处理 / 清单缺项 / LVR≥90。"""
+def _build_risk(
+    checklist: dict,
+    os: dict,
+    deadlines: dict,
+    lvr,
+    finance_workday: tuple[bool, str | None] | None = None,
+) -> list[str]:
+    """风险推导：到期<7天 / OS 待处理 / 清单缺项 / LVR≥90 / 截止日银行休息日。
+
+    finance_workday = is_working_day(finance_date, default_state) 结果；
+    None（默认）时不注入，既有调用零影响。新风险仅追加在 LVR 之后。
+    """
     risk: list[str] = []
     days_left = deadlines.get("days_left")
     if days_left is not None and days_left < 7:
@@ -87,6 +98,10 @@ def _build_risk(checklist: dict, os: dict, deadlines: dict, lvr) -> list[str]:
         risk.append(f"清单缺 {len(checklist['missing'])} 项材料")
     if lvr is not None and lvr >= 90:
         risk.append(f"LVR 达 {lvr}%，接近 90% 红线")
+    if finance_workday is not None and not finance_workday[0]:
+        finance_due = deadlines.get("finance_due") or ""
+        date_str = finance_due[:10] if finance_due else ""
+        risk.append(f"Finance Clause 截止日（{date_str}）是银行休息日（{finance_workday[1] or '周末'}），建议提前")
     return risk
 
 
@@ -190,6 +205,14 @@ def build_case_context(case_id: str, db: Session, track: str = "internal") -> di
     os = _build_os(case_id, db)
     deadlines = _build_deadlines(case)
 
+    finance_workday = None
+    if case.finance_deadline:
+        finance = case.finance_deadline
+        if finance.tzinfo is None:
+            finance = finance.replace(tzinfo=UTC)  # SQLite 存 naive，补 UTC 再取日期
+        finance_date = finance.astimezone(UTC).date()
+        finance_workday = is_working_day(finance_date, load_holidays()["default_state"])
+
     memory = _build_track_memory(case, db, track)
     if track == "internal":
         semantic_memory = _build_semantic_memory(case_id, db, track)
@@ -203,7 +226,7 @@ def build_case_context(case_id: str, db: Session, track: str = "internal") -> di
         "checklist": checklist,
         "os": os,
         "deadlines": deadlines,
-        "risk": _build_risk(checklist, os, deadlines, case.lvr),
+        "risk": _build_risk(checklist, os, deadlines, case.lvr, finance_workday),
         "timeline": _build_timeline(case_id, db),
         "memory": memory,
         # 外线视图的 summary 不得取自内线蒸馏（context_summary 与一句话摘要同列，
