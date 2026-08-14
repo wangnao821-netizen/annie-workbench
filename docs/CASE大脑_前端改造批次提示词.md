@@ -2565,7 +2565,7 @@ category: CATEGORY_TO_EN[newCategory] ?? 'special',
 4. 全局咨询态：无清单/任务/递交 pill，仅"全局咨询" + 全景按钮
 5. `npx tsc --noEmit` 零错误
 
-# F-32（2026-08-14 定稿）：AI 助手设置（人格/名字/称呼）+ 首次对话引导
+# F-32（2026-08-14 定稿）：AI 助手设置（人格/名字/称呼）+ 首次对话引导（✅ 已交付 (53)，Codex 验收通过，待真机）
 
 > 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (52)`（或最新编号）。
 > 背景：后端已内置 4 种 AI 人格（a 专业稳重型 / b 亲和贴心型 / c 干脆高效型 / d 活泼幽默型，默认 a）并
@@ -2647,7 +2647,7 @@ body 示例：`{"ai_name": "小V", "user_address": "Vera姐", "persona_key": "d"
 5. 保存后重新进入全局咨询 → 不再显示引导卡（onboarding_needed=false）；
 6. `npx tsc --noEmit` 零错误。
 
-# F-30（2026-08-14 定稿）：客户全景页重构 — 上下文维护中心 + 时间线
+# F-30（2026-08-14 定稿）：客户全景页重构 — 上下文维护中心 + 时间线（✅ 已交付 (53)，Codex 验收通过，待真机）
 
 > 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (52)`（或最新编号）。
 > 背景：右栏客户全景（CasePanorama）目前是"只读事实卡 + mock 上下文 + 待办卡"。WO-42 后端已上线
