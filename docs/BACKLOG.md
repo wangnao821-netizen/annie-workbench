@@ -285,5 +285,5 @@
 - 前端 F-22 已入批次（2026-08-14）：能力中心对话触发状态同步（WO-36 后端已就绪：available+enabled 显示"对话可触发"、顶部触发语动态生成）
 - DeepSeek Harness 调研（2026-08-14）：不引入本体；借鉴 用量面板/会话压缩 compaction/V4 模型评估；缓存纪律已被官方实测验证（docs/DeepSeek Harness 调研与对照分析.md，commit e629c25）
 - Semantica 调研（2026-08-14）：图原生上下文/问责基础设施（热榜 5.5K+ 星）；**不引入本体**（依赖重量/预览期/PII 红线/定位错位）；记忆架构方向（事件流+派生事实+冲突+时间模型）获外部验证（docs/Semantica调研与对照分析.md）
-- 🟡 决策先例检索（借鉴 Semantica find_precedents；需小 WO：PendingAction/Action+Timeline 结构化为"决策→结果"一等对象，场景维度 bank/lvr/purpose/OS，先例进上下文；解决同客户建议一致性）
-- 🟡 时间点回溯（借鉴 Semantica point-in-time；数据已具备 created_at/superseded 链，需小 WO：案件在 X 日/递交前全景快照查询；解决老客户半截接手缺上下文）
+- 🟡 决策先例检索 → **WO-37 已起草**（docs/flash_specs/wo-37-precedent-search.md，2026-08-14：同客户+同类场景先例进上下文；待执行）
+- 🟡 时间点回溯 → **WO-38 已起草**（docs/flash_specs/wo-38-timepoint-snapshot.md，2026-08-14：案件指定时点全景快照 GET /api/cases/{id}/snapshot；待执行）
