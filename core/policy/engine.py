@@ -7,11 +7,14 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from sqlalchemy.orm import Session  # noqa: F401 — 契约头保留，预留 db 用途
+from sqlalchemy.orm import Session
 
 from core.logger import get_logger
+from core.models.orm import Case
 
 logger = get_logger(__name__)
+
+_CONFIG_DIR = Path(__file__).resolve().parent.parent.parent / "config"
 
 # 规则表：employment_type → (min_abn_years 要求, 宽松度)
 # 宽松度: strict=自雇<2yr 红 / medium=黄 / lenient=绿
@@ -158,3 +161,46 @@ def check_policy(
     return PolicyCheckResult(
         lender=lender, overall=overall, issues=issues, alternative_lenders=alternatives,
     )
+
+
+def run_policy_check(case_id: str, args: dict, db: Session) -> dict:
+    """流程包工具（C 小债：policy_check 白名单死项接线）。
+
+    按案件画像（lender / employment_type / residency / lvr）跑 check_policy，
+    返回结果卡 payload。args.query / args.bank 可选：bank 指定时覆盖案件 lender。
+
+    Args:
+        case_id: 案件 ID（空则 skipped）
+        args: {"query": str | None, "bank": str | None, ...}
+        db: SQLAlchemy session
+
+    Returns:
+        {"status": "ok", "lender", "overall", "issues": [{"level","title","detail","suggestion"}],
+         "alternative_lenders": [...]}；无案件/无 lender 时 status="ok" 空结果。
+    """
+    if not case_id:
+        return {"status": "skipped", "message": "policy_check 需要案件上下文"}
+    case = db.get(Case, case_id)
+    if case is None:
+        return {"status": "skipped", "message": "policy_check 案件不存在"}
+
+    lender = (args or {}).get("bank") or case.lender or ""
+    result = check_policy(
+        lender=lender,
+        employment_type=case.employment_type,
+        residency=case.residency,
+        lvr=case.lvr,
+        loan_amount=case.loan_amount,
+        property_value=case.property_value,
+        config_dir=_CONFIG_DIR,
+    )
+    return {
+        "status": "ok",
+        "lender": result.lender,
+        "overall": result.overall,
+        "issues": [
+            {"level": i.level, "title": i.title, "detail": i.detail, "suggestion": i.suggestion}
+            for i in result.issues
+        ],
+        "alternative_lenders": result.alternative_lenders,
+    }

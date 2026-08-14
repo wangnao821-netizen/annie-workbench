@@ -1,0 +1,11 @@
+key: policy_check
+name: "政策库查询"
+description: "按案件画像与指定银行检索政策要点，输出风险与替代银行建议"
+triggers: ["查政策", "政策库", "政策查询", "policy check", "查一下政策"]
+presentation: result_card
+steps:
+  - tool: policy_check
+    params: { query: "$arg.query", bank: "$arg.bank" }
+    output: result
+confirm_required: false
+acceptance: []
