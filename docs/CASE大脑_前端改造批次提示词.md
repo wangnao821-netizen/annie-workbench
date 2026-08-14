@@ -2333,3 +2333,47 @@ export function deleteKnowledge(id: string): Promise<void>;
 4. 邮件详情 AI 分析返回真实字段（或"规则兜底"标注）
 5. 文件详情分类/置信度来自后端
 6. 无 mock fallback；无新依赖、编译零错误
+
+---
+
+# F-28 补丁（2026-08-14，方案拍板）：案件筛选 5 类 + 待办老板分类 + 待办↔AI 联动
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (49)`。后端 WO-40 已就绪（commit 0fe460b）：聊天 escalate 工具 + TaskResponse 加 `escalated_to_boss` / `boss_decision`、CaseResponse 加 `has_boss_pending`。本批次：案件筛选贴合工作流、老板拍板分类恢复、待办与 AI 聊天上下文联动。
+
+## 一、案件筛选 5 类（src/components/brain/CaseListSidebar.tsx）
+
+`caseFilter: 'all' | 'urgent' | 'submitting'` → `'all' | 'urgent' | 'lender' | 'waiting' | 'boss'`，Tab 文案：
+1. 全部
+2. 🔥 紧急——`finance_deadline ≤7 天` 或 `os_pending_count > 0` 或 `checklistProgress < 40`（数据驱动，不再用 stage 字符串猜）
+3. 📨 审贷中——stage 含 `递交/审贷/评估/批复/预批`
+4. 📋 等材料——stage 含 `收集/补件/准备/资料`
+5. 👑 待老板——`hasBossPending === true`（CaseResponse 新字段）
+
+`CaseInfo`（types/api.ts 或 stores/caseStore）补 `hasBossPending: boolean`；caseMapper 从后端 `has_boss_pending` 映射。
+
+## 二、今日待办分类加"待老板拍板"（src/components/brain/HomePage.tsx）
+
+`taskTab` 下拉加选项：`👑 待老板拍板 ({n})`——过滤 `task.escalatedToBoss === true`；卡片显示"👑 待老板拍板"徽标（金色）+ `bossDecision` 问题摘要。
+
+## 三、任务工作台 brandon 分类接真实数据（src/components/tasks/TaskList.tsx + TaskCard.tsx）
+
+1. `TaskItem` 类型补 `escalatedToBoss?: boolean` / `bossDecision?: string`；`taskMapper`（后端 TaskResponse → TaskItem）映射 `escalated_to_boss` / `boss_decision`
+2. `filter === "brandon"` 改为过滤 `task.escalatedToBoss === true`（不再依赖 `type === "BOSS_DECISION"`）
+3. 卡片：`escalatedToBoss` 时显示金色"👑 待老板拍板"徽标 + 问题（bossDecision 或 title）
+4. 老板答复入口：卡片/详情提供 approve / reject / defer 三按钮 → `POST /api/tasks/{id}/boss-reply`（body `{decision, note?}`，已有端点）；答复后刷新列表，任务状态按 approve→completed / reject→rejected / defer→deferred
+
+## 四、待办 ↔ AI 对话联动（TaskCard.tsx + DetailPanel.tsx）
+
+- 任务卡片/详情加"进入案件对话"按钮（`caseId` 存在时显示）→ `setCurrentCase(该案件)` + `onNavigate('brain')`——让 AI 带上该案件上下文（`/api/cases/{id}/context`）
+- 无 caseId 的任务不显示该按钮
+
+## 五、红线
+- 只改：CaseListSidebar、HomePage、TaskList、TaskCard、DetailPanel、types/api.ts、caseMapper、taskMapper、caseStore（如有）
+- 不改后端（WO-40 已就绪）、不新增 npm 依赖；`npx tsc --noEmit` 零错误
+
+## 六、验收
+1. 案件筛选 5 Tab：紧急（数据口径）、审贷中、等材料、待老板（有升级事项的案件出现在"待老板"）
+2. 今日待办下拉含"👑 待老板拍板"，过滤出真实升级任务并显示问题摘要
+3. 任务工作台 brandon 分类只显示升级任务；卡片金色徽标 + 老板答复三按钮可用（答复后状态变化）
+4. 待办点"进入案件对话"→ AI 聊天切到该案件并带上下文
+5. 无新依赖、编译零错误

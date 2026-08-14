@@ -295,5 +295,7 @@
 ### 2026-08-14 E 收口 — 当前剩余任务（B/C + 发布）
 - **B 收尾（前后端真实化，清 mock）**：后端 ✅（02785ee knowledge CRUD；文件预览/邮件分析后端已有）；前端 **F-27 已出**（知识中心三 tab/文件预览/邮件分析接真实端点，待前端执行）；S4 内外线收尾核对（递交模式已存在，随 F-27 后整体核对）
 - **C 小债**：✅ 全部完成（2026-08-14）——policy_check 白名单死项**接线**（f971958：run_policy_check 实现 + policy_check.yaml 流程包，死项变活）；遗留 ruff 12 条**清零**（386bbe9：backfill_client_id/import_pst/tasks.py）；POST /api/tasks/ 评估 = **保留**（已是正式 V5 任务引擎端点，S1 手动建任务依赖）
+- **WO-40 老板拍板链路 ✅**（2026-08-14，0fe460b）：聊天 escalate_to_boss 工具（problem/preference/deadline → ESCALATION Action，assignee=brandon + scheduled_at 截止）；TaskResponse 加 escalated_to_boss/boss_decision；CaseResponse 加 has_boss_pending；8 测试
+- **F-28 已入批次**（2026-08-14）：案件筛选 5 类（全部/紧急/审贷中/等材料/待老板）+ 今日待办"待老板拍板"分类 + TaskList brandon 接真实数据 + 老板答复三按钮 + 待办→AI 对话联动（setCurrentCase + brain）
 - **A 发布前**：Electron（WO-05：窗口/托盘/系统通知/自动更新/端口冲突/首装引导）→ S5 真机试用 + V1 验收（日均记录 ≥5 / AI 上下文命中 / 愿继续用 / 每周开统计 ≥2 次）→ 版本发布（version 三处同步 + CHANGELOG）
 - **V2 延后**：云同步（WO-06）、微信（WO-11 PoC）、邮件/日历自动化、文件主动扫描、历史导入、团队共享、Screenpipe
