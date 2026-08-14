@@ -3039,3 +3039,50 @@ LLM 调 `record_fact` 且内容命中其他案件客户名时，后端**不写�
 4. CaseDetail 时间线 tab = 里程碑（/timeline），真实数据；
 5. 右栏（F-36 后）只读态势，维护操作只在全景页出现；
 6. `npx tsc --noEmit` 零错误。
+
+# F-38 补丁（2026-08-14 晚，Codex 审查 (55) 后）：三处修复
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (55)`。
+> 背景：Vera 反馈三处问题——① 右栏看不到"标记为不披露（internal_only）"的信息；② 中栏逾期提醒
+> 点「查看待办」只弹 toast、页面无变化；③ 案件看板客户全景页空态文案"在右侧对话中录入聊天记录"错误。
+
+## 一、右栏披露标记（CasePanorama.tsx + RiskSection.tsx）
+
+1. **事实快照**（CasePanorama 事实快照行）：在轨道徽章旁增加披露徽章——
+   `fact.disclosure === 'internal_only'` → 红色「🔒 不能给银行看」；
+   `fact.disclosure === 'disclosed'` → 绿色「可披露」；null 不显示；
+2. **RiskSection 接线修复**：`CasePanorama` 里
+   `hasUndisclosed={facts.some((f) => f.category === 'disclosure')}`（错误：查的是事实分类）
+   → `hasUndisclosed={facts.some((f) => f.disclosure === 'internal_only')}`（正确：查披露标记）；
+   并新增 `undisclosedCount={facts.filter((f) => f.disclosure === 'internal_only').length}`，
+   RiskSection 显示「N 条标记为不能给银行看」的警示行（如无则显示"无"或不显示）。
+
+## 二、中栏逾期提醒 → 真正打开任务抽屉（CaseReminderBanner.tsx + BrainChat.tsx + TaskDrawer.tsx）
+
+1. `CaseReminderBanner` 增加 prop `onViewTodos?: () => void`：点击横幅或「查看待办」→ 调用 `onViewTodos()`
+   （不再只 `showToast`）；
+2. `BrainChat` 传入 `onViewTodos={() => setTaskDrawerOpen(true)}`（并保留 toast 提示或移除）；
+3. `TaskDrawer` 增加 **「逾期」筛选 tab**（TabType 加 `'overdue'`：`!t.completed && deadline < now`，
+   红黄绿紧迫度逻辑复用），并把逾期 tab 排在「全部」之后；
+4. 联动（推荐）：提醒点击后**打开抽屉并自动切到「逾期」tab**——`BrainChat` 打开前通过
+   `useUiStore` 加 `taskDrawerInitialTab` 状态（或 TaskDrawer 接收外部 prop），逾期时置 `'overdue'`，
+   手动点头部按钮打开时默认 `'all'`。
+
+## 三、全景页空态文案（BrainPanel.tsx）
+
+- `可点击上方「记一笔」手动补充事实，或在右侧对话中录入聊天记录`
+  → `可点击上方「记一笔」手动补充事实，或在案件对话中与 VERA 聊天时记录`（全景页无"右侧对话"）。
+
+## 四、范围与红线
+
+- 只改：`CasePanorama.tsx` / `RiskSection.tsx` / `CaseReminderBanner.tsx` / `BrainChat.tsx` /
+  `TaskDrawer.tsx` / `BrainPanel.tsx`（+ `uiStore` 若加 initialTab）；
+- 不改后端、不新增 npm 依赖；披露标记仅展示层，不改变外线隔离逻辑（后端已保证）；
+- `npx tsc --noEmit` 零错误。
+
+## 五、验收
+
+1. 右栏事实快照：`internal_only` 事实显示红色「🔒 不能给银行看」；风险区出现「N 条标记为不能给银行看」警示；
+2. 中栏逾期提醒点击 → 任务抽屉打开并自动切「逾期」tab，逾期项可见；手动点头部按钮 → 默认「全部」；
+3. 案件看板客户全景页空态：文案不再出现"右侧对话"；
+4. `npx tsc --noEmit` 零错误。
