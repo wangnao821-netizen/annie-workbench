@@ -2854,3 +2854,57 @@ LLM 调 `record_fact` 且内容命中其他案件客户名时，后端**不写�
 4. CaseDetail 无"清单"tab；中栏清单抽屉可完成标记已收/新增/换文件；
 5. OsWorkbench 正常；待办的操作（完成/委派/改截止/升级老板）在覆盖层里照常可用；
 6. `npx tsc --noEmit` 零错误。
+
+# F-34（2026-08-14 定稿）：文件 Agent — 中栏"文件"入口 + 案件文件夹抽屉
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (53)`（或最新编号）。
+> 背景：文件操作定稿（主文档 §十三）落地。Vera 拍板：中栏"清单/任务"边上加**文件**按钮，点击打开
+> **案件映射文件夹抽屉**，点文件可预览；改名/移动/放入均弹窗确认；改名弹窗带**规范命名建议**；
+> 放入=复制保留原文件；V1 不做物理删除。后端 WO-44 提供接口（浏览/预览/改名/移动/放入/命名建议）。
+
+## 一、后端接口（WO-44，契约固定）
+
+- `GET /api/cases/{case_id}/folder/files?path=` → `{current_path, items:[{name, rel_path, is_dir, size, mtime, doc_type}]}`（一层，子目录在前）
+- `GET /api/cases/{case_id}/folder/files/preview?path=` → `{rel_path, size, mtime, doc_type, text_preview, parse_error}`
+- `POST /api/cases/{case_id}/folder/files/rename` body `{source, new_name}` → `{ok, source, target, event_id}`
+- `POST /api/cases/{case_id}/folder/files/move` body `{source, target_dir}`
+- `POST /api/cases/{case_id}/folder/files/import`（multipart：`file` + `target_dir`，复制保留原文件）
+- `GET /api/cases/{case_id}/folder/naming-suggest?filename=` → `{doc_type, suggested, template_key, matched, reasons}`
+
+## 二、中栏"文件"入口（BrainChat.tsx 头部）
+
+- 案件对话态，在「清单」「任务」之间加**文件**按钮（`FileText` 图标 + "文件"文字，样式同清单/任务按钮）；
+- 全局咨询态不显示；点击 → `useUiStore.setFileDrawerOpen(true)`（新增状态）；
+- 对话触发语（"打开文件/文件/预览文件"等）命中 WO-44 流程包 → dialog 卡 → 同样打开文件抽屉
+  （参照 calculator dialog 卡打开 CalculatorPanel 的现有机制）。
+
+## 三、文件抽屉 FileDrawer（新建 `src/components/brain/FileDrawer.tsx`）
+
+1. **头部**：案件名 + 当前相对路径（面包屑，可点上级）+ 刷新 + 「放入文件」+ 关闭 X；
+2. **文件列表**：当前层子目录（可点击进入）+ 文件行（名称 / 大小 / 时间 / doc_type 徽章）；
+3. **预览**：点击文件行 → 行内/下方预览面板：`text_preview` + 元数据；`parse_error` 时显示错误提示（不白屏）；
+4. **改名**（hover 按钮）：弹窗 = 旧名 → 新名输入 + 「AI 建议命名」按钮（调 naming-suggest，展示 `suggested`
+   与 reasons，一键填入）+ 确认（POST rename）→ toast + 刷新列表；
+5. **移动**：弹窗 = 案件内子目录选择（复用文件夹树数据，逐层进入选目录）+ 确认（POST move）→ toast + 刷新；
+6. **放入文件**：`<input type="file">` 选文件 → 目标子目录选择 → 确认（POST import）→ toast
+   "已复制到案件文件夹（原文件保留）"；
+7. 底部安全小字："操作只作用于当前案件文件夹；目标已存在将拒绝；不会覆盖任何文件。"
+
+## 四、范围与红线
+
+- 主要改动：`BrainChat.tsx`（头部按钮 + dialog 卡联动）、新增 `FileDrawer.tsx`、`uiStore`（fileDrawerOpen）、
+  `types/api.ts`（FileOps 类型）、`services/api/fileOps.ts`（新服务封装）；
+- 不改后端、不新增 npm 依赖；文件操作全部由后端 PathGuard 校验，前端只负责展示与确认；
+- `npx tsc --noEmit` 零错误。
+
+## 五、验收
+
+1. 案件对话态中栏有「文件」按钮，全局咨询无；
+2. 点击打开抽屉：显示案件文件夹当前层（子目录在前、文件带元数据），面包屑可回上级；
+3. 点击文件 → 预览面板显示解析文本/元数据；无法解析显示错误提示；
+4. 改名弹窗：AI 建议命名一键填入，确认后列表刷新 + toast；
+5. 移动弹窗：选子目录确认后刷新 + toast；
+6. 放入：选文件 + 目标目录 → 复制成功 toast；重名被拒提示；
+7. 后端 422/404/409 时前端显示对应错误 toast，不白屏；
+8. 对话说"打开文件"→ 出现 dialog 卡并可打开抽屉；
+9. `npx tsc --noEmit` 零错误。
