@@ -2054,3 +2054,30 @@ interface AnalyticsUsage {
 2. 无数据（空库）时显示"— / 暂无 AI 调用数据"，不报错
 3. 切换 日/周/月 粒度后四项数据随之刷新
 4. TypeScript 编译零错误；未引入新依赖
+
+---
+
+# F-22 补丁（2026-08-14）：能力中心对话触发状态同步（WO-36 后端已就绪）
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (44)`。后端 WO-36 已完成（commit 6c1f674）：active 技能（status=available + enabled + flow_key）的触发语已并入对话意图路由——用户在全局咨询/案件对话里说出技能触发词会直接路由到对应流程包。本批次让能力中心如实反映"对话可触发"状态，并把顶部触发语改为动态生成。
+
+## 一、要改（src/components/settings/AbilityCenter.tsx）
+
+1. **顶部常用触发语动态化**：现有 `PROMPT_CHIPS` 是硬编码 4 条；改为从 `agents` 状态动态生成——取 `category==='agent' && status==='available' && enabled===true` 的 `triggers` 平铺去重，截取前 6 条；无数据时回退现有硬编码列表。说明文案改为："以下触发语已接入对话路由，可直接在全局咨询或案件对话中对 Vera 说出"。点击行为保持 toast（不改习惯，不引新依赖）。
+2. **Agent 状态徽标细分**（`agent.status === 'available'` 分支处）：
+   - `available + enabled` → 徽标文案"对话可触发"，样式沿用 emerald/绿或改紫色 Zap（与顶部 chips 呼应）
+   - `available + disabled` → 徽标文案"已停用"，灰色
+   - `pending` → 维持"待接入 (执行数据待后端接入)"
+3. **触发词 chips 联动**：`available + enabled` 正常显示（紫底）；`available + disabled` 时触发词 chips 加 `opacity-50`；`pending` 维持现状。
+4. **工具库区不动**（tools 无对话触发语义）。
+
+## 二、红线
+- 只改 `src/components/settings/AbilityCenter.tsx` 一个文件
+- 不改 `src/services/api/agents.ts`、`src/types/api.ts`、后端任何文件
+- 不引入新的 npm 依赖；`npx tsc --noEmit` 零错误
+
+## 三、验收
+1. 顶部触发语列表来自后端 agents 数据（打开/关闭一个 available 技能后刷新，chips 随之增减）
+2. available+enabled 技能显示"对话可触发"，disabled 显示"已停用"，pending 显示"待接入"
+3. 关闭某技能后其触发词 chips 变半透明，卡片整体 opacity-60
+4. 无新依赖、编译零错误
