@@ -2723,3 +2723,72 @@ body 示例：`{"ai_name": "小V", "user_address": "Vera姐", "persona_key": "d"
 7. "预览 AI 上下文"弹层完整显示并可复制；
 8. 右栏不再显示完整任务汇总；
 9. `npx tsc --noEmit` 零错误。
+
+# F-33（2026-08-14 定稿）：防串案建议卡 + 递交模式二次确认
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (52)`（或最新编号）。
+> 背景：防串案协议②（缺口清单 #2，定稿 2026-08-12）——AI 提取事实只归当前会话绑定案件；对话中出现其他客户名 →
+> 未确认不写事实、不进蒸馏，弹建议卡。后端已上线（5a2ed97），本批做卡展示与交互。
+> 同时补上递交模式进入前的二次确认（此前直接切换，缺防误切）。
+
+## 一、后端已就绪（无需等待）
+
+LLM 调 `record_fact` 且内容命中其他案件客户名时，后端**不写入**，chat 响应的 `tool_cards` 追加一条：
+
+```json
+{
+  "type": "attribution_suggest",
+  "title": "这条信息看起来属于其他客户",
+  "payload": {
+    "content": "还原后的事实原文",
+    "matched_client": "李四",
+    "matched_lender": "NAB",
+    "matched_case_id": "AS-2",
+    "track": "internal"
+  }
+}
+```
+
+此时 `recorded_facts` 为空、无事件落库（红线：未确认不写入、不进蒸馏）。
+
+## 二、防串案建议卡（BrainChat.tsx 卡片渲染区，submission_suggest 分支旁新增）
+
+- 新增 `card.type === 'attribution_suggest'` 分支，渲染**红色警示系**卡片（与 submission_suggest 的琥珀色区分）：
+  - 标题：⚠️ 这条信息看起来属于其他客户；
+  - 正文：「{matched_client}（{matched_lender}）」+ 事实摘要（`content` 截断 80 字）；
+  - 三个按钮：
+    1. **「切换到 {matched_client}」** → `useCaseStore.setCurrentCase(matched_case_id)`，并触发与左栏点案件一致的导航动作
+       （F-28 已有 setCurrentCase + brain 联动，参照即可）；卡片消失；toast「已切换到 李四（NAB）」；
+    2. **「仍记录到当前案件」** → `POST /api/cases/{当前case}/context-events`，
+       body `{"source_type": "manual_note", "content": payload.content, "track": payload.track, "status": "confirmed"}`
+       → 成功 toast「已记录到当前案件」+ 卡片消失 + 刷新该案件上下文/事实；
+    3. **「取消」** → 卡片消失，不写入。
+
+## 三、递交模式二次确认（BrainChat.tsx）
+
+- 新增 `requestEnterSubmission()`：打开轻量确认弹窗（motion，样式跟随现有设计系统）：
+  - 标题：「进入递交模式？」；
+  - 正文：「递交模式下 AI 只引用已披露/外线内容生成对外草稿，内线信息不会出现在外线内容中；草稿仍需你确认后发送。」；
+  - 按钮：「进入递交」→ `setMode('external')` + toast「已进入递交模式」；「取消」→ 关闭。
+- 两个触发点都走同一弹窗：
+  1. 头部递交 pill：`mode === 'internal'` 时点击 → `requestEnterSubmission()`；`mode === 'external'` 时点击 →
+     直接 `setMode('internal')`（退出不确认）；
+  2. `submission_suggest` 卡片的「进入递交模式」按钮：onClick → `requestEnterSubmission()`（不再直接 `setMode('external')`）。
+- 切换案件自动复位内线（F-29 补丁二已有）保持不变。
+
+## 四、范围与红线
+
+- 只改 `BrainChat.tsx`（如需要同步 CardType 类型定义）；不动后端、不动设置页、不新增 npm 依赖；
+- `attribution_suggest` 卡展示的 `content` 是后端还原后的真实文本（本地展示安全），前端不得自行拼接外线内容；
+- `npx tsc --noEmit` 零错误。
+
+## 五、验收
+
+1. 张三案件对话触发"记一下李四转贷" → 出现红色建议卡「李四（NAB）」+ 事实摘要；`recorded_facts` 为空；
+2. 点「切换到李四」→ 当前案件切到李四案件、卡片消失、toast 提示；
+3. 点「仍记录到当前案件」→ 事件落库到当前案件、toast 成功、卡片消失、上下文刷新；
+4. 点「取消」→ 卡片消失，无任何写入；
+5. 点头部「🔒 内线」→ 弹确认框；确认后进入递交（黄）；取消不切换；
+6. submission_suggest 卡「进入递交模式」→ 同样弹确认框；
+7. 递交态点 pill → 直接回内线，无弹窗；
+8. `npx tsc --noEmit` 零错误。
