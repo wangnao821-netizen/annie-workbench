@@ -250,6 +250,7 @@
   - V1 从"只验证单文件 PDF 文本提取"升级为：**扔文件 → 本地解析 → 脱敏 → LLM 提取 → 确认闸门 → 预填/入账**——同时服务 #15 统一建案页的解析导入口与存量客户日常补充。
   - **只按需**（Vera 主动扔文件/贴路径），不主动扫文件夹（主文档红线）；结果仅用于该次分析/建档，不建文件索引、不留全量文件数据。
   - **依赖核实（2026-08-12）**：liteparse 2.11.1 已安装且 pyproject 已声明；extract_msg 已装（.msg 邮件）；图片 OCR 待实测后再放开。
+  - **✅ 施工单已出（2026-08-15，WO-45）**：复用 LiteParse 链路定案——补 pymupdf/pdfplumber/pypdf/python-docx 兜底依赖（venv 实测未装，扫描 PDF 逐页转图 OCR 分支因此未启用）+ 合成样本实测图片/扫描 PDF OCR；tool-ocr 可用性结论随交付报告给出；效果不足再评估 RapidOCR / Qwen2.5-VL（V2 补充引擎）。
   - 文件提取与申报一致性检查共用同一解析底座，但职责分离：提取只出 fact_schema 字段（#5），行为推断/一致性比对归检查流程。
 - **✅ 施工完成（2026-08-13，WO-20）**：申报一致性检查 Agent 落地——`POST /api/cases/{id}/declaration-check`（files/folder 指定路径、文件夹仅一层不递归）；外线画像 vs 文件信号规则比对 + LLM 补强 → 结论分层（pass/warning/fail/unparseable）+ 解释信草稿 + internal 事件；证据本地真实值展示；16 测试。
 
