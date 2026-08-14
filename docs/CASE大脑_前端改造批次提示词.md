@@ -2948,3 +2948,94 @@ LLM 调 `record_fact` 且内容命中其他案件客户名时，后端**不写�
 4. 全局咨询态不显示三个按钮（现状保持）；
 5. TaskDetailOverlay 大覆盖层不受影响；
 6. `npx tsc --noEmit` 零错误。
+
+# F-36（2026-08-14 晚定稿）：右栏回归"看态势"（只读瘦身）
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (54)`。
+> 背景：批次修正定稿（客户上下文维护与任务视图_定稿.md §十四）——F-30 把"上下文维护中心"做进了右栏，
+> 与定稿（右栏看态势、客户全景页管"AI 知道什么"）颠倒。本批把**右栏瘦身回归只读态势**，
+> 维护能力由 F-37 承接进 CaseDetail 客户全景 tab。
+
+## 一、目标形态（CasePanorama.tsx 重做）
+
+右栏 = **只读态势**，硬规则：**无任何操作按钮、只读、点击跳转**。
+
+1. **头部**：只留标题「客户全景」+ 右侧折叠按钮；**删除**：预览 AI 上下文、记一笔、刷新按钮、分轨视域整行；
+2. **客户横幅**：客户名（银行）+ 阶段 + 一行摘要/记忆（truncate），保留；
+3. **关键截止**（1–3 条）：Finance Clause 等截止，红黄绿紧迫度（复用现有 keyDeadlines 逻辑，改名为关键截止）；
+4. **下一步待办 ≤5**：按紧迫度排序（逾期 > 今天 > 7 天内 > 其他），红黄绿 + 分类徽标（👑老板 / 📧邮件 / 📁文件 / 🏦OS）；
+   **只读**——点击条目跳转中栏任务抽屉（保留"全量待办"入口）；
+5. **风险情报**：真实风险（RiskSection）默认展开；政策（PolicyHintCard）**折叠成一行**（✅/⚠️ 政策画像，可点开）；
+6. **事实快照**（折叠，≤5 条）：只读展示 key/value + 轨道徽章，底部「去维护 →」跳 CaseDetail 客户全景 tab；
+7. **时间线快照**（折叠，≤5 条）：context-events 只读倒序，底部「去维护 →」跳 CaseDetail 客户全景 tab。
+
+## 二、导航接线（AppShell）
+
+- CasePanorama 内"去维护"→ `window.dispatchEvent(new CustomEvent('open-case-detail', { detail: caseId }))`；
+- AppShell 监听该事件：`setSelectedCaseId(caseId); setView("case-detail")`（复用 CaseBoard 的 onOpenCase 逻辑）。
+
+## 三、删除与保留
+
+- **删除**：FactAmendModal / ManualNoteModal / ContextPreviewModal 在右栏的引用（F-37 迁到全景页）；
+  FactCard 的锁定/披露/修正操作 UI（快照只用只读行）；分轨筛选；全部操作按钮；
+- **保留**：PolicyHintCard（折叠）、RiskSection、OverviewTimeline（改为 ≤5 只读快照）、加载骨架/空态/错误态。
+
+## 四、范围与红线
+
+- 只改：`CasePanorama.tsx`、`AppShell.tsx`（+ 事件监听）、必要时 `FactCard.tsx` 加只读模式；
+- 不改后端、不新增 npm 依赖；右栏不出现任何"写"操作（红线：只读 + 点击跳转）；
+- `npx tsc --noEmit` 零错误。
+
+## 五、验收
+
+1. 右栏头部只有标题 + 折叠，无预览/记一笔/刷新/分轨；
+2. 关键截止 1–3 条红黄绿；下一步待办 ≤5 只读，点击可跳到中栏任务抽屉；
+3. 风险默认展开、政策折叠一行；
+4. 事实/时间线折叠快照 ≤5 条，只读；「去维护」跳 CaseDetail 客户全景 tab；
+5. 无任何操作按钮/弹窗（修正/记一笔/预览全部不在右栏）；
+6. `npx tsc --noEmit` 零错误。
+
+# F-37（2026-08-14 晚定稿）：CaseDetail 客户全景 tab 升级 = 上下文维护中心 + 时间线
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (54)`。
+> 背景：批次修正定稿 §十四——"全景页管 AI 知道什么"。把 F-30 在右栏做的那套**上下文维护中心 + 时间线**
+> 迁移/复用进 CaseDetail 客户全景 tab（BrainPanel），清掉旧卡片与 mock；右栏只读态势由 F-36 负责。
+
+## 一、BrainPanel 重做（CaseDetail 客户全景 tab）
+
+1. **上半区 上下文维护中心**（复用 F-30 在 CasePanorama 里已实现的逻辑与组件，原样迁移）：
+   - 数据：`listBrainFacts(caseId)`（含 locked_by_user/disclosure），按 category 分组（CATEGORY_TITLES）；
+   - 操作：锁定/解锁、披露三态（disclosed / internal_only / 清除）、修正弹窗（新值 + 原因，成功后新值自动锁定）、
+     "记一笔"（track 内线/递交可选）；
+   - 分轨筛选：全部 / 🟡内部 / 🔵递交（影响事实 + 时间线）；
+   - 空态："暂无已提取事实，可点击记一笔或在对话中记录"；
+2. **下半区 时间线（证据链）**：`listContextEvents` 倒序全量滚动，轨道徽章（黄/蓝）+ 状态
+   （pending 可确认/撤销、confirmed、superseded 置灰划线）；
+3. **预览/导出**：保留 ContextPreviewModal，按钮文案改「导出案件上下文」（说明：案件数据包，非 AI 内部提示词）。
+
+## 二、清 mock 与旧形态
+
+- 删除 BrainPanel 的 `MOCK_CONTEXT` 与 `VITE_USE_MOCK` 分支，全部走真实接口；
+- 删除 OverviewFacts 卡片网格 / OverviewTools / 旧 OverviewTimeline（context.timeline 5 条）引用；
+- TimelinePanel（CaseDetail 时间线 tab，里程碑 `/timeline`）**保留**，同样删除 `MOCK_EVENTS` 与 mock 分支。
+
+## 三、组件复用（不搬文件，直接 import）
+
+- `src/components/brain/` 下的 `FactCard` / `FactAmendModal` / `ManualNoteModal` / `ContextPreviewModal` /
+  `OverviewTimeline` 由 BrainPanel 直接复用；F-36 后右栏不再使用维护相关组件。
+
+## 四、范围与红线
+
+- 只改：`BrainPanel.tsx`（重做）、`TimelinePanel.tsx`（清 mock）、必要时 `CaseDetail.tsx`（tab 布局微调：
+  客户全景 tab 内容可上下分区滚动）、`types/api.ts`（如需）；
+- 不改后端、不新增 npm 依赖；维护操作仍走既有端点（锁定/修正/披露/事件），前端只做确认弹窗；
+- `npx tsc --noEmit` 零错误。
+
+## 五、验收
+
+1. 案件看板 → 客户全景 tab：上半区事实按类分组（内线黄/递交蓝），锁定/解锁/披露/修正/记一笔全部可用；
+2. 下半区时间线 = context-events 证据链（倒序全量、pending 可确认/撤销）；
+3. "导出案件上下文"弹窗可复制；无任何 mock 数据（PERSON_1/CBA 假数据不再出现）；
+4. CaseDetail 时间线 tab = 里程碑（/timeline），真实数据；
+5. 右栏（F-36 后）只读态势，维护操作只在全景页出现；
+6. `npx tsc --noEmit` 零错误。
