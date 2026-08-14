@@ -2081,3 +2081,45 @@ interface AnalyticsUsage {
 2. available+enabled 技能显示"对话可触发"，disabled 显示"已停用"，pending 显示"待接入"
 3. 关闭某技能后其触发词 chips 变半透明，卡片整体 opacity-60
 4. 无新依赖、编译零错误
+
+---
+
+# F-23 补丁（2026-08-14）：顶栏精简 + 更多功能重组（方案已拍板）
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (45)`。主文档定稿"左栏底部 4 入口（待办/看板/统计/设置）+ 低频页藏更多"，本次进一步：顶栏去重、低频页统一收右上角头像下拉、导入历史/数据迁移从导航移除（代码保留）。
+
+## 一、任务 1：顶栏精简（src/components/layout/TopNavBar.tsx）
+
+1. **Logo 块**：删除英文副标题 `AI-Powered Mortgage Broker Desktop`，保留渐变图标 + "Vera" 单行；点击回今日工作台（不变）
+2. **删除"今日工作台" Tab**（与 Logo 点击行为重复）；保留"全局咨询" Tab
+3. **右侧头像**：删除 `Vera / 资深信贷顾问` 文字（lg 屏显示那段），只留头像圆 + 在线点
+4. **新增头像下拉菜单**（点击头像打开，`AnimatePresence` 样式与通知下拉一致）：
+   - 知识中心 / 档案库 / 草稿箱 / 设置（4 项，走现有 `onNavigate`）
+   - 分隔线
+   - 版本信息：调 `getVersion()`（src/services/api/system.ts，已有）显示版本号，加载失败显示 "—"
+5. **保留**：通知铃铛、主题切换快捷按钮（高频，不进下拉）
+6. **明确不做窗口控制按钮**（最小化/最大化/关闭）：当前浏览器模式无效；Electron WO-05 阶段用系统原生标题栏，前端不预留占位
+
+## 二、任务 2：左栏底部重组（src/components/brain/CaseListSidebar.tsx）
+
+1. **保留 4 主 Tab**：待办 / 看板 / 统计 / 设置（`SYSTEM_TABS` 不动，含折叠态）
+2. **移除整个"更多功能"下拉**：`MORE_ITEMS` 数组删除、`moreOpen` 状态与下拉渲染删除、`nav-bottom-more` 按钮删除；相关图标 import（Brain/FileText/Archive/History/Database/ChevronDown）清理
+3. **导航入口清理**：
+   - 知识中心 / 档案库 / 草稿箱 → 只经右上角头像下拉进入（页面保留，ViewId 不动）
+   - 导入历史 → 从导航移除，代码注释 `// TODO(V2): 历史项目批量导入恢复时升级为导入中心`
+   - 数据迁移 → 从导航移除，代码注释 `// TODO(Phase 2): 设置页"数据与备份"区入口`
+4. 被移除的页面文件本身（pages/ImportHistory.tsx、Migration.tsx 等）**一律不动**，只是入口消失
+
+## 三、红线
+- 只改 `src/components/layout/TopNavBar.tsx`、`src/components/brain/CaseListSidebar.tsx`（如路由需要联动，仅允许同批次加 `src/components/layout/AppShell.tsx` 一处）
+- 不改后端、不改 `src/types/api.ts`（VersionInfo 已有）、不新增 npm 依赖
+- 不实现窗口控制按钮（见任务 1 第 6 条）
+- `npx tsc --noEmit` 零错误
+
+## 四、验收
+1. 顶栏：Logo（图标+"Vera"）点击回今日工作台；只有"全局咨询"一个 Tab；右侧 = 铃铛 + 主题 + 头像（无名字/职位文字、无英文副标题）
+2. 头像下拉含：知识中心 / 档案库 / 草稿箱 / 设置 + 分隔线 + 版本号（真实 /api/version，失败显示 —）
+3. 左栏底部只有 待办/看板/统计/设置 4 项，无"更多功能"按钮
+4. 导入历史、数据迁移无任何导航入口（页面文件保留）
+5. 全站无窗口控制按钮
+6. `npx tsc --noEmit` 零错误；未引入新依赖
