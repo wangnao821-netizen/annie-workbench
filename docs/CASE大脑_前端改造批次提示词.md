@@ -2792,3 +2792,65 @@ LLM 调 `record_fact` 且内容命中其他案件客户名时，后端**不写�
 6. submission_suggest 卡「进入递交模式」→ 同样弹确认框；
 7. 递交态点 pill → 直接回内线，无弹窗；
 8. `npx tsc --noEmit` 零错误。
+
+# F-31（2026-08-14 定稿）：待办工作台退役 — TaskDetailOverlay + 清单 tab 退役
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (53)`（或最新编号）。
+> 背景：待办工作台（TaskWorkbench = TaskList + DetailPanel）退役——列表价值已被首页今日待办（跨客户）+
+> 中栏任务抽屉（单客户，F-29）覆盖；详情价值独家（8 类任务详情处理），抽成通用覆盖层 TaskDetailOverlay，
+> 从所有出现任务的地方打开。清单 tab（CaseDetail）退役，维护职责由中栏"清单"抽屉承担（F-29）。
+> OsWorkbench 保留为 OS 专用。依据：定稿 §9.1/§9.2/§10.2。
+
+## 一、TaskDetailOverlay（核心，新建）
+
+- 新建 `src/components/tasks/TaskDetailOverlay.tsx`：
+  - Props：`task: TaskItem | null`、`onClose: () => void`（打开入口统一 `useUiStore`/`taskStore.selectedTaskId` 联动）；
+  - 内容 = 现有 `DetailPanel` 的详情车间（`src/components/panel/DetailPanel.tsx`，全项目仅 TaskWorkbench 引用）：
+    - 把 8 类详情组件按 `task.type` 分发原样迁入（EMAIL_DISPATCH→EmailDispatchDetail、NEW_CLIENT→NewClientDetail、
+      GENERAL_EMAIL→GeneralEmailDetail、FILE_MATCH→FileMatchDetail、OS→OsAttackDetail、
+      BOSS/ESCALATION→BossDecisionDetail、OVERDUE→OverdueDetail、SETTLEMENT→SettlementDetail，
+      实际 type 枚举以现有 DetailPanel switch 为准，一字不改）；
+    - 保留 `selectedTaskId → caseStore` 联动（ContextBar 显示当前客户上下文）；
+    - 保留就地操作（标记完成/委派/改截止/老板三键/邮件草稿等），**只搬不重构**；
+  - 形态：全屏大覆盖层（右滑入 + 遮罩，motion，跟随设计系统），顶部任务标题 + 关闭 X；
+  - 关闭：X / 点遮罩 / Esc。
+
+## 二、打开入口（全部接 TaskDetailOverlay）
+
+1. **首页今日待办**（HomePage 待办项）：每项加"打开详情"图标按钮（ArrowUpRight）；
+2. **中栏任务抽屉**（TaskDrawer）：每项加"打开详情"；
+3. **对话任务卡"打开详情"**：BrainChat 中 task 相关卡片如有详情入口则接入（没有可跳过）；
+4. 其他出现任务的地方（右栏"下一步态势"全量待办入口等）保持跳转中栏任务抽屉即可，不强接覆盖层。
+
+## 三、页面退役
+
+- `src/pages/TaskWorkbench.tsx` 与 `src/components/tasks/TaskList.tsx` 退役：AppShell `view === "tasks"` 移除或重定向首页，
+  导航（Sidebar/TopNav）不再有待办工作台入口；分类筛选能力已由首页 taskTab（all/overdue/boss/ai）+
+  中栏抽屉 tab 覆盖；
+- `src/pages/CaseDetail.tsx`：移除 `checklist` tab（清单维护 → 中栏清单抽屉），overview/timeline 保留；
+- `TodoCard.tsx` 已无引用（F-30 移除），随本批清理（如仍无引用）。
+
+## 四、清单抽屉唯一化
+
+- 中栏清单抽屉（`ChecklistDrawer`）确认已复用 `ChecklistDrawerContent`/`ChecklistPanel` 的维护能力
+  （标记已收/撤销文件匹配/新增自定义项/换文件）；如尚未复用，本批补上——清单 tab 退役后中栏抽屉是唯一维护入口。
+
+## 五、保留
+
+- `OsWorkbench`（OS 专用：OsConditionsColumn / OsStrategyColumn / OsDraftColumn）保持不动；
+- DetailPanel 内非 8 类的组件（ChatPanel 悬浮对话等）随页面退役评估，不在覆盖层里保留的不迁移。
+
+## 六、范围与红线
+
+- 主要改动：新建 TaskDetailOverlay.tsx；改 HomePage.tsx / TaskDrawer.tsx / AppShell.tsx / CaseDetail.tsx /
+  ChecklistDrawer.tsx（如需复用）；DetailPanel 下 8 类详情组件文件可移动/可保留原位（逻辑零改动）；
+- 不改后端、不新增 npm 依赖、OsWorkbench 零改动；`npx tsc --noEmit` 零错误。
+
+## 七、验收
+
+1. 首页今日待办每项可"打开详情" → TaskDetailOverlay 按类型渲染正确详情（老板三键/邮件草稿/OS 回复/文件匹配/委派）；
+2. 中栏任务抽屉每项可"打开详情"；覆盖层可 X/遮罩/Esc 关闭；
+3. 待办工作台页面不再可达（导航无入口）；
+4. CaseDetail 无"清单"tab；中栏清单抽屉可完成标记已收/新增/换文件；
+5. OsWorkbench 正常；待办的操作（完成/委派/改截止/升级老板）在覆盖层里照常可用；
+6. `npx tsc --noEmit` 零错误。
