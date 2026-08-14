@@ -2258,16 +2258,18 @@ next_china: HolidayItem | null;
 ## 一、要改（src/components/layout/AuTimePanel.tsx）
 
 1. **getDayHolidays 增加中国判断**：`data.china`（HolidayItem[]，state="CN"）中 `date === dateStr` → 列表加 `'CN'`（三州逻辑不动）
-2. **日历渲染红色标记**：`hList.includes('CN')` → 加一个红色圆点 `bg-rose-500`（与三州圆点同尺寸，排在最后或最前）；也可用红色日期数字底色（`bg-rose-500/15 text-rose-600`）替代圆点，二选一，保持 18px 格子放得下
-3. **图例补充**：日历标题行图例加 `<span>红 中国</span>`（红点 + "中国"文字，注明"长假首日"更佳，如 tooltip"中国长假首日"）
-4. **tooltip**：中国假期日期格 `title` 显示假期名 + "（中国长假首日）"
-5. 说明：中国配置只存**首日**（春节初一 / 国庆 10/1），日历只标首日即可，不做区间高亮
+2. **getDayHolidays 增强返回值（新增 hover 名称需要）**：返回 `{ state: string; name: string }[]` 替代 string[]——三州查 `data.upcoming` 取 `name`；中国查 `data.china` 取 `name`（state="CN"）。渲染处同步适配（圆点颜色按 state 映射：ACT 紫 / NSW 蓝 / QLD 绿 / CN 红）
+3. **日历渲染红色标记**：CN → 红色圆点 `bg-rose-500`（或红色日期数字底色 `bg-rose-500/15 text-rose-600`，二选一），保持 18px 格子放得下
+4. **hover tooltip（本次核心，覆盖所有假期）**：日期格子 `title` = `${name}（${state}）`，如 `Good Friday（NSW）`、`春节（CN）`——三州与中国假期格子都能悬停显示名称；无假期格子不设 title
+5. **图例补充**：日历标题行图例加红点 + "中国"（tooltip"中国长假首日"）
+6. 说明：中国配置只存**首日**（春节初一 / 国庆 10/1），日历只标首日即可，不做区间高亮
 
 ## 二、红线
 - 只改 `AuTimePanel.tsx`；不改后端（china/next_china 数据已就绪）、不新增 npm 依赖；`npx tsc --noEmit` 零错误
 
 ## 三、验收
 1. 当前月含春节或国庆首日时，日历该日期显示红色标记（圆点或红底）
-2. 图例含"中国（红）"；无中国假期月份图例正常（不报错）
-3. 三州紫/蓝/绿圆点行为不变；日历格子高度不变（一屏无滚动）
-4. 无新依赖、编译零错误
+2. **鼠标悬停任意假期日期格 → 显示假期名 + 州（含三州与中国）**；无假期格子无 tooltip
+3. 图例含"中国（红）"；无中国假期月份图例正常（不报错）
+4. 三州紫/蓝/绿圆点行为不变；日历格子高度不变（一屏无滚动）
+5. 无新依赖、编译零错误
