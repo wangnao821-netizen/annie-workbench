@@ -2169,3 +2169,31 @@ export async function getHolidays(state?: string, limit?: number): Promise<Holid
 2. 面板含：三时区（堪培拉/布里斯班/北京）、三州今日状态、办公重叠提示、本月日历（三色假期点+图例）、未来假期列表、倒计时、夏令时提示
 3. 夏令时期间堪培拉与布里斯班差 1 小时正确显示
 4. 无新依赖、编译零错误；后端未就绪时 mock 兜底不报错
+
+---
+
+# F-25 补丁（2026-08-14）：AU 时间面板加宽 + 不透明背景（Vera 验收反馈）
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (46)`。Vera 反馈两个问题，均已验证属实：
+> ① 面板 `w-80`（320px）太窄，三时区 `grid-cols-3` 每列约 100px，布里斯班"（无夏令时）"标签换行成两排；且 `max-h-[85vh] overflow-y-auto` 内容多时需滚动。
+> ② 面板用 `glass-card`（`--surface-translucent-card: rgba(28,31,46,0.85)` + blur(12px)），背景内容透出，观感发虚。
+
+## 一、要改（src/components/layout/AuTimePanel.tsx）
+
+1. **加宽**：根容器 `w-80` → `w-[420px]`（三时区三列各约 130px，单行放下）
+2. **不透明背景**：根容器去掉 `glass-card` 类，改 `style={{ backgroundColor: 'var(--bg-card)' }}`（实色，不透背景）；保留 `rounded-2xl border shadow-2xl` 与圆角/阴影
+3. **一屏无滚动**：移除根容器 `max-h-[85vh] overflow-y-auto no-scrollbar`；内部假期列表 `max-h-28 overflow-y-auto no-scrollbar` 改为不滚动——`upcoming` 显示前 8 条即可（`slice(0, 8)`），并去掉外层滚动容器（或改两列 grid，任选其一保证一屏内无滚动条）
+4. **布里斯班标签单行**：`<span>布里斯班</span><span>(无夏令时)</span>` 加 `whitespace-nowrap` 且外层 flex 不换行；或把"(无夏令时)"改为小圆点 tooltip——**确保不换行成两排**
+5. 三时区列内文字全部 `whitespace-nowrap`（堪培拉/悉尼、布里斯班、北京三列各自单行）
+6. **可选统一**：通知下拉、头像下拉同为 `glass-card`，若观感一致偏透，可一并改为 `style={{ backgroundColor: 'var(--bg-card)' }}`（仅这 3 处弹窗，不动全局 tokens.css）
+
+## 二、红线
+- 只改 `src/components/layout/AuTimePanel.tsx`（可选：`TopNavBar.tsx` 通知/头像两处下拉容器）
+- 不动 `src/themes/tokens.css` / `src/index.css`（全局透明度变量不动）
+- 不改后端、不新增 npm 依赖；`npx tsc --noEmit` 零错误
+
+## 三、验收
+1. 面板宽度 420px，三时区三列各自单行，布里斯班不再换行成两排
+2. 整面板一屏内展示完全，无任何滚动条
+3. 背景不再透出（面板为实色 var(--bg-card)）
+4. 无新依赖、编译零错误
