@@ -2273,3 +2273,63 @@ next_china: HolidayItem | null;
 3. 图例含"中国（红）"；无中国假期月份图例正常（不报错）
 4. 三州紫/蓝/绿圆点行为不变；日历格子高度不变（一屏无滚动）
 5. 无新依赖、编译零错误
+
+---
+
+# F-27 补丁（2026-08-14，B 收尾）：知识中心/文件预览/邮件分析字段真实化（清 mock）
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (49)`。后端已就绪：知识中心 CRUD（commit 02785ee）、文件预览、邮件 AI 分析。本批次把前端三处 mock 接真实端点。
+
+## 一、知识中心真实化（核心）
+
+### 服务层（新建 src/services/api/knowledge.ts）
+```typescript
+export interface KnowledgeEntry {
+  id: string;
+  layer: 'case' | 'global' | 'industry';
+  case_id?: string | null;
+  content: string;
+  source: string;
+  vera_confirmed: boolean;
+  lender?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+export function getKnowledge(params?: { layer?: string; case_id?: string; lender?: string; limit?: number }): Promise<KnowledgeEntry[]>;
+export function createKnowledge(body: { layer: string; content: string; case_id?: string; lender?: string; source?: string }): Promise<KnowledgeEntry>;
+export function updateKnowledge(id: string, body: { content?: string; lender?: string; vera_confirmed?: boolean }): Promise<KnowledgeEntry>;
+export function confirmKnowledge(id: string): Promise<KnowledgeEntry>;
+export function deleteKnowledge(id: string): Promise<void>;
+```
+`types/api.ts` 同步追加 `KnowledgeEntry`；`services/api/index.ts` 导出。
+
+### 组件接线（src/components/knowledge/）
+- **CaseMemoryTab**：选中案件 → `getKnowledge({ layer: 'case', case_id })` 替换 MOCK_MEMORIES；支持 新增（输入内容 → createKnowledge，layer=case + case_id）、确认（confirmKnowledge，vera_confirmed 标记）、删除（deleteKnowledge）
+- **GlobalExperienceTab**：`getKnowledge({ layer: 'global' })` 替换 MOCK_KNOWLEDGE；支持 新增/编辑（updateKnowledge）/确认/删除
+- **IndustryKnowledgeTab**：`getKnowledge({ layer: 'industry' })` 同上
+- 加载失败 → 空态 + 提示"加载失败"，不落 mock（**清 mock 是本批目的，不再 fallback mock 数据**）
+
+## 二、文件预览真实化（src/components/panel/details/FilePreviewPanel.tsx）
+- 接 `GET /api/files/{file_id}/preview`（后端 FileResponse）：按 `file_extension` 渲染——PDF 用 iframe/embed、图片 img、文本 fetch 后显示纯文本；失败显示"预览不可用"
+- 组件 props 增加 `fileId` 或从现有 file 对象取 id；去掉占位文案
+
+## 三、邮件详情 AI 字段真实化（收件箱详情）
+- 详情页"AI 分析"区接 `POST /api/inbox/{msg_id}/analyze`，返回 `{ id, is_fallback, summary, action_type, stage_signal, deadline, conditions, urgency_score }`
+- 展示：摘要 summary、动作类型 action_type、阶段信号 stage_signal、截止 deadline、条件列表 conditions、紧急度 urgency_score；is_fallback=true 时标注"规则兜底结果"
+- 触发：详情打开时自动调一次 + 手动"重新分析"按钮
+
+## 四、文件详情字段真实化
+- 文件列表/详情接 `GET /api/cases/{case_id}/files`（返回 assigned_type/confidence/status/file_extension/file_size/created_at），替换 mock 分类/置信度字段；解析按钮走既有 parse-file 端点（如已接则不动）
+
+## 五、红线
+- 只改/新建：`services/api/knowledge.ts`、`types/api.ts`、`services/api/index.ts`、`components/knowledge/`（3 tab）、`components/panel/details/FilePreviewPanel.tsx`、收件箱详情组件（1 处）
+- 不改后端（已就绪）、不新增 npm 依赖；`npx tsc --noEmit` 零错误
+- 知识中心不做批量导入/复杂编辑，仅列表 + 新增/编辑/确认/删除
+
+## 六、验收
+1. 知识中心三 tab 显示真实后端数据；新增一条 global 经验 → 刷新可见；确认后 vera_confirmed=true；删除后消失
+2. 案件记忆按选中案件过滤（layer=case + case_id）
+3. 文件预览真实渲染 PDF/图片/文本（本地上传文件）
+4. 邮件详情 AI 分析返回真实字段（或"规则兜底"标注）
+5. 文件详情分类/置信度来自后端
+6. 无 mock fallback；无新依赖、编译零错误

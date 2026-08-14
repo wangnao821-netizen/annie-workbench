@@ -293,7 +293,7 @@
 - ✅ 时间点回溯 → **WO-38 已完成**（2026-08-14，commit 00edce1：案件指定时点全景快照 GET /api/cases/{id}/snapshot；全量 950）
 
 ### 2026-08-14 E 收口 — 当前剩余任务（B/C + 发布）
-- **B 收尾（前后端真实化，清 mock）**：① 知识中心 CRUD 真实化（后端 knowledge CRUD 端点 + 前端接）② 文件预览真实化（GET /api/files/{id}/preview）③ 邮件/文件详情 AI 分析字段真实化（inbox 分析 + 文件字段端点）④ S4 内外线收尾核对
+- **B 收尾（前后端真实化，清 mock）**：① 知识中心 CRUD 后端 ✅（02785ee：GET/POST/PATCH/confirm/DELETE /api/knowledge）+ 前端 **F-27 已出**（KnowledgeCenter 三 tab 接后端）② 文件预览后端已有（GET /api/files/{id}/preview）+ F-27 前端接 ③ 邮件 AI 分析后端已有（POST /api/inbox/{id}/analyze）+ F-27 前端接 ④ S4 内外线收尾核对（递交模式已存在，待整体核对）
 - **C 小债**：policy_check 白名单死项清理/接 check_policy；遗留 ruff 12-13 条（backfill_client_id/import_pst/tasks.py）；POST /api/tasks/ 联调临时端点评估
 - **A 发布前**：Electron（WO-05：窗口/托盘/系统通知/自动更新/端口冲突/首装引导）→ S5 真机试用 + V1 验收（日均记录 ≥5 / AI 上下文命中 / 愿继续用 / 每周开统计 ≥2 次）→ 版本发布（version 三处同步 + CHANGELOG）
 - **V2 延后**：云同步（WO-06）、微信（WO-11 PoC）、邮件/日历自动化、文件主动扫描、历史导入、团队共享、Screenpipe
