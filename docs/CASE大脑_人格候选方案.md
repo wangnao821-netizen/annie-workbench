@@ -67,4 +67,6 @@
 ## 备注
 
 - 人格是"稳定基线"，不阻碍任何 Agent 功能；改人格只动 persona 文件 + 重新注入，无迁移。
-- V2：设置页人格切换（settings 覆盖 default，不用改代码）＋ 自定义人格模板。
+- ✅ V1 已闭环（2026-08-14 晚）：运行期名字/称呼/人格切换（system_settings + `GET/PATCH /api/settings/assistant`），
+  首次对话引导卡 + 设置页"AI 助手"卡片已排 F-32；
+- V2：自定义人格模板（Vera 自己写语气规则）。

@@ -2564,3 +2564,85 @@ category: CATEGORY_TO_EN[newCategory] ?? 'special',
 3. 切换到另一案件 → 自动复位"🔒 内线"（无黄色横幅）
 4. 全局咨询态：无清单/任务/递交 pill，仅"全局咨询" + 全景按钮
 5. `npx tsc --noEmit` 零错误
+
+# F-32（2026-08-14 定稿）：AI 助手设置（人格/名字/称呼）+ 首次对话引导
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (52)`（或最新编号）。
+> 背景：后端已内置 4 种 AI 人格（a 专业稳重型 / b 亲和贴心型 / c 干脆高效型 / d 活泼幽默型，默认 a）并
+> 新增拟人化设置：Vera 首次使用时可给 AI 起名字、告诉 AI 怎么称呼她；后续对话 AI 用名字自称、用她的称呼回应。
+> 设置页需要能随时改这三项。后端接口已就绪，无需等待联调。
+
+## 一、后端接口（已上线）
+
+### GET /api/settings/assistant
+
+返回：
+
+```json
+{
+  "ai_name": "小V",
+  "user_address": "Vera姐",
+  "persona_key": "d",
+  "default_persona": "a",
+  "personas": [
+    {"key": "a", "name": "专业稳重型", "role": "资深澳洲信贷顾问", "style": "专业、直接、不废话、会主动提醒风险"},
+    {"key": "b", "name": "亲和贴心型", "role": "贴心业务助理", "style": "温和、主动关怀、会解释为什么、共情客户处境"},
+    {"key": "c", "name": "干脆高效型", "role": "极简效率助手", "style": "最短回复、只给结论和下一步"},
+    {"key": "d", "name": "活泼幽默型", "role": "轻松有趣的搭档", "style": "轻松、偶尔幽默、有活力，但专业底线不松"}
+  ],
+  "onboarding_needed": true
+}
+```
+
+- `ai_name` / `user_address` 为 null 表示未设置；`persona_key` 为 null 表示用默认（a）。
+- `onboarding_needed = !(ai_name && user_address)`：名字或称呼任一为空即 true。
+
+### PATCH /api/settings/assistant
+
+body 示例：`{"ai_name": "小V", "user_address": "Vera姐", "persona_key": "d"}`
+
+- 省略的字段不改动；空字符串清除该字段；persona_key 非法 → 422。
+- 返回完整对象（同 GET）。
+
+## 二、要做的事 1：首次对话引导卡（全局咨询 BrainChat）
+
+仅全局咨询（无案件上下文）时生效：
+
+1. 进入全局咨询且 `onboarding_needed === true` → 在消息流顶部显示**引导卡**（内嵌卡片，不用模态框）；
+2. 引导卡内容（紧凑单卡）：
+   - 标题："认识一下？给我起个名字，也告诉我该怎么称呼您。"
+   - AI 名字输入框（placeholder "小V"，maxLength 40）；
+   - Vera 称呼输入框（placeholder "Vera"，maxLength 20）；
+   - 人格选择：4 个单选（显示 name，悬停 title 显示 role+style）；
+   - 按钮："保存并开始"；
+   - 右上角关闭 X：可跳过，本次会话不再显示（刷新/重进仍显示，直到设置完成）。
+3. 保存 → `PATCH /api/settings/assistant` → 成功后收起卡片，并在对话流插入一条本地 AI 欢迎消息
+   （不调后端）："你好，{user_address}！我是{ai_name}，以后就这样叫我。"；
+4. 未保存直接关闭 → 不插欢迎消息，正常使用；
+5. PATCH 失败 → toast 错误，卡片保留可重试。
+
+## 三、要做的事 2：设置页"AI 助手"卡片（Settings.tsx → 基础配置与健康度 tab 顶部）
+
+1. 在系统设置 tab 最顶部（健康检查区块之前）加"AI 助手"卡片：
+   - AI 名字输入框（当前值回显，null 为空）；
+   - Vera 称呼输入框（当前值回显）；
+   - 人格选择：4 个单选（当前值回显；null 时默认 a 高亮）；
+   - 按钮："保存" → `PATCH` → 成功 toast；失败 toast 错误；
+   - 小字说明："AI 名字与称呼仅用于内线对话；外线邮件/递交材料不会出现 AI 名字。"
+2. 进入该 tab 时 `GET` 一次回显；保存成功后本地状态同步。
+
+## 四、范围与风格
+
+- 只改：`src/components/brain/BrainChat.tsx`（引导卡）、`src/pages/Settings.tsx`（AI 助手卡片）；
+  如需可新增小组件文件（如 `AssistantOnboardingCard.tsx` / `AssistantSettingsCard.tsx`）；
+- 风格跟随现有设计系统（卡片圆角、motion 动效、现有色板），不要引入新依赖；
+- 引导卡内嵌对话流，禁止全屏模态。
+
+## 五、验收
+
+1. 全新状态（无 ai_name/user_address）进入全局咨询 → 显示引导卡；
+2. 填名字/称呼/选人格 → 保存 → 卡片消失，出现"你好，X！我是Y…"欢迎消息；
+3. 关闭引导卡不保存 → 不出现欢迎消息，可正常对话；
+4. 设置页系统 tab：AI 助手卡片回显已保存值，修改保存成功、toast 提示；
+5. 保存后重新进入全局咨询 → 不再显示引导卡（onboarding_needed=false）；
+6. `npx tsc --noEmit` 零错误。
