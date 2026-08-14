@@ -786,3 +786,44 @@ class FolderBrowseResponse(BaseModel):
     """文件夹浏览响应（WO-34；前端契约 FolderBrowseResponse）。"""
     current_path: str
     items: list[FolderBrowseItem] = Field(default_factory=list)
+
+
+# ── WO-38 时间点回溯快照 Schemas ─────────────────────────────────────────
+
+class SnapshotFact(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    key: str
+    value: str
+    category: str
+    conflict: bool = False
+    valid_from: datetime | None = None
+    valid_to: datetime | None = None
+
+
+class SnapshotEvent(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    source_type: str
+    content: str
+    status: str
+    created_at: datetime | None = None
+
+
+class SnapshotTimelineItem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    event_type: str
+    title: str
+    description: str | None = None
+    created_at: datetime | None = None
+
+
+class CaseSnapshotResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    snapshot_at: str
+    stage: str
+    facts: list[SnapshotFact]
+    events: list[SnapshotEvent]
+    timeline: list[SnapshotTimelineItem]

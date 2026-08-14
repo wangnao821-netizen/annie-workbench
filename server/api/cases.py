@@ -20,6 +20,7 @@ from core.bank_registry import (
 from core.case_creation import create_case_from_source
 from core.case_engine.folder import auto_create, link_existing
 from core.case_engine.progression import evaluate_stage_signal
+from core.case_engine.snapshot import build_case_snapshot
 from core.checklist.matcher import CaseNotFoundError, check_completeness
 from core.config import get_config
 from core.constants import TERMINAL_STAGES
@@ -46,6 +47,7 @@ from server.api.schemas import (
     CaseFolderRequest,
     CaseFolderResponse,
     CaseResponse,
+    CaseSnapshotResponse,
     ContextEventRequest,
     ContextEventResponse,
     DeclarationCheckRequest,
@@ -560,3 +562,29 @@ def case_timeline(
         )
         for e in events
     ]
+
+
+@router.get("/{case_id}/snapshot", response_model=CaseSnapshotResponse)
+def case_snapshot(
+    case_id: str,
+    at: str | None = Query(None),
+    track: str = Query("internal"),
+    db: Session = Depends(get_db),  # noqa: B008
+) -> CaseSnapshotResponse:
+    """案件在指定时点的全景快照（at 缺省 = now；ISO 格式；非法 422；无案件 404）。"""
+    point: datetime | None = None
+    if at is not None:
+        try:
+            point = datetime.fromisoformat(at)
+        except ValueError:
+            raise HTTPException(status_code=422, detail="at 必须是 ISO 8601 时间") from None
+    if track not in ("internal", "external"):
+        raise HTTPException(
+            status_code=422,
+            detail=f"track 必须是 internal/external，收到 {track}",
+        )
+    try:
+        data = build_case_snapshot(case_id, db, at=point, track=track)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return CaseSnapshotResponse(**data)
