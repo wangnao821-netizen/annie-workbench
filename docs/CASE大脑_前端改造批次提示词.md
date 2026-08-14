@@ -2377,3 +2377,190 @@ export function deleteKnowledge(id: string): Promise<void>;
 3. 任务工作台 brandon 分类只显示升级任务；卡片金色徽标 + 老板答复三按钮可用（答复后状态变化）
 4. 待办点"进入案件对话"→ AI 聊天切到该案件并带上下文
 5. 无新依赖、编译零错误
+
+---
+
+# F-29（2026-08-14 定稿）：中栏双悬浮（任务 + 清单）+ 右栏重组
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (49)`（或最新编号）。
+> 后端依赖：WO-40（已就绪）/ WO-41（任务 Agent，POST /api/tasks/ 已扩 deadline/priority/assignee）/
+> WO-43（清单 Agent，POST /api/cases/{id}/checklist 新增项）。
+> 定稿依据：docs/CASE大脑_客户上下文维护与任务视图_定稿.md §3.1 / §3.2 / §10.2 / §13。
+> 目标：AI First 三栏布局下，中栏是对话主战场，任务和清单做成"按需弹出的操作抽屉"，
+> 与右栏"只看不管"的指挥中心划清边界。
+
+## 一、中栏 BrainChat 头部：两个小图标（src/components/brain/BrainChat.tsx）
+
+在头部右侧（现有"客户全景"折叠按钮旁）加两个图标按钮，**仅选中案件时显示**：
+
+1. `📋 清单`（ListChecks 图标，绿色系）→ 打开清单抽屉；
+2. `✅ 任务`（CheckSquare 图标，紫色系）→ 打开任务抽屉。
+
+样式与"客户全景"按钮一致（圆形/圆角小按钮 + border + hover），tooltip 分别为"材料清单"、"客户任务"。
+全局咨询（无案件）时两个按钮隐藏。
+
+## 二、任务抽屉 TaskDrawer（新建 src/components/brain/TaskDrawer.tsx）
+
+**定位：该客户的全量任务台账 + 就地操作（"管"），与右栏 Top5（"看"）互补，绝不重复卡片化展示。**
+
+1. 入口：中栏头部"✅ 任务"按钮，点击从右侧滑入覆盖层/抽屉（宽度 ~420px，中栏内，不遮右栏）；
+2. 数据：`listTasks('all')` 后按 `case_id === 当前案件` 过滤（含 completed）；标题显示"客户任务 (N)"；
+3. 分类 tab：全部 / 进行中 / 待老板（escalatedToBoss）/ 已委派（delegatedTo）/ 已完成；
+4. 列表项：紧凑一行式（标题 + 分类徽标 + 截止红黄绿 + 状态），**不用卡片**；
+   - 红黄绿：逾期=红（已逾期 X 天）、今天到期=黄、≤7 天=橙、其余=灰；
+   - 分类徽标：👑 老板 / 📧 邮件 / 📁 文件 / 🏦 OS / ⚙️ 其他；
+5. 操作（每项 hover 显示）：
+   - 标记完成（调用已有 completeTask 或 POST /api/tasks/{id}/dispatch {action:"approve"}）；
+   - 委派：小弹窗填 委派人 + 截止 → 已有 delegate 端点；
+   - 改截止：小弹窗选日期 → 后端支持时调用；后端未支持则 toast"即将支持"（不阻塞本批）；
+   - 进入任务详情：打开 OsWorkbench（OS 类）或通用任务详情（非 OS 类，复用 DetailPanel 组件或现有任务详情页）；
+6. 新建任务：抽屉底部"＋ 新建任务"按钮 → 表单（标题 * / 截止日期 / 优先级下拉 urgent|high|normal|low / 负责人下拉 vera|brandon）→ `POST /api/tasks/`（body 含 case_id）→ 成功后刷新列表并 toast；
+7. 数据同源：任务更新后同步刷新右栏待办与首页今日待办（复用 taskStore，天然同步）。
+
+## 三、清单抽屉 ChecklistDrawer（新建 src/components/brain/ChecklistDrawer.tsx）
+
+**定位：材料台账的日常维护入口，复用 ChecklistPanel/ChecklistItem 组件能力，按业务分类展示。**
+
+1. 入口：中栏头部"📋 清单"按钮，抽屉形态同任务抽屉；
+2. 数据：`GET /api/cases/{case_id}/checklist`；
+3. **按业务分类分组展示**（master category，中文标签）：
+   - 身份 / 收入（PAYG）/ 收入（自雇）/ 银行特定 / 特殊情况 / 房产 / 结算 / 其他
+   - 组内按 is_required 先必选后可选；每组显示已收/总数
+4. 每项：名称 + 必选/AI建议徽标 + 已收状态（勾选）+ 撤销匹配按钮（有文件时）；
+5. 补勾/去勾：点选调 `POST .../checklist/{item_id}/confirm` / `/revoke`（复用 checklistStore 或直接 API）；
+6. 新增项（抽屉顶部"＋ 新增"）：
+   - 表单：名称 *（文本框）+ 分类 *（下拉：身份/收入PAYG/收入自雇/银行特定/特殊情况/房产/结算）+ 指定银行（可选下拉 22 家）+ 适用条件（可选，V1 只存不校验，留文本或 JSON 输入框收起）；
+   - 提交 `POST /api/cases/{case_id}/checklist`（body：name_zh/name_en?/category/is_required/applicable_when?/bank_specific?）→ 成功后新项出现在当前分类组，toast"已加入清单并沉淀到清单总库"；
+7. 预选确认入口：建档完成对话提示"已按 XX 银行预选 N 项"时，卡片/提示带"查看清单"按钮 → 打开本抽屉。
+
+## 四、右栏 CasePanorama 重组（src/components/brain/CasePanorama.tsx）
+
+保持"案件指挥中心"骨架（摘要 → 下一步 → 风险 → 时间线 → 事实），只做三处增量：
+
+1. **顶部"关键截止"块**（新增，置于摘要卡之后）：
+   - 数据：context.deadlines（finance_due/days_left）+ 案件任务中带 deadline 的前 3 条；
+   - 展示：最多 3 条，每条 截止名称 + 日期 + 红黄绿（逾期红 / ≤3 天黄 / 其余灰），无截止则整块隐藏；
+2. **"下一步待办"排序 + 分类徽标**（改造现有待办区）：
+   - 排序：逾期 > 今天到期 > ≤7 天 > 其他（按 deadline 升序）；
+   - 卡片内加分类徽标（👑老板 / 📧邮件 / 📁文件 / 🏦OS / ⚙️其他），优先级徽章保留；
+   - 仍取前 5 条，标题区加"查看全部 (N)" → 打开中栏任务抽屉（跨组件联动，用 uiStore 事件或全局状态）；
+3. **下部折叠**（改造）：
+   - 风险/政策：默认展开；
+   - 最近动态（时间线）/ 补全进度 / 查看全部事实：收进一个"更多"折叠区（ChevronDown/Up），默认收起；
+4. **硬规则：右栏不出现任何任务操作按钮**（标记完成/委派/新建都不放），只读 + 点击跳转任务详情。
+
+## 五、红线
+- 只改：BrainChat、CasePanorama、新建 TaskDrawer/ChecklistDrawer（可放 components/brain/）、
+  types/api.ts、api 服务（tasks.ts/cases.ts 若需加方法）、taskStore/checklistStore（如需要）、uiStore（抽屉开关状态）；
+- 不改后端、不新增 npm 依赖；样式只用项目现有 CSS 变量 + Tailwind + motion；
+- 后端未就绪的方法（如改截止）必须 mock/toast 兜底，不阻塞本批验收。
+
+## 六、验收
+1. 选中案件 → 中栏头部出现"清单/任务"两个图标；全局咨询时隐藏
+2. 任务抽屉：分类 tab 正确、红黄绿+徽标、新建任务（POST /api/tasks/ 带 deadline/priority/assignee）成功并即时出现
+3. 清单抽屉：按业务分类分组、补勾/撤销可用、新增项（POST /api/cases/{id}/checklist）成功后出现在对应分类并提示已沉淀
+4. 右栏：关键截止块出现（有截止时）、待办按紧迫度排序+分类徽标、"查看全部"能打开任务抽屉、下部折叠生效、无操作按钮
+5. `npx tsc --noEmit` 零错误；无新依赖
+
+---
+
+# F-29 补丁（2026-08-14，Codex 审查 (51) 后）：清单新增分类提交 422 修复 + 建档联动提示
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (51)`（或最新编号）。
+> 背景：F-29 主体已验收通过（双图标/任务抽屉/清单抽屉/右栏重组均符合定稿），
+> 但审查发现 **ChecklistDrawer 新增清单项提交必 422**：新增表单的 category 传的是中文
+> （如"身份"），而后端 WO-43 `POST /api/cases/{id}/checklist` 要求 category 为英文枚举
+> `identity / income_payg / income_self_employed / bank_specific / special / property / settlement`。
+
+## 一、修复分类提交（src/components/brain/ChecklistDrawer.tsx，必改）
+
+1. 在 `MASTER_CATEGORIES` 定义后新增映射：
+
+```typescript
+// 中文分类 → 后端枚举（WO-43 ChecklistAddRequest.category 白名单）
+const CATEGORY_TO_EN: Record<string, string> = {
+  '身份': 'identity',
+  '收入（PAYG）': 'income_payg',
+  '收入（自雇）': 'income_self_employed',
+  '银行特定': 'bank_specific',
+  '特殊情况': 'special',
+  '房产': 'property',
+  '结算': 'settlement',
+};
+```
+
+2. 提交处（现 `category: newCategory`）改为：
+
+```typescript
+category: CATEGORY_TO_EN[newCategory] ?? 'special',
+```
+
+3. **新增表单的分类下拉**：移除"其他"选项（后端枚举无 other），只留 7 个业务分类；
+   展示分组（按 master_category 归类）保留"其他"作未知项兜底，不受影响。
+
+## 二、建档联动提示（可选，推荐补上）
+
+`src/components/cases/NewCaseSheet.tsx` 建档成功回调（onCreated 前）：
+
+- 若后端返回含 `checklist_total`，toast 提示"已按 XX 银行预选 N 项清单，可在对话栏点 📋 查看/调整"；
+- 不强制打开抽屉（避免打断建档流程），仅提示入口。
+
+## 三、红线
+- 只改：ChecklistDrawer.tsx、NewCaseSheet.tsx（如做第二项）；
+- 不改后端（WO-43 枚举为唯一真源）、不新增 npm 依赖；
+- `npx tsc --noEmit` 零错误。
+
+## 四、验收
+1. 清单抽屉新增"收入（自雇）"分类项 → 提交成功（200），新项出现在"收入（自雇）"分组；
+2. 新增下拉无"其他"选项；分组展示"其他"仍可用（历史/未知项正常显示）；
+3. 新建案件成功后出现"已预选 N 项清单"提示（如做第二项）；
+4. `npx tsc --noEmit` 零错误。
+
+---
+
+# F-29 补丁二（2026-08-14，Vera 拍板）：中栏头部精简 + 递交模式常驻入口
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (51)`（或最新编号）。
+> 背景：中栏头部拥挤。拍板方案——左侧只留客户名（无徽章）；右侧清单/任务/**递交模式**保留文字（易辨识），
+> 客户全景折叠只留图标按钮。递交模式当前只有 AI 建议卡入口，缺手动切换，本次补上常驻 pill。
+
+## 一、左侧精简（src/components/brain/BrainChat.tsx 头部）
+
+案件对话态左侧只保留**客户名纯文字**（`text-sm font-extrabold`），删除：
+- lender 紫色徽章；
+- stage 灰色徽章；
+- "🧠 已注入案件上下文"整段（Brain 图标 + 文字）。
+
+全局咨询态不变（Sparkles + "全局咨询"）。
+
+## 二、右侧布局（案件对话态）
+
+顺序（自左向右）：
+
+1. **📋 清单**按钮：保留现状（图标 + "清单"文字）；
+2. **✅ 任务**按钮：保留现状（图标 + "任务"文字）；
+3. **递交模式 pill**（新增，modeStore 驱动）：
+   - `mode === 'internal'`：显示"🔒 内线"（紫色系 pill，`title="点击进入递交模式"`），点击 → `setMode('external')`；
+   - `mode === 'external'`：显示"📤 递交"（琥珀/黄色系 pill，`title="递交模式：AI 只引用已披露/外线内容，点击退出"`），点击 → `setMode('internal')`；
+   - 仅 `activeCaseInfo` 时显示；
+4. **客户全景折叠按钮**：去掉 `<span>客户全景</span>` 文字，只留 `PanelRightClose` 图标（`title="展开/收起右栏客户全景"` 保留）。
+
+## 三、切案件复位内线（防串线）
+
+- 在 BrainChat 内监听 `caseId` 变化（`useEffect`），切换案件/进入全局咨询时 `setMode('internal')`；
+- 保证递交状态不跨案件残留（红线：外线内容绝不串到另一个客户）。
+
+## 四、高度微调（可选）
+
+- 头部 `py-3` → `py-2.5`，整体更紧凑；其他样式不动。
+
+## 五、红线
+- 只改 `BrainChat.tsx`（+ 若复位逻辑需放 AppShell 则仅一处）；不改 SubmissionBanner（黄色警示横幅保留）；
+- 不改后端、不新增 npm 依赖；`npx tsc --noEmit` 零错误。
+
+## 六、验收
+1. 案件对话态：左侧仅客户名；右侧"📋清单 / ✅任务 / 🔒内线·点击变📤递交 / 全景图标"
+2. 点"🔒 内线" → 变"📤 递交"（黄），SubmissionBanner 黄色横幅出现；再点退出 → 回内线、横幅消失
+3. 切换到另一案件 → 自动复位"🔒 内线"（无黄色横幅）
+4. 全局咨询态：无清单/任务/递交 pill，仅"全局咨询" + 全景按钮
+5. `npx tsc --noEmit` 零错误
