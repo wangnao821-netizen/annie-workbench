@@ -175,7 +175,7 @@
 
 ### V2 定稿（2026-08-13，主文档 §十三）：案件文件夹机制 + 文件操作
 - 案件文件夹关联（选已有/自动建）+ 三档渐进（新文件自动发现 → 按需自主取 → 主动预判）
-- 文件操作：Vera 主动要求才执行（放入/改名/移动），PathGuard 校验，绝不自主（📋 **WO-44 + F-34 已出** 2026-08-14：中栏文件入口、放入=复制、V1 不删除、带规范命名建议）
+- 文件操作：Vera 主动要求才执行（放入/改名/移动），PathGuard 校验，绝不自主（✅ **WO-44 已完成** 2026-08-14，f4d8049：6 端点 + agent-file + file_ops 流程包，13 专项、全量 1060；F-34 前端已在 (54)，待联调；两处偏离已登记——pai 工具计数 10→11、file_ops.yaml 触发语去裸词"文件"防吞 WO-32 路由）
 ### WO-23：PST 接线 + pyproject 对齐（✅ 已完成 2026-08-13，a30a4ef）
 - import_pst.py remember 接线（F821 真缺陷）；pyproject 声明 openpyxl/oletools/python-multipart；uv.lock 重新生成入库
 - 施工单：docs/flash_specs/wo-23-pst-pyproject.md
