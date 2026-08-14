@@ -179,7 +179,7 @@ class TestAgentRegistry:
 
 
 class TestMigration:
-    """WO-43 迁移对称可逆（验收 14）。"""
+    """WO-43/WO-42 迁移对称可逆（验收 14 + WO-42 新 head 配套）。"""
 
     def test_migration_reversible(self, tmp_path):
         db_path = tmp_path / "wo43_mig.db"
@@ -190,14 +190,22 @@ class TestMigration:
         command.upgrade(cfg, "head")
         engine = sqlalchemy.create_engine(f"sqlite:///{db_path}")
         assert "checklist_library_custom" in sqlalchemy.inspect(engine).get_table_names()
+        fact_cols = {c["name"] for c in sqlalchemy.inspect(engine).get_columns("brain_facts")}
+        assert {"locked_by_user", "disclosure"} <= fact_cols  # WO-42 列已建
         engine.dispose()
 
         command.downgrade(cfg, "-1")
         engine = sqlalchemy.create_engine(f"sqlite:///{db_path}")
-        assert "checklist_library_custom" not in sqlalchemy.inspect(engine).get_table_names()
+        # head 现为 WO-42：downgrade -1 回退 WO-42 两列，checklist 表仍在（WO-43 revision）
+        assert "checklist_library_custom" in sqlalchemy.inspect(engine).get_table_names()
+        fact_cols = {c["name"] for c in sqlalchemy.inspect(engine).get_columns("brain_facts")}
+        assert "locked_by_user" not in fact_cols
+        assert "disclosure" not in fact_cols
         engine.dispose()
 
         command.upgrade(cfg, "head")
         engine = sqlalchemy.create_engine(f"sqlite:///{db_path}")
         assert "checklist_library_custom" in sqlalchemy.inspect(engine).get_table_names()
+        fact_cols = {c["name"] for c in sqlalchemy.inspect(engine).get_columns("brain_facts")}
+        assert {"locked_by_user", "disclosure"} <= fact_cols
         engine.dispose()

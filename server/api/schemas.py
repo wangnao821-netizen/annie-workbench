@@ -153,6 +153,8 @@ class BrainFactResponse(BaseModel):
     event_id: int
     superseded_by: int | None = None
     conflict: bool = False
+    locked_by_user: bool = False
+    disclosure: str | None = None
     valid_to: datetime | None = None
     created_at: datetime | None = None
 
@@ -948,3 +950,16 @@ class AssistantSettingsUpdate(BaseModel):
     ai_name: str | None = Field(default=None, max_length=40)
     user_address: str | None = Field(default=None, max_length=20)
     persona_key: str | None = Field(default=None, max_length=20)
+
+
+class FactAmendRequest(BaseModel):
+    """人工修正事实请求（WO-42）。"""
+
+    value: str                          # 修正后的值（非空，空白 → 422）
+    reason: str | None = None           # 修正原因（写入事件 content）
+
+
+class FactDisclosureRequest(BaseModel):
+    """设置事实披露标记请求（WO-42）。"""
+
+    disclosure: str | None = None       # 'disclosed' | 'internal_only' | None（None=清除标记）

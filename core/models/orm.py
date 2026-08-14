@@ -601,6 +601,8 @@ class BrainFact(Base):  # type: ignore[misc]
     value = Column(Text, nullable=False)
     category = Column(String, nullable=False)
     track = Column(String, nullable=False, default="internal")  # internal | external
+    locked_by_user = Column(Boolean, default=False)   # 人工锁定：AI 蒸馏不得覆盖（WO-42）
+    disclosure = Column(String, nullable=True)        # null 未标记 / 'disclosed' / 'internal_only'（WO-42）
     event_id = Column(Integer, nullable=False)  # 来源事件 id（confirmed）
     superseded_by = Column(Integer, nullable=True)
     conflict = Column(Boolean, default=False)
@@ -771,4 +773,3 @@ class ChecklistLibraryCustom(Base):  # type: ignore[misc]
     source_case_id = Column(String, nullable=True)
     use_count = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
-

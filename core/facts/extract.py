@@ -156,6 +156,9 @@ def sync_brain_facts(case_id: str, db: Session, event: CaseContextEvent | None =
                 )
                 .first()
             )
+            if current is not None and current.locked_by_user:
+                logger.info("跳过锁定事实: %s %s", case_id, key)
+                continue
             new_row = BrainFact(
                 case_id=case_id,
                 key=key,

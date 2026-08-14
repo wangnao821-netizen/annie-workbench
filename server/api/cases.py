@@ -53,6 +53,8 @@ from server.api.schemas import (
     ContextEventResponse,
     DeclarationCheckRequest,
     DeclarationCheckResponse,
+    FactAmendRequest,
+    FactDisclosureRequest,
     ParseFileResponse,
     ParseTextRequest,
     PolicyCheckResponse,
@@ -369,6 +371,100 @@ def sync_case_brain_facts(case_id: str, db: Session = Depends(get_db)) -> dict: 
     _get_case_or_404(case_id, db)
     written = sync_brain_facts(case_id, db)
     return {"case_id": case_id, "written": written}
+
+
+def _get_fact_or_404(fact_id: int, case_id: str, db: Session) -> BrainFact:
+    """有效事实（valid_to IS NULL）且属于该案件，否则 404。"""
+    fact = (
+        db.query(BrainFact)
+        .filter(
+            BrainFact.id == fact_id,
+            BrainFact.case_id == case_id,
+            BrainFact.valid_to.is_(None),
+        )
+        .first()
+    )
+    if fact is None:
+        raise HTTPException(status_code=404, detail="事实不存在或已失效")
+    return fact
+
+
+@router.post("/{case_id}/facts/{fact_id}/lock", response_model=BrainFactResponse)
+def lock_brain_fact(case_id: str, fact_id: int, db: Session = Depends(get_db)) -> BrainFactResponse:  # noqa: B008
+    """人工锁定事实：locked_by_user=True，幂等。"""
+    fact = _get_fact_or_404(fact_id, case_id, db)
+    fact.locked_by_user = True
+    db.commit()
+    db.refresh(fact)
+    return BrainFactResponse.model_validate(fact)
+
+
+@router.post("/{case_id}/facts/{fact_id}/unlock", response_model=BrainFactResponse)
+def unlock_brain_fact(case_id: str, fact_id: int, db: Session = Depends(get_db)) -> BrainFactResponse:  # noqa: B008
+    """解锁事实：locked_by_user=False，幂等。"""
+    fact = _get_fact_or_404(fact_id, case_id, db)
+    fact.locked_by_user = False
+    db.commit()
+    db.refresh(fact)
+    return BrainFactResponse.model_validate(fact)
+
+
+@router.patch("/{case_id}/facts/{fact_id}/disclosure", response_model=BrainFactResponse)
+def set_fact_disclosure(
+    case_id: str,
+    fact_id: int,
+    req: FactDisclosureRequest,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> BrainFactResponse:
+    """设置披露标记：'disclosed' | 'internal_only' | None；非法值 422。"""
+    if req.disclosure not in (None, "disclosed", "internal_only"):
+        raise HTTPException(status_code=422, detail="disclosure 必须为 'disclosed' / 'internal_only' / null")
+    fact = _get_fact_or_404(fact_id, case_id, db)
+    fact.disclosure = req.disclosure
+    db.commit()
+    db.refresh(fact)
+    return BrainFactResponse.model_validate(fact)
+
+
+@router.post("/{case_id}/facts/{fact_id}/amend", response_model=BrainFactResponse)
+def amend_brain_fact(
+    case_id: str,
+    fact_id: int,
+    req: FactAmendRequest,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> BrainFactResponse:
+    """人工修正事实：新行替换旧行（supersede 审计链）+ 新行自动锁定。"""
+    value = req.value.strip()
+    if not value:
+        raise HTTPException(status_code=422, detail="修正值不能为空")
+    old = _get_fact_or_404(fact_id, case_id, db)
+    event = append_context_event(
+        case_id,
+        "manual_fact_amend",
+        f"人工修正 [{old.key}]：{value}（原值：{old.value}）"
+        + (f"；原因：{req.reason}" if req.reason else ""),
+        db,
+        trigger_distill=False,
+        track=old.track,
+        status="confirmed",
+    )
+    new_row = BrainFact(
+        case_id=case_id,
+        key=old.key,
+        value=value,
+        category=old.category,
+        track=old.track,
+        event_id=event.id,
+        locked_by_user=True,
+    )
+    db.add(new_row)
+    db.flush()
+    old.superseded_by = new_row.id
+    old.conflict = True
+    old.valid_to = datetime.now(UTC)
+    db.commit()
+    db.refresh(new_row)
+    return BrainFactResponse.model_validate(new_row)
 
 
 @router.post("/", response_model=CaseDetailResponse)
