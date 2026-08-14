@@ -2646,3 +2646,80 @@ body 示例：`{"ai_name": "小V", "user_address": "Vera姐", "persona_key": "d"
 4. 设置页系统 tab：AI 助手卡片回显已保存值，修改保存成功、toast 提示；
 5. 保存后重新进入全局咨询 → 不再显示引导卡（onboarding_needed=false）；
 6. `npx tsc --noEmit` 零错误。
+
+# F-30（2026-08-14 定稿）：客户全景页重构 — 上下文维护中心 + 时间线
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (52)`（或最新编号）。
+> 背景：右栏客户全景（CasePanorama）目前是"只读事实卡 + mock 上下文 + 待办卡"。WO-42 后端已上线
+> （事实锁定/修正/披露标记 + 蒸馏锁定保护），定稿：全景页 = **上半区上下文维护**（AI 注入的 BrainFact
+> 摊开、每项可维护）+ **下半区时间线**（事件证据链）；**不放任务汇总**（右栏最多保留紧凑"下一步"态势）。
+> 依据：docs/CASE大脑_客户上下文维护与任务视图_定稿.md §3.3-3.6。
+
+## 一、后端接口（WO-42 已上线，全部真实）
+
+- `GET /api/cases/{case_id}/facts?track=internal|external` → 事实列表，每条含
+  `locked_by_user: bool`、`disclosure: 'disclosed' | 'internal_only' | null`（WO-42 新增）；
+- `POST /api/cases/{case_id}/facts/{fact_id}/lock` / `unlock` → 锁定/解锁（幂等）；
+- `PATCH /api/cases/{case_id}/facts/{fact_id}/disclosure`，body `{"disclosure": "disclosed" | "internal_only" | null}`；
+- `POST /api/cases/{case_id}/facts/{fact_id}/amend`，body `{"value": "...", "reason": "..."}` →
+  新行替换旧行（旧值走 supersede 审计链）+ 新行自动锁定；
+- `GET /api/cases/{case_id}/context-events` → 时间线事件流（含 track/status/created_at）；
+- `POST /api/cases/{case_id}/context-events` → 记一笔（手动补充入口）；
+- `POST /api/cases/{case_id}/context-events/{event_id}/confirm` / `supersede` → 确认/撤销事件；
+- `GET /api/cases/{case_id}/context` → AI 实际注入的上下文（预览用）。
+
+## 二、类型与 API 服务（先做）
+
+1. `src/types/api.ts` `BrainFact` 追加：`locked_by_user: boolean; disclosure: 'disclosed' | 'internal_only' | null;`
+2. `src/services/api/cases.ts` 新增：`lockFact` / `unlockFact` / `setFactDisclosure` / `amendFact`
+   （对齐上述端点，复用现有 request 封装）。
+
+## 三、上半区：客户上下文维护（重构 CasePanorama / FactCard）
+
+- 数据源改为 `listBrainFacts(caseId)`（不再用 MOCK_CONTEXT 的事实部分），按 `category` 分组展示；
+- 每条事实行：
+  - 左侧：key 中文名 + value（保留现有 FactCard 样式与 conflict ⚠️ 角标）；
+  - track 徽章：**internal 内线 = 黄底** / **external 递交 = 蓝底**（红线：两轨清楚区分，不混排）；
+  - 锁定态：🔒 已锁定（人工锁定，AI 不能覆盖）→ 点击弹确认解锁；
+  - 披露标记：`internal_only` 显示红色"不能给银行看"角标；`disclosed` 显示绿色"可披露"；null 不显示；
+  - 操作按钮（每行 hover 出现）：修正（弹窗：新值 + 原因 → amend）、锁定/解锁、披露标记（三态选择）、
+    撤销（确认弹窗 → supersede，仅事件级可撤销时走事件接口）；
+- "记一笔"手动补充按钮 → 复用 `POST context-events`（source_type=manual_note），成功后刷新事实与时间线；
+- 空态：无事实时显示引导文案"暂无已提取事实，可在对话中记录或点击记一笔"。
+
+## 四、下半区：时间线（证据链）
+
+- 数据源改为 `GET context-events`（不再用 `context.timeline` mock）；按 created_at **倒序**展示全部（可滚动）；
+- 每条：source_type 图标 + content + track 徽章（黄/蓝）+ status 状态（pending/confirmed/superseded 置灰）+ 时间；
+- pending 事件行提供"确认 / 撤销"操作（复用现有 confirm/supersede 接口），确认后刷新上半区事实；
+- 沿用 OverviewTimeline 的视觉风格，但数据与数量不再截断为 5 条。
+
+## 五、预览 / 导出（替换"打包为 AI 上下文 + 复制"）
+
+- 全景页顶部加"预览 AI 上下文"按钮 → 弹层（只读）展示 `GET /api/cases/{case_id}/context` 完整内容 + "复制"按钮。
+
+## 六、删改与保留
+
+- **删除**：CasePanorama 中的完整任务汇总/待办列表（定稿 §3.6：全景页不放任务汇总）；
+- **保留**：最多 5 条的紧凑"下一步"态势（若现有 TodoCard 即此形态可保留并保持紧凑）；RightTop 其余卡片按现状；
+- 清掉 MOCK_CONTEXT 的事实/时间线回退（加载中可用骨架屏，不允许 mock 数据冒充真实）。
+
+## 七、红线与范围
+
+- 只改右栏相关：`CasePanorama.tsx` / `FactCard.tsx` / `OverviewTimeline.tsx` / `services/api/cases.ts` /
+  `types/api.ts`（必要时拆 FactCard 小组件）；不动中栏 BrainChat、不动设置页、不动后端；
+- **内外线隔离**：外线视图只展示 `track=external` 的事实（后端已保证 `?track=external` 不返回内线事实），
+  前端不得自行把内线内容拼进外线视图；披露标记只是展示层提示，不作为拼接依据；
+- 不新增 npm 依赖；`npx tsc --noEmit` 零错误。
+
+## 八、验收
+
+1. 打开案件右栏：上半区事实按类分组，内线黄底 / 递交蓝底清晰可辨；
+2. 锁定一条事实 → 🔒 角标；再点解锁 → 消失；
+3. 修正事实 → 新值替换、旧值呈"已修正"审计样式；新事实自动带锁定；
+4. 标 internal_only → 红色"不能给银行看"角标；`track=external` 视图不出现该事实；
+5. 时间线显示真实事件（倒序、全量可滚动）；"记一笔"后立即出现；
+6. 撤销一条 pending 事件 → 状态置灰，事实区同步刷新；
+7. "预览 AI 上下文"弹层完整显示并可复制；
+8. 右栏不再显示完整任务汇总；
+9. `npx tsc --noEmit` 零错误。
