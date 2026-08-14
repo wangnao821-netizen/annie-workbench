@@ -328,6 +328,9 @@ Agent 的呈现方式由**动作类型**决定，不硬套同一模式：
 - V1 以 PDF 为主（liteparse 2.11.1 已装，本地解析），扫描件/图片 OCR 实测后再放开；
 - **2026-08-15（WO-45）**：复用 LiteParse 链路定案（老项目已迁入 core/pipeline/parser.py，5 处调用点）；
   补 pymupdf/pdfplumber/pypdf/python-docx 兜底依赖 + 合成样本实测；效果不足再评估 RapidOCR / Qwen2.5-VL 作补充引擎。
+- **部署必配（2026-08-16，防遗忘）**：liteparse OCR 依赖 Tesseract tessdata——`.env` 设置
+  `TESSDATA_PREFIX`（指向含 eng.traineddata 的目录）或安装 Tesseract；**不配置则图片/扫描 OCR 静默走占位兜底**
+  （识别为空但不报错）。详见 `.env.example` 与 `docs/release_workflow.md`。
 
 ### 统计时区（#17）
 - 分桶时区改 **Australia/Sydney**（配置化，不硬编码）；补跨日边界测试（悉尼 0 点 vs UTC 14:00）。

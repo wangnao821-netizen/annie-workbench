@@ -9,6 +9,8 @@
 3. **迁移**：`python -m alembic upgrade head` → current = head；`python -m tools.migrate_lender_keys --dry-run` → 全 0
 4. **启动自检**：`python run_backend.py` 能起，`/api/health` config_ok=true
 5. **端到端联调**：按 docs/e2e_checklist.md 走一遍（建案/任务/SSE/草稿/通知/计算器/申报检查/能力中心）
+6. **OCR 运行依赖（WO-45 起）**：`.env` 必须配 `TESSDATA_PREFIX`（指向含 eng.traineddata 的目录）或已安装 Tesseract；
+   联调加一步"扔一张图片/扫描 PDF → 识别出文字"（不配置则静默走占位兜底，界面看不出但识别为空）
 
 ## 版本号三处同步
 
