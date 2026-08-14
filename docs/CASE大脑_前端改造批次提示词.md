@@ -2197,3 +2197,54 @@ export async function getHolidays(state?: string, limit?: number): Promise<Holid
 2. 整面板一屏内展示完全，无任何滚动条
 3. 背景不再透出（面板为实色 var(--bg-card)）
 4. 无新依赖、编译零错误
+
+---
+
+# F-26 补丁（2026-08-14，方案已拍板）：AU 时间面板宽度回 320 + 假期瘦身 + 三个新增信息
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (47)`。Vera 反馈 F-25 的 420px 太宽；第一版 320px 宽度合适，问题根源是假期列表撑高内容。本批：宽度回 320px、假期单列固定 4 条、日历压缩，并新增 3 个信息（A 下一个工作日 / B 今日业务摘要 / C 中国长假倒计时，C 后端已就绪 WO-39b）。
+
+## 一、布局（src/components/layout/AuTimePanel.tsx）
+
+1. **宽度回第一版**：`w-[420px]` → `w-80`（320px）
+2. **假期列表重排**：当前 `grid-cols-2` + `slice(0, 8)` 改为**单列固定 4 条** `slice(1, 5)`——倒计时条已承担"下一个假期"（next），列表从第二条开始避免重复；每条一行 `MM-DD + 名称(truncate) + 州徽标`；**移除滚动容器**
+3. **日历压缩**：日期格子 `min-h-[22px]` → `min-h-[18px]`、内边距微调（整块约省 24px）
+4. **三时区列**：三列文字 `whitespace-nowrap` 单行（布里斯班"(无夏令时)"用 tooltip 或小圆点，不换行）
+5. 保持：不透明背景 var(--bg-card)、圆角/阴影、三州工作日状态、办公重叠提示、夏令时提示、日历三色标记
+
+## 二、新增信息
+
+### A. 下一个银行工作日（顶部，一行）
+- 今日为休息日时显示：`今日休息（{假期名或周末}）→ 下一个工作日 4/7 周二`
+- 前端计算：从明天起逐日，`weekday < 5` 且不在该州未来假期日期集合内（用 today + upcoming 数据）→ 首个即结果；30 天内必有
+
+### B. 今日业务摘要（底部，一行，可点击）
+- 显示：`今日待办 {n} 件 · 7 天内 Finance 截止 {m} 案`
+- 数据：`useTaskStore().tasks` 算今日到期/超期待办；cases 算 `finance_deadline` 在 7 天内（dateDiff）的案件数
+- 点击整行 → `onNavigate('home')`（今日工作台）；无数据时显示 `—`
+
+### C. 中国长假倒计时（底部，一行）
+- 显示 `next_china`：`距 国庆节（10/1）还有 {n} 天`；`china` 列表第 2 条可并列显示（如 `· 春节 2/6`）
+- 数据：`getHolidays()` 返回的 `china` / `next_china`（后端 WO-39b 已就绪，state="CN"）
+- 无数据/失败显示 `—`
+
+## 三、服务层类型（src/services/api/holidays.ts + src/types/api.ts）
+
+`HolidaysResponse` 追加：
+```typescript
+china: HolidayItem[];        // 中国主要长假首日（state="CN"）
+next_china: HolidayItem | null;
+```
+（HolidayItem 已有 date/name/state/display，无需新类型）
+
+## 四、红线
+- 只改 `AuTimePanel.tsx`、`holidays.ts`、`types/api.ts`（+ 如接任务数据需要 `TopNavBar.tsx` 传入 onNavigate，允许）
+- 不改后端、不新增 npm 依赖；`npx tsc --noEmit` 零错误
+
+## 五、验收
+1. 面板宽度 320px，三时区各单行、布里斯班不换行
+2. 整面板一屏无滚动（日历 + 倒计时 + 假期 4 条 + A/B/C）
+3. A：今天休息时显示下一个工作日；工作日时不显示该行
+4. B：显示真实待办/截止数，点击跳今日工作台
+5. C：显示距下一个中国长假天数（真实 /api/holidays 数据）
+6. 背景仍为实色不透；无新依赖、编译零错误
