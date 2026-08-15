@@ -3816,3 +3816,84 @@ OS 工作台 / 知识中心 / 看板 / 详情页——颜色全部跟随、语�
 2. 全站无 `bg-gradient-to-[a-z]+ var(` 坏类、无 `var(--amber`；
 3. `type: 'spring',` 无参数处为 0；
 4. TaskCard 老板徽章与 TaskDrawer 均为黄色；OverviewFacts 银行徽章为 accent。
+
+---
+
+# F-42b（2026-08-15）：字号令牌体系（消灭 8-10px，关键信息 ≥12px）+ reduced-motion 补全覆盖
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (64)`（本批在 (64) 基础上改）。
+> 背景：F-42a 已全绿（色彩令牌化 + 动效两档）。本批处理可读性与无障碍：
+> ① 全站字号仍有过小（9px×39、10px×404、11px×353，中文在 10px 以下几乎不可读）；
+> ② reduced-motion 覆盖率不足（107 个文件、83 个含 motion 组件、仅 38 个有 useReducedMotion，
+>    45 个文件的 spring 动画在"减弱动态"设置下仍会滑动弹跳——全局 CSS 拦不住 Motion 库的 JS 动画）。
+
+## 一、字号体系（三条规则）
+
+1. **消灭 8-9px**：`text-[8px]`（4 处）与 `text-[9px]`（39 处）全部上提：
+   - 徽章/角标/纯标签 → `text-[10px]`；
+   - 有实际内容的文字 → `text-[11px]`；
+2. **text-[10px]（404 处）分类处理**：
+   - **业务关键信息 → `text-xs`（12px）**：金额、日期、截止天数、客户名、银行名、
+     按钮文字、可点击项、状态徽章、任务标题、KPI 数字、表单标签；
+   - **无足轻重的时间戳/纯装饰 → `text-[11px]`**：消息时间、版本号、辅助角标；
+3. **text-[11px]（353 处）保留**（次要时间戳/辅助说明可接受）；
+4. 不改 tokens.css（text-xs/sm/base 已是 rem 基准，满足系统字号缩放）；不新增依赖。
+
+判断口诀：**"用户要读/要点/要判断的值"一律 ≥12px；"给眼睛扫一眼的辅助"才允许 11px。**
+
+## 二、reduced-motion 补全覆盖（45 个文件）
+
+给所有"含 motion 组件但无 useReducedMotion"的文件补上（标准样板）：
+
+```tsx
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
+
+export function Xxx() {
+  const reduced = useReducedMotion();
+  // ...
+  <motion.div
+    initial={reduced ? { opacity: 0 } : { opacity: 0, y: 10, scale: 0.98 }}
+    animate={{ opacity: 1, y: 0, scale: 1 }}
+    exit={reduced ? { opacity: 0 } : { opacity: 0, y: 10, scale: 0.98 }}
+    whileHover={reduced ? undefined : { y: -2 }}
+    whileTap={reduced ? undefined : { scale: 0.97 }}
+  >
+```
+
+规则：
+1. reduced 下：位移/缩放全部去掉，只保留 opacity 淡入淡出（不许滑动/弹跳）；
+2. whileHover / whileTap 在 reduced 下置 undefined（保留颜色/背景 hover 态，去掉位移）；
+3. `AnimatePresence` 的 enter/exit 同规则处理；
+4. 已有 reduced 分支的文件**保持原样**，不要重复改。
+
+需补文件清单（TOP 20，其余 25 个一并扫）：
+TaskCard、GlobalExperienceTab、CaseFolderCard、OverdueDetail、FloatingAI、FileMatchDetail、
+NewClientDetail、CoCreateDialog、DraftEditor、BossDecisionDetail、Migration、OsDraftColumn、
+OsAttackDetail、Archive、SettlementDetail、DraftsBox、ChecklistPanel、ImportHistory、KpiBar、
+AssistantOnboardingCard。
+
+## 三、红线
+
+1. 不改 tokens.css；不新增依赖；不改组件逻辑/结构/文案；
+2. 字号只改 className，不调布局尺寸（如 min-w/px 宽度若与字号强绑定导致溢出，可做最小必要微调并注明）；
+3. 交付报告附：字号替换统计（9/10px → 目标档位数量）+ 补 reduced-motion 的文件清单。
+
+## 四、交付前自查
+
+```powershell
+rg -n "text-\[(8|9)px\]" src --glob "*.tsx" | Measure-Object          # 期望 0
+rg -n "text-\[10px\]" src --glob "*.tsx" | Measure-Object             # 期望大幅下降（≤ 60 处可接受）
+rg -l "motion\." src --glob "*.tsx" | % { $c = Get-Content $_ -Raw; if ($c -notmatch 'useReducedMotion') { $_ } }   # 期望空
+```
+
+## 五、验收（AI Studio 侧）
+
+1. `npx tsc --noEmit` 零错误；构建通过；
+2. 8px/9px 为 0；10px 仅剩纯时间戳类；关键信息（金额/日期/按钮/客户名/银行名/状态）全部 ≥12px；
+3. 所有含 motion 的文件都有 useReducedMotion 分支；
+4. 交付报告附替换统计与文件清单。
+
+## 六、本地联调验收（Vera / Codex 执行）
+
+1. 走查首页/中栏/右栏/看板/详情/统计/设置：无 8-10px 的"看不清"文字，金额日期清晰；
+2. 系统开启"减弱动态"后：弹窗/抽屉/下拉全部为淡入淡出，无滑动弹跳，交互仍可用。
