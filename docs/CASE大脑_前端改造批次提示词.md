@@ -3548,3 +3548,113 @@ tokens.css 保持"一组语义变量 = 一套主题"结构，变量按组注释�
 
 真机依次切 6 套主题，走查中栏 / 共创弹窗 / 三抽屉 / 右栏 / 首页 / 统计 / 设置 / 计算器 / 通知 /
 文件夹选择器：颜色全部跟随、语义色仍清晰、无"某个页面还是旧紫色"的漏网。
+
+---
+
+# F-42a（2026-08-15）：全站色彩收口（紫色语义化 + Tailwind 色收编 + 渐变收敛）+ 动效 house style
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (61)`（如后续有更新版本以最新编号为准）。
+> 背景：F-41c 验收通过（主题选择器 + 活跃组件清理），但全站仍有 **509 处 purple-XXX 硬编码 + 52 处
+> var(--purple)**，rose/amber/emerald/indigo/blue/gray 等 Tailwind 默认色遍布 80 个文件，
+> 切主题不跟随；同时 **16 种 spring 参数混用**，动效手感碎片化。本批收口色彩 + 统一动效语言。
+> 依据：`docs/F-42_前端品味审查报告.md`（三套设计 skill 审查：taste-skill / web-design-engineer / apple-design）。
+
+## 一、紫色语义化（核心规则：紫色只留给 AI）
+
+全站 `purple-*` 类和 `var(--purple)` 按以下语义归类替换：
+
+1. **AI 相关（保留紫色，但统一走 `var(--purple)` / `var(--purple-soft)`）**：
+   BrainChat 工具菜单、CalculatorPanel 头部徽章与结果卡、CoCreateDialog、FlowDialogCard、
+   DeclarationCheckCard 等"AI 能力"标识；若原为 `purple-500/600` 类，一律换 `var(--purple)`。
+2. **老板/拍板语义（换 `var(--yellow)` / `var(--yellow-soft)`）**：
+   CaseListSidebar 底部"老板"筛选 tab、HomePage 待办"👑 待老板拍板"徽章、CasePanorama 任务徽章
+   `escalated_to_boss` 分支。
+3. **澳洲时区/假期语义（换 `var(--accent)` 或中性 `var(--text-secondary)`）**：
+   AuTimePanel 全面板紫色（Globe 图标、堪培拉卡片、日历今天、假期徽章、今日待办按钮）。
+   例外：日历 4 色状态点（ACT/NSW/QLD/CN）是**信息编码，保留**，但改为 4 个语义令牌
+   `--mark-act` / `--mark-nsw` / `--mark-qld` / `--mark-cn`（在 tokens.css 六个主题各加 4 行：
+   ACT 用紫、NSW 用蓝、QLD 用绿、CN 用红，值取当前各主题的 --purple/--blue/--green/--red）。
+4. **关联案件语义（换 `var(--accent)`）**：DetailPanel "关联案件"横幅（bg-purple-500/10、
+   bg-purple-600 按钮）。
+5. **装饰图标（换 `var(--text-secondary)`，hover 再 `var(--text-primary)`）**：
+   TopNavBar 的 Clock/Bell/SunMoon 图标、通知面板 Bell 图标、HomePage 今日待办标题 CheckCircle2
+   与计数徽章、CasePanorama 头部 User 图标等"无业务语义"的紫色。
+6. **搜索聚焦态（换 `var(--ring)`）**：TopNavBar 搜索框 `border-purple-500/50 ring-purple-500/10`、
+   HomePage 右栏输入框 `focus-within:border-purple-500/50`。
+7. **拖拽分隔条**：PanelDivider 的 `bg-purple-500/50` / `hover:bg-purple-500/30` → 走
+   `var(--accent)` 半透明（如 `var(--accent-soft)`，拖动中更实、hover 更淡）。
+
+## 二、Tailwind 默认色收编（玫瑰/琥珀/翠绿/靛蓝/蓝/灰 → 语义令牌）
+
+全站扫描 `text-/bg-/border-/ring-/from-/via-/to-` 前缀的
+`rose/amber/emerald/indigo/blue/gray` 类，按语义替换（**禁止再引入新的 tailwind 色类**）：
+
+| 原类 | 语义 | 替换为 |
+|---|---|---|
+| rose-* | 逾期/错误/危险 | `var(--red)` / `var(--red-soft)` |
+| amber-* | 预警/待办/待决策 | `var(--yellow)` / `var(--yellow-soft)` |
+| emerald-* | 成功/已收/可披露 | `var(--green)` / `var(--green-soft)` |
+| indigo-* / blue-* | 信息/链接/递交态 | `var(--accent)` / `var(--accent-soft)` |
+| gray-* | 中性次要 | `var(--text-secondary)` / `var(--text-muted)` / `var(--bg-subtle)` |
+
+重点文件（残留最多的 10 个，其余一并扫）：NewCaseSheet(30)、HomePage(22)、BrainChat(21)、
+SkillCenter(16)、OverviewFacts(15)、CasePanorama(15)、PolicyHintCard(14)、CaseFolderCard(14)、
+GapAnalysisCard(13)、NewCaseFields(13)。
+
+注意：**保留有明确语义的彩色编码**（如任务来源徽章 邮件=accent / 文件=green / OS=yellow、
+披露状态 内部=accent / 可披露=green / 不能给银行看=red），但一律改走 var()，不得留 tailwind 类。
+
+## 三、黑白透明度硬编码收编（新增 --bg-subtle 令牌）
+
+1. tokens.css 六个主题各加 2 个令牌：
+   - `--bg-subtle`：弱表面（替代 `bg-black/5 dark:bg-white/5`）——dark 系取 `rgba(255,255,255,0.05)`，
+     light 系取 `rgba(15,23,42,0.04)`，其他主题按各自底色明暗取同思路；
+   - `--bg-subtle-strong`：稍强表面（替代 `bg-black/10 dark:bg-white/10`）——约 2 倍透明度。
+2. 全站 `bg-black/5 dark:bg-white/5` → `bg-[var(--bg-subtle)]`；
+   `bg-black/10 dark:bg-white/10` → `bg-[var(--bg-subtle-strong)]`；hover 变体同理。
+
+## 四、AI 渐变收敛（删除 4 处多色渐变）
+
+1. **Sidebar logo**：`linear-gradient(135deg, var(--accent), var(--purple))` → 单色 `var(--accent)`；
+2. **首页 Vera 专家贴士卡**：`from-indigo-600/10 via-purple-600/10 to-amber-500/10` →
+   `var(--accent-soft)` 单色底 + 保留细边框；
+3. **TopNavBar 头像**：`from-amber-500 via-rose-500 to-purple-600` → 单色 `var(--accent)`；
+4. **CasePanorama 空态**：`from-purple-500/20 to-pink-500/20` → `var(--accent-soft)`。
+
+## 五、动效 house style（apple-design 标准）
+
+1. **Spring 统一为 2 档**（全站收编 16 种参数）：
+   - 浮层/下拉/弹窗/抽屉进出场：`type: 'spring', damping: 25, stiffness: 300`（默认，无过冲感）；
+   - 卡片 hover lift / 按钮 whileTap / 列表项位移：`type: 'spring', damping: 25, stiffness: 400`
+     （轻快，允许轻微弹性）。
+   - 其他全部参数组合替换为以上两档之一（按交互性质归类，报告里附归类说明）。
+2. **同族初始位移统一**：弹窗/卡片进入 `y: 10`；下拉菜单进入 `y: 6`；工具提示进入 `x: 8`。
+3. **hover lift 统一**：卡片统一 `whileHover={{ y: -2 }}`，小按钮/条目统一 `y: -1`。
+4. 不动现有 reduced-motion 分支写法（`initial={reduced ? {opacity:0} : ...}`），照旧保留。
+
+## 六、红线
+
+1. 不改 tokens.css 既有令牌的值（只允许新增 --bg-subtle / --bg-subtle-strong / --mark-*）；
+2. 不新增 npm 依赖；不改任何组件功能逻辑与文案；
+3. 全部替换必须**机械替换**：只动 className / style 值，不改结构、不改状态、不重构组件。
+
+## 七、交付报告必须附
+
+1. 完整替换清单（文件 / 行 / 原类名 / 新类名），按"紫色语义化 / Tailwind 收编 / 黑白透明度 /
+   渐变收敛 / spring 统一"五类分列；
+2. 标注**有意保留的语义色位置**（任务来源徽章、披露状态、逾期/预警/成功、州级日历点、AI 高亮），
+   确认全部已走 var()；
+3. spring 归类说明（每种原参数 → 归入哪一档，为什么）。
+
+## 八、验收（AI Studio 侧）
+
+1. `npx tsc --noEmit` 零错误；构建通过；
+2. 全站无 `purple-*` / `rose-*` / `amber-*` / `emerald-*` / `indigo-*` / `blue-*` / `gray-*`
+   tailwind 色类残留（除有意保留且已 var() 化的）；`bg-black/` 类残留为 0；
+3. 无 spring 第三档参数（除规定的两档）；
+4. 切 6 套主题关键页无死色（提交前自查一次）。
+
+## 九、本地联调验收（Vera / Codex 执行）
+
+真机切 6 套主题走查：首页 / 中栏 / 三抽屉 / 右栏 / 设置 / 计算器 / 通知 / AU 时间面板 /
+看板 / 详情页——颜色全部跟随、语义色仍清晰、动效无突兀跳变、无"某个页面还是旧紫色"漏网。
