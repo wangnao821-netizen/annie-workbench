@@ -3435,3 +3435,64 @@ LLM 调 `record_fact` 且内容命中其他案件客户名时，后端**不写�
 - 不新增 npm 依赖；不要求运行后端（纯静态审查即可）；
 - 色值必须可直接落进 `tokens.css`（16 进制或 rgba），且通过简单对比度自查（正文 vs 背景 ≥ 4.5:1）；
 - 方案要"可执行"：Vera 拍板后能直接按色板转成 F-41b 修改批次（只改 tokens.css + 少量类名）。
+
+# F-41b 修改批次（2026-08-16）：采纳方案一落地 + 三处修正 + 全量硬编码清理（可直接执行）
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (59)`。
+> 背景：F-41 方案已由 Vera 认可——采纳**方案一（Cobalt & Precision Slate）**；Codex 实测复核发现
+> 三处需修正（见一），并确认硬编码彩色类名远超方案清单的 12 处（预计 40+ 处）。本批**直接改代码**，
+> 不再审查。目标：全局零"非语义"硬编码彩色 + 为多主题随意切换打好变量化基础。
+
+## 一、tokens.css 替换（方案一色板 + 三处修正）
+
+按 F-41 方案一整套色板（dark Obsidian Graphite / light Precision Slate），但以下三处**必须按修正值**：
+
+1. **dark --text-muted**：方案给 #64748b（实测对 #0b0d12 仅 4.08:1、对卡片 #181c28 仅 3.57:1，不达标）
+   → 改为 **#94a3b8**（Slate-400，实测 7.58:1 达标）；
+2. **light --text-muted**：#64748b 对浅灰底 #f1f5f9 仅 4.34:1（临界不达标）→ 改为 **#5b6b82**
+   （或同亮度深一档，保证纯白卡与浅灰底都 ≥4.5:1）；
+3. **dark 主操作按钮**：白字 on #3b82f6 = 3.68:1（14px 按钮文字需 ≥4.5）→ 新增 **--accent-strong**
+   （dark: #2563eb / light: #1d4ed8）作为**主按钮实心底色**；--accent 保留给边框/图标/链接/hover；
+   按钮实心底统一用 `var(--accent-strong)`，文字白。
+
+tokens.css 保持"一组语义变量 = 一套主题"结构，变量按组注释（表面层级/边框/文字/交互色/语义色/
+圆角/阴影/焦点/动画）——这是未来多主题（新增 `[data-theme="xxx"]` 块即可）的令牌基础。
+
+## 二、全量硬编码彩色清理（重点，不止 12 处）
+
+1. **全量扫描** `src/**/*.tsx`、`*.ts`、`*.css` 中硬编码彩色类/内联色：
+   `bg-purple-500/*`、`text-purple-*`、`bg-amber-500/*`、`text-amber-*`、`bg-blue-500/*`、`text-blue-*`、
+   `bg-emerald-500/*`、`text-emerald-*`、`bg-rose-*`、`text-rose-*`、`bg-red-*`、`text-red-*`、
+   `border-purple-*`、`focus-within:border-*`、`#8b5cf6`、`#4f6ef7` 等（含 inline style）；
+2. **逐处决策，三类处理**：
+   - **常规控制/图标/背景（非状态）→ 中性化**：`bg-[var(--bg-card)] text-[var(--text-secondary)]
+     border-[var(--border)] hover:bg-[var(--bg-card-hover)] hover:text-[var(--text-primary)]`。
+     已知重点：BrainChat 📌已记录 / ⚡工具 / 📎附件 三按钮、⚡ 菜单内 5 色图标、输入框
+     focus-within 紫边框、CoCreateDialog 顶部紫色 Header、DraftCard 紫边框/标签、各抽屉头部彩色、
+     CasePanorama 右栏彩色元素、首页/统计/设置里的彩色按钮与卡片；
+   - **语义状态标记 → 保留彩色但收敛**：逾期=红、待办/预警=黄、已收/成功=绿、AI 特质=小面积紫
+     （仅 ✨/Sparkles/共创弹窗标识），一律用 8%-12% soft 底 + 主色文字/小圆点，禁止高饱和纯色打底；
+   - **焦点/激活/选中 → 统一 `var(--ring)` / `var(--border-active)` / `var(--accent)`**。
+3. 交付报告必须附**完整替换清单**（文件/行号/原类名/新类名），数量应覆盖全部扫描命中（40+ 处）。
+
+## 三、多主题架构预留（不实现多主题，只打基础）
+
+- 不新增主题选择器、不加 npm 依赖、不改 themeStore 逻辑（dark/light 维持现状）；
+- 只保证：**除语义状态标记与 AI 小面积紫外，全局零硬编码彩色**——颜色全部来自 tokens.css 变量，
+  未来新增一套主题只需加一组 `[data-theme="xxx"]` 变量块。
+
+## 四、验收（AI Studio 侧）
+
+1. light / dark 两套视觉走查：中栏、CoCreateDialog、三抽屉、右栏、首页、统计、设置——
+   无"非语义"彩色残留；语义色仍清晰（逾期红/清单绿/待办黄可辨）；
+2. 对比度自查用**真实计算**（非估计）：primary/secondary/muted 三档文字在真实背景 ≥4.5:1
+   （muted 若按辅助文本可 ≥3:1，但需在报告标注）；主按钮白字 on --accent-strong ≥4.5:1；
+3. `npx tsc --noEmit` 零错误；若项目有 build 脚本跑 `npm run build` 通过；
+4. 无新增 npm 依赖。
+
+## 五、本地联调验收（Vera / Codex 执行，AI Studio 不负责）
+
+1. 前后端本地跑，light/dark 切换各页面无白屏/错位、无"彩色花哨"残留；
+2. 语义色在真实数据下仍一眼可辨（逾期任务红、清单未收黄/已收绿、AI 共创紫标识）；
+3. 主按钮（发送/确认）白字对比度目测清晰；
+4. 真机确认"舒服了"再收口；若有残留再出 F-41c 微调。
