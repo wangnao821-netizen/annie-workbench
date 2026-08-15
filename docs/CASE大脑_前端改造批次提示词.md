@@ -3388,3 +3388,50 @@ LLM 调 `record_fact` 且内容命中其他案件客户名时，后端**不写�
 3. 确认版本 → 案件事件写入（CaseContextEvent）+ 勾选「建待办」时生成 FOLLOWUP_TODO Action；
 4. 「保存草稿」→ POST /api/drafts 落库，DraftsBox 可见 status=draft / draft_type=manual；
 5. 文件预览原文 → 真 raw 流（PDF 内嵌渲染 / 图片显示 / 解析 tab 可切）。
+
+# F-41 色彩自查（2026-08-16）：全面审查前端色彩搭配，输出建议（暂不改代码）
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (59)`。
+> 任务性质：**只审查 + 出建议报告，不改任何代码**。Vera 看完建议、拍板后再出修改批次。
+> 背景：Vera 对界面曾反馈"临时感 / 不够正式"，且功能色（清单绿/文件蓝/任务紫/工具琥珀/逾期红）随批次
+> 逐渐增多，需要一次全局色彩体检，保证明暗双主题下可读、一致、有专业工作台质感。
+
+## 一、审查范围（全部前端，重点组件）
+
+- 色彩真源：`src/themes/tokens.css`（dark/light 双主题 CSS 变量）；
+- 全局：`src/index.css`、`tailwind` 配置、AppShell / TopNavBar / Sidebar / HomePage / Settings；
+- 中栏：BrainChat（工具菜单/快捷按钮/已记录胶囊/附件）、CoCreateDialog（共创弹窗深谈）、
+  TaskDrawer / ChecklistDrawer / FileDrawer（三抽屉 + 徽章 + 原文预览双 tab）、CasePanorama（右栏）、
+  GlobalStatsPanel / CaseListSidebar / RecordedEventsDrawer / ConfirmCard / DraftCard / 各结果卡。
+
+## 二、检查维度（逐项过）
+
+1. **变量体系**：tokens.css 表面层级（--bg-app → --bg-panel → --bg-card → --bg-input）是否"越上层越亮/越实"、
+   语义色（accent/blue/green/yellow/red/orange/purple）命名与用途是否清晰、dark/light 两套是否完整对称；
+2. **功能色一致性**：同一语义是否全局同色——AI/记录/任务=紫、清单=绿、文件=蓝、工具/警告=琥珀、
+   逾期/危险=红、成功=绿、主操作/发送=accent；找出"同义不同色 / 同色不同义 / 滥用纯色文字"；
+3. **可读性与对比度**：dark 下 --text-secondary/#8b8fa4、--text-muted/#5c6078 是否过暗；
+   light 下同理；按钮文字/白字 vs 彩色底、徽章数字 vs 底色、禁用态对比度；
+4. **状态色明暗双主题**：逾期红/清单绿/待办紫/工具琥珀在 dark 与 light 下是否都清晰可辨
+   （10%/12% soft 底 + 主色文字的组合）；
+5. **品牌与专业感**：整体是否像"专业贷款经纪人工作台"——主色占比、高亮滥用（紫色/琥珀到处都是？）、
+   卡片/边框/阴影层级是否让界面有秩序感；列出你认为"最像临时页面"的具体位置；
+6. **一致性抽查**：三个抽屉与 CoCreateDialog 的头部/按钮/徽章样式是否同构；右栏与中栏的配色节奏是否统一。
+
+## 三、输出格式（建议报告）
+
+```text
+## 一、总体评价（3-5 句：整体印象 + 最值得改的 1-2 点）
+## 二、问题清单
+| # | 位置（组件/文件/行号） | 现象 | 严重度（高/中/低） | 建议 |
+## 三、全局建议（tokens.css 层面）
+- 具体变量调整（给出建议色值，说明理由：对比度/语义/品牌）
+- 新增/合并哪些变量（如 --success/--danger 统一、soft 色规整）
+## 四、优先级建议（先改什么后改什么，每项影响面）
+```
+
+## 四、硬性约束
+
+- **只审查、只出报告，不改任何代码**（含 tokens.css）；
+- 不新增 npm 依赖；不要求运行后端（纯静态审查即可）；
+- 建议要"可执行"：每个问题给出具体位置与具体改法（色值/变量/规则），方便 Vera 拍板后直接转修改批次。
