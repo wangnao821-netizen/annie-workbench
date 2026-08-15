@@ -3765,3 +3765,54 @@ rg -n "#[0-9a-fA-F]{6}" src --glob "*.tsx"                                      
 
 切 6 套主题走查：首页 / 中栏 / 三抽屉 / 右栏 / 设置 / 统计 / 草稿箱 / 档案 / 导入历史 / 迁移 /
 OS 工作台 / 知识中心 / 看板 / 详情页——颜色全部跟随、语义色清晰、动效无跳变。
+
+---
+
+# F-42a 补丁二（2026-08-15）：验收发现的 4 处小问题（坏渐变 / --amber 令牌 / spring 缺参 / 紫色语义残留）
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (63)`（本批在 (63) 基础上改）。
+> 背景：F-42a 补丁验收**主体通过**（tailwind 色类 0、bg-black 0、spring 两档），
+> 仅剩 4 处小问题，修完即全绿。本批为收尾补丁，只改下列文件，禁止扩大范围。
+
+## 一、坏渐变修复（2 处，真实渲染 bug）
+
+1. `src/components/ai/FloatingAIMessages.tsx:64`：
+   - 原：`isUser ? 'bg-gradient-to-r var(--accent)' : 'bg-gradient-to-r var(--purple)'`
+   - 改：`isUser ? 'bg-[var(--accent)]' : 'bg-[var(--purple)]'`（单色底即可，渐变无意义）；
+2. `src/components/brain/CasePanorama.tsx:208`：
+   - 原：`bg-gradient-to-tr var(--accent-soft)`
+   - 改：`bg-[var(--accent-soft)]`（保留其余 className 与 border-[var(--purple-soft)] 不动）。
+
+## 二、--amber 未定义令牌修复（2 处，改用 --yellow 语义令牌）
+
+1. `src/components/cases/KanbanCard.tsx:104`：
+   `var(--amber, #f59e0b)` → `var(--yellow)`；
+2. `src/components/os/OsDraftColumn.tsx:48`：
+   `var(--amber-soft, rgba(245, 158, 11, 0.1))` → `var(--yellow-soft)`；
+   `var(--amber, #f59e0b)` → `var(--yellow)`。
+
+## 三、spring 缺参修复（1 处）
+
+`src/components/brain/BrainChat.tsx:832`：`type: 'spring',` → `type: 'spring', damping: 25, stiffness: 300`。
+
+## 四、紫色语义残留（3 处，紫色只留给 AI）
+
+1. `src/components/tasks/TaskCard.tsx:22`：`BOSS_DECISION` 的
+   `bgVar: 'var(--purple-soft)', colorVar: 'var(--purple)'` →
+   `bgVar: 'var(--yellow-soft)', colorVar: 'var(--yellow)'`（老板拍板语义与 TaskDrawer 对齐）；
+2. `src/components/cases/overview/OverviewFacts.tsx:43/44/124`：
+   `text-[var(--purple)]`（银行徽章/交易结构/ShieldCheck 图标）→ `text-[var(--accent)]`；
+3. `src/components/cases/CaseFolderCard.tsx:182`（及 367 行同款）：
+   `_Inbox` 目录名 `text-[var(--purple)]` → `text-[var(--accent)]`（系统约定高亮，非 AI 语义）。
+
+## 五、红线
+
+1. 只改上述文件对应行；不改 tokens.css；不新增依赖；不改逻辑/结构/文案；
+2. 交付报告附逐条改动说明。
+
+## 六、验收
+
+1. `npx tsc --noEmit` 零错误；
+2. 全站无 `bg-gradient-to-[a-z]+ var(` 坏类、无 `var(--amber`；
+3. `type: 'spring',` 无参数处为 0；
+4. TaskCard 老板徽章与 TaskDrawer 均为黄色；OverviewFacts 银行徽章为 accent。
