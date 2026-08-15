@@ -3496,3 +3496,55 @@ tokens.css 保持"一组语义变量 = 一套主题"结构，变量按组注释�
 2. 语义色在真实数据下仍一眼可辨（逾期任务红、清单未收黄/已收绿、AI 共创紫标识）；
 3. 主按钮（发送/确认）白字对比度目测清晰；
 4. 真机确认"舒服了"再收口；若有残留再出 F-41c 微调。
+
+# F-41c（2026-08-16）：主题选择器闭环 + 活跃组件硬编码收尾
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (60)`。
+> 背景：F-41b 验收通过（方案一 + 对比度修正 + 重点组件变量化）；AI Studio 已做出 6 套主题 tokens
+> （dark/light/ivory/eyecare/blush/sand）+ themeStore（applyTheme/getInitialTheme/localStorage），
+> 但**设置页缺切换 UI**；活跃组件（CalculatorPanel/NotificationBell/FolderPickerModal 等）仍有非语义
+> 硬编码彩色，切主题不跟随。本批把"随意换主题"闭环。
+
+## 一、设置页主题选择器
+
+1. 设置页（`src/pages/Settings.tsx`）新增「外观 / 主题」区块（Tab 或卡片，与现有 AssistantSettingsCard
+   同级）；主题数据直接用 `src/themes/index.ts` 已导出的 `THEMES` 数组
+   （`{id, name, preview}` 六项已齐，**不要改 themes/index.ts / tokens.css / themeStore**）；
+2. 渲染 6 个主题卡片：预览色块（preview hex 背景）+ 中文名 + 选中态高亮
+   （`current === id` 时边框用 `var(--accent)`）；点击 → `useThemeStore().setTheme(id)`
+   （applyTheme 已处理 data-theme + localStorage 持久化）；
+3. 配一行说明文案："主题即时生效并自动记住选择"；
+4. 不新增 npm 依赖。
+
+## 二、活跃组件非语义硬编码清理（多主题完整性）
+
+1. **CalculatorPanel.tsx**（中栏计算器，活跃）——全量扫非语义紫色
+   （bg-purple-500/10、text-purple-*、border-purple-*、选中态实心 bg-purple-500）：
+   - 选中态/主操作 → `var(--accent)` / `var(--accent-strong)`；
+   - 面板装饰/标题紫色 → 保留小面积 `var(--purple)` / `var(--purple-soft)`（计算器特质）或中性化，
+     二选一但必须走变量；
+   - 语义结果色保留：surplus 正负 emerald/rose（状态标记，改走 `var(--green)` / `var(--red)`）；
+2. **NotificationBell.tsx / FolderPickerModal.tsx** 及仍渲染的旧组件：非语义硬编码 → var()，
+   按 F-41b 三类规则（常规控件中性化 / 语义状态保留并走 var / 焦点统一 --ring）；
+3. **brain 内非语义残留**：HomePage / CaseListSidebar / 各卡片里若有"装饰性"彩色（非状态标记）
+   一并清；
+4. 交付报告必须附**完整替换清单**（文件/行/原类名/新类名），并标注"哪些是语义色有意保留"。
+
+## 三、语义状态色保留确认清单（附报告）
+
+列出全局**有意保留**的语义色位置（逾期红 / 清单绿 / 待办黄 / 风险分级 / AI 紫 / 计算器结果正负），
+确认这些全部走 `var(--red)/var(--green)/var(--yellow)/var(--purple)` 等变量，**不得有 tailwind 写死色残留**
+（bg-red-500 这类不跟随主题的类名）。
+
+## 四、验收（AI Studio 侧）
+
+1. 设置页 6 主题卡片可见，点击即时切换，刷新后保持（localStorage）；
+2. 切到 ivory / eyecare / blush / sand 后：中栏、计算器、通知、文件夹选择器颜色全部跟随
+   （无残留写死色块/文字）；
+3. 6 套主题 light/dark 与 4 个新主题都无白屏、无错位、文字可读；
+4. `npx tsc --noEmit` 零错误；无新增 npm 依赖。
+
+## 五、本地联调验收（Vera / Codex 执行）
+
+真机依次切 6 套主题，走查中栏 / 共创弹窗 / 三抽屉 / 右栏 / 首页 / 统计 / 设置 / 计算器 / 通知 /
+文件夹选择器：颜色全部跟随、语义色仍清晰、无"某个页面还是旧紫色"的漏网。
