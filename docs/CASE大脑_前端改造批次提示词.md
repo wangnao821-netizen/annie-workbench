@@ -3315,6 +3315,9 @@ LLM 调 `record_fact` 且内容命中其他案件客户名时，后端**不写�
 > 背景：后端 WO-46（2ddccf4：raw 原文流 + POST /api/drafts）与 WO-46b（cd8c615：
 > POST /api/agent/co-create/chat）已完成。(58) 的共创弹窗/原文预览目前是 mock，本补丁切真端点；
 > mock 分支（VITE_USE_MOCK !== 'false'）保留，联调无后端时可退回。
+> **重要：AI Studio 在网页环境编辑，无法连接本地后端**——本补丁只要求**按下方后端契约写接线代码**，
+> 不需要运行后端、不需要真数据验证；mock 分支保留供无后端预览。**真联调验收由本地执行（见六、本地联调验收）**，
+> 不要求 AI Studio 验证真后端行为。
 
 ## 一、修复：CoCreateDialog 打不开（BrainChat.tsx）
 
@@ -3366,11 +3369,22 @@ LLM 调 `record_fact` 且内容命中其他案件客户名时，后端**不写�
 - 不新增 npm 依赖；无发送按钮；create_todo 默认 false；VITE_USE_MOCK 分支保留；
 - `npx tsc --noEmit` 零错误。
 
-## 六、验收
+## 六、验收（AI Studio 侧）
 
 1. 中栏 ⚡ 工具 → 「写补件邮件」→ CoCreateDialog **能打开**（isOpen 修复）；
-2. 真实模式：打开首条消息 = 案件全景 + 澄清问题（后端 clarify）；对话改稿生成 V2/V3（真实 LLM）；
-   A/B 分支可切换；确认写事件 + 可选建待办（勾选才建）；
-3. 「保存草稿」→ POST /api/drafts → DraftsBox 可见 status=draft；
-4. 文件预览原文走真 raw 流（PDF/图片内嵌渲染）；
-5. `npx tsc --noEmit` 零错误。
+2. 代码按上述契约接线：`coCreate.ts` 请求体字段/端点路径一字不差；`createManualDraft` 走 `POST /api/drafts`
+   （body 含 case_id/subject/body/track?）；`previewRawFileUrl` 走
+   `GET /api/cases/{id}/folder/files/raw?path=`；
+3. mock 模式（VITE_USE_MOCK 非 false）：CoCreateDialog 打开有全景+澄清引导、对话能出 V2/V3、
+   保存草稿 toast、文件预览双 tab 正常（UI 无回归）；
+4. `npx tsc --noEmit` 零错误。
+
+## 七、本地联调验收（Vera / Codex 执行，AI Studio 不负责）
+
+> 前端导出后本地运行（后端已就绪：WO-46/46b），逐项验证：
+
+1. ⚡ → 写补件邮件 → 弹窗打开；首条消息 = **后端 clarify 返回的案件全景 + 澄清问题**（非本地写死）；
+2. 对话改稿 → V2/V3 由真实 LLM 生成（请求体 parent_message_id 正确）；
+3. 确认版本 → 案件事件写入（CaseContextEvent）+ 勾选「建待办」时生成 FOLLOWUP_TODO Action；
+4. 「保存草稿」→ POST /api/drafts 落库，DraftsBox 可见 status=draft / draft_type=manual；
+5. 文件预览原文 → 真 raw 流（PDF 内嵌渲染 / 图片显示 / 解析 tab 可切）。
