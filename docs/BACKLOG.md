@@ -308,9 +308,9 @@
   - 📋 **F-39 已出**（2026-08-15）：中栏底部「已记录 N 条」收进胶囊 + 待确认红点 / 快捷发问 chips / 顶部任务·清单数量徽章 / 输入框发文件→import+preview OCR 识别入口（纯前端，接 WO-44 端点）
   - ✅ **WO-45 已完成**（2026-08-16，6ffd776）：补 pymupdf 1.28.2/pdfplumber 0.11.10/pypdf 6.16.1/python-docx 1.2.0；实测发现 liteparse OCR 依赖 tessdata（默认报 os error 183 → 设 TESSDATA_PREFIX 解决，已下载 eng/chi_sim 语言包）；修 parser.py 图片 OCR 50 字符阈值 bug（→ 10 有效字符 + 过滤 markdown 空包装）；合成样本测试 8 用例；全量 1067 passed。**生产部署要点：OCR 需配 TESSDATA_PREFIX（或装 Tesseract），否则图片/扫描 OCR 走占位兜底**
   - 📋 **F-40 已出**（2026-08-16，(57) 反馈）：① 中栏快捷 chips 折叠进「⚡ 工具」菜单（计算器/邮件/建案/文件夹/提问，输入框左侧 = 📌已记录｜📎附件｜⚡工具）；② 新建 MailComposeModal 邮件悬浮窗（保存草稿进草稿箱 + 复制英文，无发送按钮，仅案件模式）；③ 文件预览默认显示原文（PDF/图片内嵌），解析内容为第二 tab
-  - 📋 **WO-46 已出**（2026-08-16）：GET .../files/raw 只读原文流端点（PathGuard 同案件、≤20MB、白名单扩展名）+ POST /api/drafts 手动建草稿（挂 EmailDraft status=draft，与 DraftsBox 打通）
+  - ✅ **WO-46 已完成**（2026-08-16，2ddccf4）：raw 只读原文流（validate_path_safety/白名单/20MB/413/inline）+ POST /api/drafts 手动建草稿（draft_type=manual 存 source 判别、track 仅校验不落库）；16 专项、全量 1083
   - 📋 **F-40 v2 已出**（2026-08-16，方案 A）：三共创通用弹窗深谈 CoCreateDialog（邮件/催件/OS 回复统一对齐主文档 §二——拉全景/澄清 1-3 轮/V1-V3+A-B/确认收尾/恢复会话；触发语不再主对话出共创卡）；DraftCard「复制/翻译」占位按钮修复（真复制 + 中文对照）；⚡ 工具折叠 + 文件原文预览（同 F-40 v1）
-  - 📋 **WO-46b 已出**（2026-08-16）：POST /api/agent/co-create/chat（clarify/generate/version/branch/confirm）——案件全景注入（当前 draft_email 不注入全景，LLM 不知案件细节）+ 澄清环节 + confirm 可选建待办；draft session（draft: 前缀）不显示于主对话流
+  - ✅ **WO-46b 已完成**（2026-08-16，cd8c615）：POST /api/agent/co-create/chat——clarify（_case_panorama 全景 + 澄清问题 LLM/模板）/ generate（注入全景 + 用户指令）/ version / branch / confirm（写事件 + create_todo 建待办）；draft session 独立不污染主对话；24 专项；全量 1094
   - 📋 **WO-47 已出**（2026-08-16）：跟进提醒 job——普通任务截止/承诺到期 → FOLLOWUP_REMINDER 待办（去重幂等、默认关闭观察后开；现有 overdue job 只覆盖委派任务）
 - **A 发布前**：Electron（WO-05：窗口/托盘/系统通知/自动更新/端口冲突/首装引导）→ S5 真机试用 + V1 验收（日均记录 ≥5 / AI 上下文命中 / 愿继续用 / 每周开统计 ≥2 次）→ 版本发布（version 三处同步 + CHANGELOG）
 - **V2 延后**：云同步（WO-06）、微信（WO-11 PoC）、邮件/日历自动化、文件主动扫描、历史导入、团队共享、Screenpipe、**联网搜索（SearXNG 自托管元搜索，本地零 API key，过工具准入三关后接入；2026-08-15 定方向）**
