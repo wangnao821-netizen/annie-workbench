@@ -62,6 +62,7 @@ from server.api.calculator import router as calculator_router
 from server.api.cards import router as cards_router
 from server.api.cases import router as cases_router
 from server.api.chat import router as chat_router
+from server.api.co_create import router as co_create_router
 from server.api.commission import router as commission_router
 from server.api.drafts import router as drafts_router
 from server.api.events import router as events_router
@@ -87,6 +88,7 @@ app.include_router(cases_router)
 app.include_router(banks_router)
 app.include_router(analytics_router)
 app.include_router(commission_router)
+app.include_router(co_create_router)
 app.include_router(calculator_router)
 app.include_router(tasks_router)
 app.include_router(files_router)

@@ -260,6 +260,38 @@ class CardActionRequest(BaseModel):
     extra: dict = Field(default_factory=dict)
 
 
+class CoCreateDraft(BaseModel):
+    """共创弹窗深谈版本（WO-46b）。"""
+    subject: str
+    body: str
+    version: str
+    branch_label: str
+    message_id: int
+
+
+class CoCreateRequest(BaseModel):
+    """共创弹窗深谈请求（WO-46b）：clarify/generate/version/branch/confirm。"""
+    case_id: str
+    flow_key: Literal["followup", "chaser", "os_reply"]  # 非法 → 422
+    action: Literal["clarify", "generate", "version", "branch", "confirm"]
+    message: str = ""                       # 用户本轮输入（clarify/generate/version 用；confirm 可空）
+    session_id: str = ""                    # 恢复会话（默认 draft:{case_id}）
+    parent_message_id: int | None = None    # version/branch/confirm 指定父版本
+    branch_label: str = "main"
+    create_todo: bool = False               # confirm 时可选建待办（红线：必须显式传入）
+
+
+class CoCreateResponse(BaseModel):
+    """共创弹窗深谈响应（WO-46b）。"""
+    reply: str
+    draft: CoCreateDraft | None = None
+    versions: list[CoCreateDraft] = Field(default_factory=list)
+    status: Literal["clarifying", "draft", "confirmed", "blocked"]
+    event_id: int | None = None             # confirm 后事件
+    task_id: int | None = None              # confirm + create_todo=true 后任务
+    reason: str | None = None               # blocked 原因
+
+
 class SkillUpdateRequest(BaseModel):
     """技能草稿更新（仅 draft，F-15 对接）。"""
     manifest: dict
