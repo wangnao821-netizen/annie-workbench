@@ -311,7 +311,7 @@
   - ✅ **WO-46 已完成**（2026-08-16，2ddccf4）：raw 只读原文流（validate_path_safety/白名单/20MB/413/inline）+ POST /api/drafts 手动建草稿（draft_type=manual 存 source 判别、track 仅校验不落库）；16 专项、全量 1083
   - 📋 **F-40 v2 已出**（2026-08-16，方案 A）：三共创通用弹窗深谈 CoCreateDialog（邮件/催件/OS 回复统一对齐主文档 §二——拉全景/澄清 1-3 轮/V1-V3+A-B/确认收尾/恢复会话；触发语不再主对话出共创卡）；DraftCard「复制/翻译」占位按钮修复（真复制 + 中文对照）；⚡ 工具折叠 + 文件原文预览（同 F-40 v1）
   - ✅ **WO-46b 已完成**（2026-08-16，cd8c615）：POST /api/agent/co-create/chat——clarify（_case_panorama 全景 + 澄清问题 LLM/模板）/ generate（注入全景 + 用户指令）/ version / branch / confirm（写事件 + create_todo 建待办）；draft session 独立不污染主对话；24 专项；全量 1094
-  - 📋 **WO-47 已出**（2026-08-16）：跟进提醒 job——普通任务截止/承诺到期 → FOLLOWUP_REMINDER 待办（去重幂等、默认关闭观察后开；现有 overdue job 只覆盖委派任务）
+  - ✅ **WO-47 已完成**（2026-08-16，4b8acca）：跟进提醒 job——普通任务（pending + scheduled_at≤now+remind_before_days + 案件未关闭）→ FOLLOWUP_REMINDER 待办（到期 high/窗口内 medium、去重幂等、不改原任务）；followup.enabled 默认 false（观察后开）；11 专项、全量 1105
 - **A 发布前**：Electron（WO-05：窗口/托盘/系统通知/自动更新/端口冲突/首装引导）→ S5 真机试用 + V1 验收（日均记录 ≥5 / AI 上下文命中 / 愿继续用 / 每周开统计 ≥2 次）→ 版本发布（version 三处同步 + CHANGELOG）
 - **V2 延后**：云同步（WO-06）、微信（WO-11 PoC）、邮件/日历自动化、文件主动扫描、历史导入、团队共享、Screenpipe、**联网搜索（SearXNG 自托管元搜索，本地零 API key，过工具准入三关后接入；2026-08-15 定方向）**
 
