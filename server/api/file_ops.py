@@ -6,7 +6,16 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Response,
+    UploadFile,
+)
 from sqlalchemy.orm import Session
 
 from core.file_ops import service
@@ -39,6 +48,8 @@ def _as_http(exc: Exception) -> HTTPException:
         return HTTPException(status_code=404, detail=msg)
     if isinstance(exc, WriteNotAllowedError):
         return HTTPException(status_code=409, detail=msg)
+    if "文件过大" in msg:
+        return HTTPException(status_code=413, detail=msg)
     return HTTPException(status_code=422, detail=msg)
 
 
@@ -70,6 +81,28 @@ def preview_case_file(
         return FilePreviewResponse(**service.preview_file(case, path, db))
     except ValueError as exc:
         raise _as_http(exc) from exc
+
+
+@router.get("/{case_id}/folder/files/raw")
+def raw_case_file(
+    case_id: str,
+    path: str = Query(""),
+    db: Session = Depends(get_db),  # noqa: B008
+) -> Response:
+    """只读原文件流（WO-46）：不写盘/不落库/无 FileEvent；白名单 pdf/jpg/jpeg/png/txt/md/csv，≤20MB。
+
+    返回 200 + inline 流；文件不存在/未关联文件夹 404；越界/穿越/不支持扩展名 422；超 20MB 413。
+    """
+    case = _case_or_404(case_id, db)
+    try:
+        content, media_type, filename = service.raw_file(case, path)
+    except ValueError as exc:
+        raise _as_http(exc) from exc
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
 
 
 @router.post("/{case_id}/folder/files/rename", response_model=FileOpsResult)

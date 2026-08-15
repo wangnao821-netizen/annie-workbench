@@ -25,6 +25,17 @@ from core.security.path_guard import PathGuard, WriteNotAllowedError
 logger = get_logger(__name__)
 _IGNORED_NAMES = frozenset({".DS_Store", "Thumbs.db", "desktop.ini", "processed_ids.txt"})
 _IMPORT_EXTENSIONS = frozenset({".pdf", ".doc", ".docx", ".xlsx", ".xls", ".msg", ".txt", ".jpg", ".jpeg", ".png", ".csv"})
+_RAW_MAX_BYTES = 20 * 1024 * 1024  # 原文预览大小上限 20MB → 413
+_RAW_EXTENSIONS = frozenset({".pdf", ".jpg", ".jpeg", ".png", ".txt", ".md", ".csv"})
+_RAW_MEDIA_TYPES = {
+    ".pdf": "application/pdf",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".txt": "text/plain",
+    ".md": "text/markdown",
+    ".csv": "text/csv",
+}
 _OPERATOR = "vera"
 _CONFIG_DIR = Path(__file__).resolve().parents[2] / "config"
 def _case_dir(case: Case, client_root: Path | None = None) -> tuple[Path, Path]:
@@ -85,6 +96,22 @@ def preview_file(case: Case, rel_path: str, db: Session, client_root: Path | Non
             "mtime": datetime.fromtimestamp(stat.st_mtime, tz=UTC).isoformat(),
             "doc_type": classify_file(target.name)[0],
             "text_preview": text_preview, "parse_error": parse_error}
+def raw_file(case: Case, rel_path: str, client_root: Path | None = None) -> tuple[bytes, str, str]:
+    """只读原文件字节流（WO-46）：validate_path_safety + 禁穿越/越界 + 白名单 + ≤20MB。
+
+    红线：不写盘、不落库、不产生 FileEvent、不写客户文件夹；返回 (content, media_type, filename)。
+    越界/穿越/不支持扩展名/过大 → ValueError（端点映射 422/413）；文件不存在 → ValueError（404）。
+    """
+    case_dir, _root = _case_dir(case, client_root)
+    target = _within(case_dir, rel_path)
+    if not target.is_file():
+        raise ValueError(f"文件不存在：{rel_path}")
+    ext = target.suffix.lower()
+    if ext not in _RAW_EXTENSIONS:
+        raise ValueError("该格式不支持在线原文预览")
+    if target.stat().st_size > _RAW_MAX_BYTES:
+        raise ValueError("文件过大，请直接打开本地文件夹")
+    return target.read_bytes(), _RAW_MEDIA_TYPES[ext], target.name
 def rename_file(case: Case, source: str, new_name: str, db: Session,
                 client_root: Path | None = None) -> dict:
     case_dir, root = _case_dir(case, client_root)

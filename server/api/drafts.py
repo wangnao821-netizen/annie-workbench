@@ -10,7 +10,12 @@ from sqlalchemy.orm import Session
 
 from core.drafts.generator import generate_from_advisor, rewrite_reply_draft
 from core.models.orm import Case, EmailDraft
-from server.api.schemas import DraftListItemResponse, DraftRefineRequest, DraftResponse
+from server.api.schemas import (
+    DraftCreateRequest,
+    DraftListItemResponse,
+    DraftRefineRequest,
+    DraftResponse,
+)
 from server.deps import get_db
 
 router = APIRouter(prefix="/api/drafts", tags=["drafts"])
@@ -104,6 +109,35 @@ def list_drafts(
         query = query.filter(EmailDraft.status == status)
     drafts = query.order_by(EmailDraft.updated_at.desc()).limit(limit).all()
     return [_to_draft_item(d, db) for d in drafts]
+
+
+@router.post("/", response_model=DraftListItemResponse)
+def create_manual_draft(
+    req: DraftCreateRequest,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> DraftListItemResponse:
+    """手动建草稿（WO-46）：draft_type=manual（source 判别），status=draft，绝不自动发送。
+
+    case 不存在 404；subject/body 空白 422；track 仅 schema 校验，不落库。
+    """
+    case = db.query(Case).filter(Case.id == req.case_id).first()
+    if not case:
+        raise HTTPException(status_code=404, detail=f"案件 {req.case_id} 不存在")
+    subject = (req.subject or "").strip()
+    body = (req.body or "").strip()
+    if not subject or not body:
+        raise HTTPException(status_code=422, detail="subject 与 body 不能为空白")
+    draft = EmailDraft(
+        case_id=req.case_id,
+        draft_type="manual",
+        subject=subject,
+        body=body,
+        status="draft",
+    )
+    db.add(draft)
+    db.commit()
+    db.refresh(draft)
+    return _to_draft_item(draft, db)
 
 
 @router.get("/{action_id}", response_model=DraftResponse)

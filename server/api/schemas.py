@@ -384,6 +384,15 @@ class DraftRefineRequest(BaseModel):
     instruction: str  # "改成更客气的语气"
 
 
+class DraftCreateRequest(BaseModel):
+    """手动建草稿请求（WO-46）：subject/body 必填，track 缺省 internal。"""
+
+    case_id: str
+    subject: str
+    body: str
+    track: Literal["internal", "external"] = "internal"  # 仅校验不落库（EmailDraft 无 track 列）
+
+
 class SubmissionCheckResponse(BaseModel):
     case_id: str
     ok: bool

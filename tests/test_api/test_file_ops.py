@@ -1,6 +1,7 @@
 """WO-44 文件 Agent API 测试：案件文件夹浏览/预览/改名/移动/放入 + 规范命名建议。
 
 覆盖 6 端点 × 13 用例：列表/未关联404/子目录/预览/预览404/改名/改名409/非法名422/移动/移动穿越422/放入/重复放入409/命名建议。
+WO-46 追加 raw 原文预览端点用例。
 """
 
 from __future__ import annotations
@@ -8,6 +9,7 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
+from core.file_ops import service
 from core.models.orm import Case, FileEvent
 from server.deps import get_db
 from server.main import app
@@ -165,3 +167,91 @@ class TestNamingSuggest:
                            params={"filename": "Unknown Thing.txt"})
         data2 = resp2.json()
         assert data2["matched"] is False and data2["suggested"] == "Unknown Thing.txt"
+
+
+class TestRaw:
+    def test_raw_pdf(self, client, case_env):
+        resp = client.get(f"/api/cases/{case_env.id}/folder/files/raw",
+                          params={"path": "Income Payslip June 2025 CBA.pdf"})
+        assert resp.status_code == 200
+        assert resp.headers["content-type"].startswith("application/pdf")
+        assert "inline" in resp.headers["content-disposition"]
+        assert "Income Payslip June 2025 CBA.pdf" in resp.headers["content-disposition"]
+        assert resp.content == b"%PDF-1.4 fake"
+
+    def test_raw_png_media_type(self, client, case_env, _api_env):
+        case_dir = _api_env / "张三_CBA_001"
+        (case_dir / "Photo.png").write_bytes(b"\x89PNG\r\n\x1a\n fake-png")
+        resp = client.get(f"/api/cases/{case_env.id}/folder/files/raw",
+                          params={"path": "Photo.png"})
+        assert resp.status_code == 200
+        assert resp.headers["content-type"].startswith("image/png")
+        assert "Photo.png" in resp.headers["content-disposition"]
+        assert resp.content == b"\x89PNG\r\n\x1a\n fake-png"
+
+    def test_raw_txt_content_identical(self, client, case_env, _api_env):
+        case_dir = _api_env / "张三_CBA_001"
+        (case_dir / "note.txt").write_bytes("hello 原文内容 2026".encode())
+        resp = client.get(f"/api/cases/{case_env.id}/folder/files/raw",
+                          params={"path": "note.txt"})
+        assert resp.status_code == 200
+        assert resp.content == "hello 原文内容 2026".encode()
+
+    def test_raw_traversal_422(self, client, case_env):
+        resp = client.get(f"/api/cases/{case_env.id}/folder/files/raw",
+                          params={"path": "../outside.txt"})
+        assert resp.status_code == 422
+        assert "穿越" in resp.json()["detail"]
+
+    def test_raw_out_of_bounds_422(self, client, case_env, _api_env):
+        outside = _api_env / "other"
+        outside.mkdir()
+        (outside / "x.txt").write_bytes(b"x")
+        resp = client.get(f"/api/cases/{case_env.id}/folder/files/raw",
+                          params={"path": str(outside / "x.txt")})
+        assert resp.status_code == 422
+        assert "越界" in resp.json()["detail"]
+
+    def test_raw_missing_404(self, client, case_env):
+        resp = client.get(f"/api/cases/{case_env.id}/folder/files/raw",
+                          params={"path": "nope.pdf"})
+        assert resp.status_code == 404
+        assert "文件不存在" in resp.json()["detail"]
+
+    def test_raw_unlinked_case_404(self, client, case_env_unlinked):
+        resp = client.get(f"/api/cases/{case_env_unlinked.id}/folder/files/raw",
+                          params={"path": "a.pdf"})
+        assert resp.status_code == 404
+        assert "未关联文件夹" in resp.json()["detail"]
+
+    def test_raw_too_large_413(self, client, case_env, _api_env, monkeypatch):
+        case_dir = _api_env / "张三_CBA_001"
+        (case_dir / "big.csv").write_bytes(b"1,2,3\n" * 5)
+        monkeypatch.setattr(service, "_RAW_MAX_BYTES", 1)
+        resp = client.get(f"/api/cases/{case_env.id}/folder/files/raw",
+                          params={"path": "big.csv"})
+        assert resp.status_code == 413
+        assert "文件过大" in resp.json()["detail"]
+
+    def test_raw_unsupported_extension_422(self, client, case_env, _api_env):
+        case_dir = _api_env / "张三_CBA_001"
+        (case_dir / "evil.exe").write_bytes(b"MZ")
+        (case_dir / "doc.docx").write_bytes(b"PK")
+        for name in ("evil.exe", "doc.docx"):
+            resp = client.get(f"/api/cases/{case_env.id}/folder/files/raw",
+                              params={"path": name})
+            assert resp.status_code == 422
+            assert "不支持在线原文预览" in resp.json()["detail"]
+
+    def test_raw_cross_case_404(self, client, case_env, _api_env, test_db):
+        other_dir = _api_env / "李四_NAB_002"
+        other_dir.mkdir()
+        (other_dir / "Other Bank Statement.pdf").write_bytes(b"%PDF-1.4 other")
+        other = Case(id="CASE-WO46-OTHER", client_name="李四", broker_name="Brandon",
+                     stage="收集资料", folder_path="李四_NAB_002")
+        test_db.add(other)
+        test_db.commit()
+        resp = client.get(f"/api/cases/{case_env.id}/folder/files/raw",
+                          params={"path": "Other Bank Statement.pdf"})
+        assert resp.status_code == 404
+        assert "文件不存在" in resp.json()["detail"]
