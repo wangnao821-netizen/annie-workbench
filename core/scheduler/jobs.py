@@ -74,6 +74,23 @@ def _overdue_job() -> None:
         logger.error("scheduler overdue job failed: %s", exc)
 
 
+def _followup_job() -> None:
+    """普通任务跟进提醒：截止/承诺到期前生成 FOLLOWUP_REMINDER（按 source_msg_id 去重）。"""
+    try:
+        from core.task_engine.followup import check_followups
+
+        cfg = get_config().settings.scheduler.followup
+        db = get_session_factory()()
+        try:
+            created = check_followups(db, remind_before_days=cfg.remind_before_days)
+            if created:
+                logger.info("followup check: %d reminder(s) created", len(created))
+        finally:
+            db.close()
+    except Exception as exc:  # noqa: BLE001 — 定时任务失败只记录
+        logger.error("scheduler followup job failed: %s", exc)
+
+
 def _summary_job() -> None:
     """摘要刷新：扫描 dirty（context_summary 为空）活跃案件，批量懒刷新。"""
     try:
@@ -160,6 +177,13 @@ def init_scheduler() -> BackgroundScheduler | None:
         _summary_job, IntervalTrigger(hours=cfg.summary_interval_hours),
         id="summary_refresh", max_instances=1, coalesce=True,
     )
+
+    fl = get_config().settings.scheduler.followup
+    if fl.enabled:
+        _scheduler.add_job(
+            _followup_job, IntervalTrigger(minutes=fl.interval_minutes),
+            id="followup_check", max_instances=1, coalesce=True,
+        )
 
     fd = get_config().settings.case_folder.auto_discover
     if fd.enabled:

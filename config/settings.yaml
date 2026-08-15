@@ -119,6 +119,11 @@ scheduler:
   overdue_interval_minutes: 30
   summary_interval_hours: 1
   summary_batch_limit: 20
+  # 跟进提醒（WO-47：普通任务截止/承诺到期提醒待办；默认关，观察后 Vera 开启）
+  followup:
+    enabled: false
+    remind_before_days: 1
+    interval_minutes: 60
 
 
 # 案件文件夹三档渐进（WO-31/32/33；每档独立开关，默认关闭）

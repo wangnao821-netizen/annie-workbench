@@ -224,6 +224,14 @@ class CaseFolderConfig(BaseModel):
     auto_gap: CaseFolderAutoGapConfig = Field(default_factory=CaseFolderAutoGapConfig)
 
 
+class FollowupConfig(BaseModel):
+    """跟进提醒（WO-47）：普通任务截止/承诺到期提醒待办，默认关闭观察后 Vera 开启。"""
+
+    enabled: bool = False
+    remind_before_days: int = Field(default=1, ge=0)
+    interval_minutes: int = Field(default=60, ge=1)
+
+
 class SchedulerConfig(BaseModel):
     """后台调度配置（Phase 2 数据保命：备份/委派超期/摘要刷新）。"""
 
@@ -233,6 +241,7 @@ class SchedulerConfig(BaseModel):
     overdue_interval_minutes: int = Field(default=30, ge=5)
     summary_interval_hours: int = Field(default=1, ge=1)
     summary_batch_limit: int = Field(default=20, ge=1)
+    followup: FollowupConfig = Field(default_factory=FollowupConfig)
 
 
 class SettingsConfig(BaseModel):
