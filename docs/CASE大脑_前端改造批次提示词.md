@@ -3658,3 +3658,110 @@ GapAnalysisCard(13)、NewCaseFields(13)。
 
 真机切 6 套主题走查：首页 / 中栏 / 三抽屉 / 右栏 / 设置 / 计算器 / 通知 / AU 时间面板 /
 看板 / 详情页——颜色全部跟随、语义色仍清晰、动效无突兀跳变、无"某个页面还是旧紫色"漏网。
+
+---
+
+# F-42a 补丁（2026-08-15）：F-42a 验收未过，全站替换 + 动效收编补完
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (62)`（本批在 (62) 基础上改）。
+> 背景：F-42a 验收发现**只完成了点名重点组件 + tokens 令牌基建，全站机械替换未做完**。
+> 具体：tailwind 色类仍残留 **632 处**（purple- 237 / amber- 128 / emerald- 94 / rose- 87 /
+> blue- 73 / red- 16 / gray- 9 / indigo- 2 / pink- 2 / green- 1），bg-black/dark:bg-white 仍残留
+> **180 处**（47 个文件），**动效 spring 参数 40+ 种组合一个都没收编**。
+> 已完成的（不要再动）：tokens.css 六主题 --bg-subtle/--bg-subtle-strong/--mark-*、
+> TopNavBar/Sidebar/HomePage/DetailPanel/PanelDivider/CaseListSidebar/AuTimePanel 的紫色收敛。
+> 本补丁任务：**把剩余的机械替换和动效收编一次做完**。
+
+## 一、执行方式（重要）
+
+1. **按文件逐个扫**，不要只扫"重点文件"——以下目录全部覆盖：
+   `src/pages/`、`src/components/ai/`、`src/components/brain/`、`src/components/calculator/`、
+   `src/components/cases/`、`src/components/chat/`、`src/components/knowledge/`、
+   `src/components/layout/`、`src/components/os/`、`src/components/panel/`、`src/components/settings/`、
+   `src/components/tasks/`、`src/components/ui/`、`src/components/ErrorBoundary.tsx`；
+2. **机械替换**：只改 className / style 值，不改结构、不改状态、不改文案、不重构；
+3. **做一页交一页**：每扫完一个目录自查一次（rg 计数下降），直到全站清零。
+
+## 二、tailwind 色类 → 语义令牌（632 处清零）
+
+替换映射（全站统一，禁止再引入任何带数字的 tailwind 色类）：
+
+| 原类 | 语义 | 替换为 |
+|---|---|---|
+| purple-*（AI 能力标识） | AI 高亮 | `var(--purple)` / `var(--purple-soft)` |
+| purple-*（非 AI） | 装饰/信息 | `var(--accent)` / `var(--text-secondary)` |
+| rose-* | 逾期/错误/危险 | `var(--red)` / `var(--red-soft)` |
+| amber-* | 预警/待办/待决策 | `var(--yellow)` / `var(--yellow-soft)` |
+| emerald-* | 成功/已收/可披露 | `var(--green)` / `var(--green-soft)` |
+| blue-* / indigo-* | 信息/链接/递交态 | `var(--accent)` / `var(--accent-soft)` |
+| gray-* | 中性次要 | `var(--text-secondary)` / `var(--text-muted)` |
+| red-* / green-* / yellow-* | 语义状态 | `var(--red)` / `var(--green)` / `var(--yellow)`（+ -soft） |
+
+注意：
+- 原 `text-purple-600 dark:text-purple-400` 这类双态 → 直接 `text-[var(--purple)]`（var 自动适配主题）；
+- `bg-purple-500/10` → `bg-[var(--purple-soft)]`；`border-purple-500/20` → `border-[var(--purple-soft)]`；
+- **有明确语义的状态色照常保留颜色，但必须走 var()**（如 PolicyHintCard 的风险分级红/黄/绿、
+  TaskDrawer 的任务来源徽章、RecordedEventsDrawer 撤销红色按钮、SubmissionBanner 递交警示）。
+
+已知重灾区（按残留量排序，逐个清空）：FlowDialogCard、TaskDrawer、PolicyHintCard、
+Analytics、DraftsBox、ImportHistory、Archive、Migration、OsWorkbench、OsConditionsColumn、
+OsDraftColumn、OsStrategyColumn、CaseBoard、CaseCard、TaskCard、TaskDetailOverlay、
+GlobalStatsPanel、RecordedEventsDrawer、RiskSection、SubmissionBanner、ManualNoteModal、
+ChatPanel、KnowledgeCenter、Settings、CaseDetail、KpiBar、ErrorBoundary、FloatingAI、
+FloatingAIMessages、ChecklistDrawerContent、DelegateDialog、CasePanorama（空态）。
+
+## 三、bg-black / dark:bg-white → --bg-subtle（180 处清零）
+
+1. `bg-black/5 dark:bg-white/5` → `bg-[var(--bg-subtle)]`（含 hover: 前缀变体）；
+2. `bg-black/10 dark:bg-white/10` → `bg-[var(--bg-subtle-strong)]`（含 hover: 前缀变体）；
+3. `border-black/5 dark:border-white/10` 等同理 → `var(--border)` 或 `var(--bg-subtle)`。
+
+## 四、动效 house style 收编（apple-design 两档，40+ 种 → 2 种）
+
+全站 `type: 'spring', ...` 统一为两档：
+
+1. **档 A —— 浮层/弹窗/下拉/抽屉/面板进出场**（有 initial/animate/exit 的 motion 容器）：
+   `type: 'spring', damping: 25, stiffness: 300`；
+2. **档 B —— 卡片 hover lift / 按钮 whileTap / 列表项位移**（whileHover/whileTap 类）：
+   `type: 'spring', damping: 25, stiffness: 400`；
+3. 其他参数组合（damping 20/24/26/28/30/35、stiffness 350/500 等）按以上两档归类替换；
+4. 同族初始位移统一：弹窗/卡片进入 `y: 10`；下拉菜单 `y: 6`；工具提示 `x: 8`；
+5. 卡片 hover lift 统一 `whileHover={{ y: -2 }}`，小按钮/条目 `y: -1`；
+6. 现有 reduced-motion 分支写法（`initial={reduced ? {opacity:0} : ...}`）**保留不动**。
+
+## 五、渐变残留清理（4-5 处）
+
+1. `FloatingAI.tsx` 两处 `linear-gradient(135deg, var(--accent) 0%, #8b5cf6 100%)` →
+   `linear-gradient(135deg, var(--accent), var(--purple))`（AI 悬浮球保留渐变但去掉硬编码 hex）；
+2. `FloatingAIMessages.tsx` `from-blue-500 to-indigo-600` / `from-purple-500 to-pink-500` →
+   单色 `var(--accent)`（用户气泡）和 `var(--purple)`（AI 气泡）；
+3. `AssistantOnboardingCard.tsx` / `SkillCenter.tsx` 渐变底 → `var(--accent-soft)` / `var(--purple-soft)`
+   单色底 + 保留细边框；
+4. `CasePanorama.tsx` 空态 `from-purple-500/20 to-pink-500/20` → `var(--accent-soft)`。
+
+## 六、红线
+
+1. 不改 tokens.css 已有令牌的值；不新增 npm 依赖；不改组件逻辑/结构/文案；
+2. 语义色保留清单必须写入交付报告（哪些位置有意保留、走了哪个 var）。
+
+## 七、交付前自查（必须跑，数字达标才算完成）
+
+在项目根目录执行以下命令（Windows PowerShell），全部达标：
+
+```powershell
+rg -n "(purple|rose|amber|emerald|indigo|blue|gray|pink|violet|sky|teal|cyan|fuchsia|red|green|yellow|orange)-[0-9]" src --glob "*.tsx" | Measure-Object   # 期望 0
+rg -n "bg-black|dark:bg-white" src --glob "*.tsx" | Measure-Object                                    # 期望 0
+rg -o "type: 'spring'[^}]*" src --glob "*.tsx" | Sort-Object -Unique                                  # 期望仅 2 种参数
+rg -n "#[0-9a-fA-F]{6}" src --glob "*.tsx"                                                            # 期望仅 ThemePicker 预览色
+```
+
+## 八、验收（AI Studio 侧）
+
+1. `npx tsc --noEmit` 零错误；
+2. 上述 rg 自查 4 项全部达标；
+3. 交付报告附完整替换清单（文件 / 原类名 / 新类名）+ 语义色保留清单 + spring 归类说明。
+
+## 九、本地联调验收（Vera / Codex 执行）
+
+切 6 套主题走查：首页 / 中栏 / 三抽屉 / 右栏 / 设置 / 统计 / 草稿箱 / 档案 / 导入历史 / 迁移 /
+OS 工作台 / 知识中心 / 看板 / 详情页——颜色全部跟随、语义色清晰、动效无跳变。
