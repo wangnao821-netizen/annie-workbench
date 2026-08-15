@@ -3897,3 +3897,74 @@ rg -l "motion\." src --glob "*.tsx" | % { $c = Get-Content $_ -Raw; if ($c -notm
 
 1. 走查首页/中栏/右栏/看板/详情/统计/设置：无 8-10px 的"看不清"文字，金额日期清晰；
 2. 系统开启"减弱动态"后：弹窗/抽屉/下拉全部为淡入淡出，无滑动弹跳，交互仍可用。
+
+---
+
+# F-42c（2026-08-15）：玻璃只留浮层 + 删死代码 + 弹层锚定触发源
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (65)`（本批在 (65) 基础上改）。
+> 背景：F-42a/b 已全绿（色彩令牌化 + 动效两档 + 字号体系 + reduced-motion 100%）。
+> 本批处理结构层：① 玻璃拟态用于静态容器导致"全是浮层"、层次锚定弱且透出背景内容；
+> ② `Sidebar.tsx` 是死代码（AppShell 实际用 CaseListSidebar）；③ 顶栏下拉未从触发按钮"长出来"。
+
+## 一、玻璃只留给浮层（静态 chrome 改实底）
+
+规则：**fixed/absolute 定位的弹层/抽屉/下拉保留 `glass-panel` / `glass-card`；
+静态定位的容器/页面卡片改实底 `var(--bg-panel)` 或 `var(--bg-card)`，去掉 backdrop-filter。**
+
+改实底清单（保留 rounded/border/阴影等其余样式，只改背景与玻璃类）：
+
+1. `src/components/layout/TopNavBar.tsx`：header 的 `glass-panel` → 实底 `var(--bg-panel)`；
+2. `src/components/brain/CaseListSidebar.tsx`：左栏 `glass-panel` → `var(--bg-panel)`；
+3. `src/components/brain/CasePanorama.tsx`：右栏外层 `glass-panel` → `var(--bg-panel)`
+   （内部卡片已是 var 背景，不动）；
+4. `src/components/brain/HomePage.tsx`：今日待办卡/快捷看板/AI 对话框卡的 `glass-panel`
+   → `var(--bg-card)`（页面内卡片实底，白卡更清晰）；
+5. `src/components/brain/BrainChat.tsx`：底部输入区 `glass-panel` → `var(--bg-panel)`；
+6. `src/components/brain/GlobalStatsPanel.tsx`、`src/components/settings/SkillCenter.tsx`、
+   `src/components/settings/CalculatorManager.tsx`、`src/components/settings/BankPlatformPanel.tsx`、
+   `src/components/cases/overview/OverviewTimeline.tsx`、`src/components/brain/FactCard.tsx`：
+   页面容器/卡片的 `glass-panel` → `var(--bg-card)` 或 `var(--bg-panel)`（按层级）；
+
+保留玻璃清单（浮层，不动）：CalculatorPanel、CoCreateDialog、ChecklistDrawer、FileDrawer、
+TaskDrawer、FlowDialogCard、RecordedEventsDrawer、ContextPreviewModal、FactAmendModal、
+ManualNoteModal、TaskDetailOverlay 及所有 dropdown/popover 容器。
+
+## 二、删死代码 Sidebar.tsx
+
+1. 删除 `src/components/layout/Sidebar.tsx`（AppShell 已改用 CaseListSidebar，无任何引用）；
+2. 若 `src/components/layout/` 下有 index 导出引用它，一并清理；
+3. 确认删除后 `rg "layout/Sidebar" src` 无结果、`npx tsc --noEmit` 仍通过。
+
+## 三、弹层锚定触发源（origin awareness）
+
+给以下下拉容器加 `transformOrigin`，让弹层从触发按钮方向"长出来"（不是中心缩放）：
+
+1. `src/components/layout/TopNavBar.tsx` 三个下拉：
+   - AU 时间面板容器 → `transformOrigin: 'top right'`；
+   - 通知面板容器 → `transformOrigin: 'top right'`；
+   - 头像菜单容器 → `transformOrigin: 'top right'`；
+2. `src/components/brain/BrainChat.tsx` 工具弹出菜单（bottom-full 向上展开）→
+   `transformOrigin: 'bottom left'`；
+3. 其余 bottom-full/top-full 的 popover 容器：给对应方向 origin（top-full → 'top left/right'，
+   bottom-full → 'bottom left/right'），已在 initial 的 scale 动画上生效；
+4. 保持现有 spring 两档与 reduced-motion 分支不变，只加 origin。
+
+## 四、红线
+
+1. 只做以上三类改动；不改 tokens.css；不新增依赖；不改逻辑/结构/文案/字号/动效参数；
+2. 删除 Sidebar.tsx 前先确认无引用（tsc 兜底）；
+3. 交付报告附：实底化文件清单 + 保留玻璃清单 + 新增 transformOrigin 清单。
+
+## 五、验收（AI Studio 侧）
+
+1. `npx tsc --noEmit` 零错误；构建通过；
+2. 静态容器（顶栏/左右栏/页面卡片）无 glass-panel/glass-card；
+3. 浮层（弹窗/抽屉/下拉）glass 保留；下拉展开方向从触发按钮 origin 生长；
+4. 删除 Sidebar.tsx 后无失效 import。
+
+## 六、本地联调验收（Vera / Codex 执行）
+
+1. 走查：顶栏/左右栏/首页卡片为不透明实底，内容不再透出；弹窗/抽屉仍为毛玻璃浮层；
+2. 顶栏三个下拉/中栏工具菜单展开方向自然（从按钮方向长出）；
+3. 切 6 套主题无回归；无报错。
