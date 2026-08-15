@@ -3308,3 +3308,69 @@ LLM 调 `record_fact` 且内容命中其他案件客户名时，后端**不写�
 4. DraftCard「复制」真复制到剪贴板；「中文对照」可用（或 mock）；
 5. 文件预览默认显示原文（PDF/图片/文本），可切「解析内容」tab；不支持格式有占位提示；raw 失败有兜底；
 6. `npx tsc --noEmit` 零错误。
+
+# F-40 联调补丁（2026-08-16）：共创弹窗接真后端 + 手动草稿 + 原文预览真数据
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (58)`。
+> 背景：后端 WO-46（2ddccf4：raw 原文流 + POST /api/drafts）与 WO-46b（cd8c615：
+> POST /api/agent/co-create/chat）已完成。(58) 的共创弹窗/原文预览目前是 mock，本补丁切真端点；
+> mock 分支（VITE_USE_MOCK !== 'false'）保留，联调无后端时可退回。
+
+## 一、修复：CoCreateDialog 打不开（BrainChat.tsx）
+
+- (58) L1506 传的是 `isOpen={coCreateOpen}`，但 CoCreateDialog 的 props 是 `open`——props 名不匹配，
+  弹窗恒不显示。改为 `open={coCreateOpen}`。
+
+## 二、CoCreateDialog 接真 co-create 端点（新建 services/api/coCreate.ts + 改 CoCreateDialog.tsx）
+
+1. 新建 `src/services/api/coCreate.ts`：
+   - `sendCoCreateChat(body: CoCreateChatRequest): Promise<CoCreateResponse>`
+   - `POST /api/agent/co-create/chat`，body：
+     `{case_id, flow_key: 'followup'|'chaser'|'os_reply', action: 'clarify'|'generate'|'version'|'branch'|'confirm',
+     message, session_id, parent_message_id, branch_label, create_todo}`
+2. `types/api.ts` 新增：
+   - `CoCreateChatRequest`（如上）
+   - `CoCreateDraft {subject, body, version, branch_label, message_id}`
+   - `CoCreateResponse {reply: string, draft: CoCreateDraft|null, versions: CoCreateDraft[],
+     status: 'clarifying'|'draft'|'confirmed'|'blocked', event_id: number|null, task_id: number|null}`
+3. CoCreateDialog 交互改为调后端（**VITE_USE_MOCK 分支保留现状本地模拟**，真实分支如下）：
+   - 打开时：`action='clarify'` → reply（案件全景 + 澄清问题）作为首条 assistant 消息
+     （替换本地写死的初始消息；若返回 status=blocked 显示 reason）；
+   - 用户发送：首轮（无父版本）→ `action='generate'`（message=用户输入）；
+     后续 → `action='version'`（parent_message_id=当前版本 message_id、message=修改指令）；
+     返回 reply 追加到对话流，`draft/versions` 更新版本预览区（subject/body/version/branch_label 映射）；
+   - 分支切换 B → `action='branch'`（parent_message_id=当前版本）；
+   - 确认此版本 → `action='confirm'`（create_todo=勾选状态，默认 false）→ 成功 toast
+     「已确认 V3，写入案件历史 + 草稿箱」+ 弹窗显示已确认；
+   - `session_id` 从 props 传入并回传（恢复会话）；`message_id` 用后端返回的版本 message_id 作父版本；
+   - 中文对照：保留前端本地逻辑（后端无翻译端点，V1 不做真翻译）。
+4. 红线：任何地方不出现「发送」按钮；`create_todo` 默认 false（仅在用户勾选「同时建跟进待办」时为 true）。
+
+## 三、保存草稿接真端点（services/api/drafts.ts + CoCreateDialog.tsx）
+
+1. `drafts.ts` 新增 `createManualDraft(body: {case_id: string, subject: string, body: string, track?: string}):
+   Promise<DraftListItem>` → `POST /api/drafts`（后端 draft_type=manual）；
+2. CoCreateDialog「保存草稿」：真实模式调 `createManualDraft`（当前版本 subject/body）→ toast「已存入草稿箱」；
+   mock 模式保留现状 toast。
+
+## 四、文件原文预览真数据（FileDrawer.tsx，已接线确认）
+
+- `previewRawFileUrl` 已实现（fileOps.ts：mock 分支 + 真端点
+  `GET /api/cases/{id}/folder/files/raw?path=` → blob → objectURL）；
+- 确认真实模式走真端点；raw 失败自动切「解析内容」tab（已有逻辑），无需大改。
+
+## 五、范围与红线
+
+- 只改前端：`BrainChat.tsx`（isOpen 修复）/ `CoCreateDialog.tsx` / 新建 `services/api/coCreate.ts` /
+  `services/api/drafts.ts`（+createManualDraft）/ `types/api.ts`；
+- 不新增 npm 依赖；无发送按钮；create_todo 默认 false；VITE_USE_MOCK 分支保留；
+- `npx tsc --noEmit` 零错误。
+
+## 六、验收
+
+1. 中栏 ⚡ 工具 → 「写补件邮件」→ CoCreateDialog **能打开**（isOpen 修复）；
+2. 真实模式：打开首条消息 = 案件全景 + 澄清问题（后端 clarify）；对话改稿生成 V2/V3（真实 LLM）；
+   A/B 分支可切换；确认写事件 + 可选建待办（勾选才建）；
+3. 「保存草稿」→ POST /api/drafts → DraftsBox 可见 status=draft；
+4. 文件预览原文走真 raw 流（PDF/图片内嵌渲染）；
+5. `npx tsc --noEmit` 零错误。
