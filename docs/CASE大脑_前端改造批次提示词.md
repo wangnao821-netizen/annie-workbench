@@ -3968,3 +3968,67 @@ ManualNoteModal、TaskDetailOverlay 及所有 dropdown/popover 容器。
 1. 走查：顶栏/左右栏/首页卡片为不透明实底，内容不再透出；弹窗/抽屉仍为毛玻璃浮层；
 2. 顶栏三个下拉/中栏工具菜单展开方向自然（从按钮方向长出）；
 3. 切 6 套主题无回归；无报错。
+
+---
+
+# F-42d（2026-08-15）：无门控硬编码 mock PII 清理 + emoji 徽章收敛（F-42 收尾批）
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (66)`（本批在 (66) 基础上改）。
+> 背景：F-42a/b/c 已全绿。本批收尾两类问题：
+> ① **无门控的硬编码 mock PII**（真实人名风格 + 银行 + 金额写死在 UI 上，未联调也显示——
+>    红线相关，必须清）；② emoji 当 UI 元素混排（渠道徽章/快捷提问/状态标记）。
+
+## 一、无门控硬编码 mock PII 清理（红线，最高优先）
+
+1. `src/components/layout/TopNavBar.tsx`：
+   - `INITIAL_NOTIFICATIONS`（L31-33，写死"陈伟 (NAB Bank) 补件超期预警 / PERSON_1 (CBA) /
+     西太银行预审通过…"）→ 改为**空数组 `[]`**；
+   - 通知面板保留空态分支（"暂无任何通知"）——确认 L60+ 已有；
+2. `src/components/brain/HomePage.tsx`：
+   - Vera 专家贴士卡文案（L589）移除写死客户名与案件，改为通用提示：
+     `💡 系统将持续根据活跃案件实况生成审贷风控提醒（补件/截止/政策变化）。`；
+   - "一键制定加速方案"按钮（L595）onClick 参数移除人名：
+     `handleStartChat("帮我分析当前案件的下一步加速策略")`；
+3. `src/components/brain/BrainChat.tsx`：
+   - 删除 L307 硬编码案件特例：
+     `if ((caseId === 'CASE_001' || caseId === 'CASE-2026-0801') && (t.id === 1 || t.id === 6))`
+     ——整段逻辑删除（它只服务于 mock 数据，联调会误匹配真实案件）；
+4. `src/components/brain/FolderLookupCard.tsx`：
+   - mock 摘要（L28-29 等，VITE_USE_MOCK 门控内）中的"雇主 Tech Corp / $180,000"等
+     具体化假数据 → 改为中性演示文案（如"演示数据：识别到申请人近两期 PAYG 工资单"），
+     不出现具体公司名/金额。
+
+## 二、emoji 徽章收敛（建议批，改完即 F-42 收官）
+
+规则：**渠道/来源徽章 → lucide 图标；装饰性 emoji → 删除；仅保留表意强且无图标的（🔒 不能给银行看）。**
+
+1. 任务来源徽章（`TaskDrawer.tsx` / `CasePanorama.tsx` 的 getTaskBadge）：
+   `👑 老板`→ Crown 图标、`📧 邮件`→ Mail、`📁 文件`→ FolderOpen、`🏦 OS`→ Landmark、
+   `📋 任务`→ ClipboardList、`⚙️ 其他`→ Settings（lucide 均有）；
+   - 保留文字标签，图标 + 文字并排（`<Icon className="w-3 h-3" /> 老板`）；
+2. 快捷提问/工具菜单 emoji 前缀（`BrainChat.tsx` QUICK_ASKS、工具菜单选项）：
+   🧮→Calculator、📂→FolderSearch、🔍→Search、✉️→Mail、🆕→PlusCircle、
+   📄→FileCheck、⏰→Clock——图标已存在则删除 emoji，用图标；
+3. 状态标记：✅⛔（AuTimePanel 工作日状态）→ 保留语义色 + 文字（绿"工作日"/红"休息"），
+   删 emoji；🏖️ 假期提示 → 删 emoji 保留文字；🇨🇳🇦🇺 旗帜 → 删（文字已有"中澳/北京/堪培拉"）；
+4. 保留：🔒 不能给银行看、📌 记录胶囊、⚠️ 已在语义色徽章内的（如逾期 ⚡ 可删）。
+
+## 三、红线
+
+1. 只改上述文件；不改 tokens.css；不新增依赖；不改逻辑/结构/布局；
+2. mock 清理只动"无门控硬编码"，VITE_USE_MOCK 门控内的数据保留（联调后自然消失）；
+3. 交付报告附：清理清单（文件/行/原文/新文）+ emoji 替换对照表。
+
+## 四、验收（AI Studio 侧）
+
+1. `npx tsc --noEmit` 零错误；构建通过；
+2. 全站无"陈伟/PERSON_1（非门控）/CASE_001 特例"硬编码（rg 自查）；
+3. 任务来源徽章、快捷提问、AU 时间面板无装饰性 emoji（🔒/📌 除外）；
+4. 交付报告附清单。
+
+## 五、本地联调验收（Vera / Codex 执行）
+
+1. 打开首页：无任何客户真名/银行名硬编码文案；
+2. 顶栏通知为空态"暂无任何通知"（不显示假通知）；
+3. 中栏任务/清单/文件抽屉与右栏：渠道徽章为图标+文字，无 emoji 混排；
+4. AU 时间面板无旗帜/emoji 状态，语义色清晰。
