@@ -16,37 +16,63 @@
 > **目标：快捷提问 = 4 个短语 chips，常驻中栏输入区上方（案件/全局模式都显示）；
 > 工具菜单只保留"工具动作"。**
 
-## 一、QUICK_ASKS 精简为短语类（src/components/brain/BrainChat.tsx 顶部）
+## 一、QUICK_ASKS 拆两组（src/components/brain/BrainChat.tsx 顶部）
+
+**中栏（案件模式）——保持一行、只留 4 条：**
 
 ```ts
-const QUICK_ASKS: QuickAsk[] = [
-  { label: '今天有哪些到期/逾期？', action: 'ask' },
+const CASE_QUICK_ASKS: QuickAsk[] = [
+  { label: '这个案件缺什么材料？', action: 'ask' },
   { label: '检查申报一致性', action: 'ask' },
-  { label: '材料缺口主动预判', action: 'ask' },
-  { label: '查一下 CBA 的政策', action: 'ask' },
+  { label: '当前案件下一步做什么？', action: 'ask' },
+  { label: '查一下银行政策', action: 'ask' },   // 发送时动态替换为 activeCaseInfo.lender
 ];
 ```
 
-（移除"服务能力计算器 / 去案件文件夹找材料 / 帮我建一个案件 / 写一封补件邮件"四个工具类；
-`QuickAsk` 类型的 `action` 可收窄为 `'ask'`，`handleQuickAsk` 中 new_case/compose_email/
-calculator 分支删除，其余不动。）
+**全局咨询（无案件）——含周报：**
+
+```ts
+const GLOBAL_QUICK_ASKS: QuickAsk[] = [
+  { label: '今天有哪些到期/逾期？', action: 'ask' },
+  { label: '查一下 CBA 的政策', action: 'ask' },
+  { label: '有多少案件在审贷中？', action: 'ask' },
+  { label: '生成这周周报', action: 'ask' },       // 发送：'生成这周的周报，总结都推进了哪些案件'
+  { label: '最近业务怎么样？', action: 'ask' },
+];
+```
+
+（`QuickAsk` 类型 action 收窄为 `'ask'`；`handleQuickAsk` 中 new_case/compose_email/calculator
+分支删除；中栏"查一下银行政策"发送时用 `handleSend(\`查一下 ${activeCaseInfo?.lender} 的政策\`)`。）
+
+**渲染时按场景选组**：`const quickAsks = caseId ? CASE_QUICK_ASKS : GLOBAL_QUICK_ASKS;`
 
 ## 二、chips 从"全局咨询空态"移到输入区上方常驻
 
 1. **删除**：全局咨询空态分支（caseId 为空时的欢迎区）里的"快捷提问 chips 区"整块
    （约 L816-845：Lightbulb 标题 + QUICK_ASKS.map 渲染）；
 2. **新增**：在输入区容器 `<div className="p-3 border-t flex items-center space-x-2 flex-shrink-0 ...">`
-   （约 L1189）**之前**插入常驻快捷短语行：
+   （约 L1189）**之前**插入常驻快捷短语行，**带场景引导标签**：
 
 ```jsx
-{/* 快捷提问（短语，常驻） */}
+{/* 快捷提问（按场景选组 + 引导标签，常驻） */}
 <div className="px-3 pb-1 flex items-center gap-1.5 flex-wrap flex-shrink-0"
      style={{ backgroundColor: 'var(--bg-panel)' }}>
-  {QUICK_ASKS.map((item, idx) => (
+  <span className="text-[10px] font-bold text-muted flex-shrink-0">
+    {caseId ? '案件快捷提问' : '全局快捷提问'}
+  </span>
+  {quickAsks.map((item, idx) => (
     <button
       key={idx}
       type="button"
-      onClick={() => handleQuickAsk(item)}
+      onClick={() => {
+        if (item.label === '查一下银行政策' && activeCaseInfo?.lender) {
+          handleSend(`查一下 ${activeCaseInfo.lender} 的政策`);
+        } else if (item.label === '生成这周周报') {
+          handleSend('生成这周的周报，总结都推进了哪些案件');
+        } else {
+          handleQuickAsk(item);
+        }
+      }}
       id={`quick-ask-chip-${idx}`}
       className="px-2.5 py-1 rounded-full border text-[11px] font-medium cursor-pointer transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[var(--bg-card-hover)]"
       style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
@@ -57,7 +83,8 @@ calculator 分支删除，其余不动。）
 </div>
 ```
 
-（案件模式与全局模式都显示——放输入区上方、消息列表下方。）
+（案件模式显示 CASE 组 4 条（一行放得下）；全局模式显示 GLOBAL 组 5 条含周报——
+统一放输入区上方、消息列表下方，两模式都常驻。）
 
 ## 三、删除工具菜单内重复"快捷提问"分区
 
@@ -80,15 +107,16 @@ calculator 分支删除，其余不动。）
 
 1. `npx tsc --noEmit` 零错误；构建通过；
 2. `rg -n "tool-opt-gap|tool-opt-decl|tool-opt-overdue|tool-opt-policy" src` → 无残留；
-3. `rg -n "服务能力计算器|去案件文件夹找材料|帮我建一个案件|写一封补件邮件" src/components/brain/BrainChat.tsx`
-   → 仅工具菜单中保留（工具动作）；快捷 chips 无工具类；
-4. 快捷 chips 在案件模式与全局模式都渲染（输入区上方）。
+3. `rg -n "CASE_QUICK_ASKS|GLOBAL_QUICK_ASKS" src/components/brain/BrainChat.tsx` → 两组齐全；
+4. 快捷 chips 在案件模式（4 条一行）与全局模式（5 条含周报）都渲染，带场景标签。
 
 ## 七、本地联调验收（Vera / Codex 执行，Electron）
 
-1. 中栏（无论选没选案件）：输入区上方显示 4 个短语 chips（到期/申报/缺口/政策），点击即发问；
-2. "⚡ 工具"菜单：只剩计算器/写邮件/建案/文件夹 4 项，无"快捷提问"；
-3. 全局咨询模式：欢迎区不再有重复 chips（已上移常驻）；无报错、无回归。
+1. 中栏（选案件）：输入区上方一行 4 条（缺口/申报/下一步/银行政策），标签"案件快捷提问"，
+   银行政策点击发送"查一下 {银行} 的政策"；
+2. 全局咨询（无案件）：标签"全局快捷提问"，5 条含"生成这周周报"（点击发送周报总结语）；
+3. "⚡ 工具"菜单：只剩计算器/写邮件/建案/文件夹 4 项，无"快捷提问"；
+4. 全局欢迎区不再有重复 chips；无报错、无回归。
 
 
 ## 批次计划
