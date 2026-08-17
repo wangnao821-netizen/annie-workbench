@@ -253,6 +253,13 @@ function registerIpc() {
   ipcMain.handle('app:version', () => app.getVersion());
   ipcMain.handle('app:api-base', () => `http://127.0.0.1:${backendPort}`);
   ipcMain.handle('app:is-maximized', () => mainWindow?.isMaximized() ?? false);
+  // 系统通知骨架（后端/前端通知 → 系统托盘气泡；V1 接口就绪，接真实通知源后续）
+  ipcMain.handle('notify:show', (_e, { title, body }) => {
+    const { Notification } = require('electron');
+    if (Notification.isSupported()) {
+      new Notification({ title: title || 'Vera 工作台', body: body || '' }).show();
+    }
+  });
 }
 
 /* ── 生命周期 ──────────────────────────────────────────── */
