@@ -8,8 +8,9 @@
     "start": "electron .",
     "dev": "cross-env VERA_DEV=1 VERA_DEV_URL=http://localhost:3000 electron .",
     "build-web": "cd ../ui/vera-工作台 (81) && npm run build -- --base=./ --mode production",
-    "dist": "npm run build-web && electron-builder",
-    "dist:dir": "npm run build-web && electron-builder --dir"
+    "prepare": "powershell -NoProfile -ExecutionPolicy Bypass -File prepare-package.ps1",
+    "dist": "npm run prepare && electron-builder",
+    "dist:dir": "npm run prepare && electron-builder --dir"
   },
   "devDependencies": {
     "cross-env": "^7.0.3",
@@ -29,6 +30,16 @@
       "config.json"
     ],
     "extraResources": [
+      {
+        "from": "staging/backend",
+        "to": "backend",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "staging/runtime",
+        "to": "runtime",
+        "filter": ["**/*"]
+      },
       {
         "from": "../ui/vera-工作台 (81)/dist",
         "to": "web",

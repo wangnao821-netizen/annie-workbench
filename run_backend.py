@@ -61,6 +61,11 @@ def main() -> int:
     if not os.getenv("CLIENT_FILES_ROOT"):
         print("[启动检查] CLIENT_FILES_ROOT 未配置（可选）：文件 Agent 功能在案件关联文件夹后使用。")
 
+    # 首次启动迁移提前到监听前（避免前端请求撞上「迁移未完成 → no such table」竞态）
+    from core.models.db import init_sa_tables
+
+    init_sa_tables()
+
     import uvicorn
 
     print(f"[启动] uvicorn http://{args.host}:{args.port} (reload={args.reload})")

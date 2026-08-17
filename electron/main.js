@@ -10,12 +10,28 @@ const fs = require('fs');
 const path = require('path');
 const net = require('net');
 
-const ROOT = path.resolve(__dirname, '..');
-const CONFIG_PATH = path.join(__dirname, 'config.json');
-const ENV_PATH = path.join(ROOT, '.env');
-const ENV_EXAMPLE = path.join(ROOT, '.env.example');
-const BACKEND_SCRIPT = path.join(ROOT, 'run_backend.py');
-const DIST_DIR = path.join(ROOT, 'ui', 'vera-工作台 (81)', 'dist');
+/* 路径双模式：开发态 __dirname = electron/（ROOT 指向仓库根）；
+ * 打包态 __dirname = resources/app.asar，后端运行时按 extraResources 布局放在
+ * resources/backend（源码 + run_backend.py + .env）、resources/runtime（便携 Python + site-packages）、
+ * resources/web（前端 dist）。 */
+const IS_PACKAGED = app.isPackaged;
+const DEV_ROOT = path.resolve(__dirname, '..');
+const APP_BACKEND = IS_PACKAGED ? path.join(process.resourcesPath, 'backend') : DEV_ROOT;
+const CONFIG_PATH = IS_PACKAGED
+  ? path.join(APP_BACKEND, 'electron-config.json')
+  : path.join(__dirname, 'config.json');
+const ENV_PATH = path.join(APP_BACKEND, '.env');
+const ENV_EXAMPLE = path.join(APP_BACKEND, '.env.example');
+const BACKEND_SCRIPT = path.join(APP_BACKEND, 'run_backend.py');
+const DIST_DIR = IS_PACKAGED
+  ? path.join(process.resourcesPath, 'web')
+  : path.join(DEV_ROOT, 'ui', 'vera-工作台 (81)', 'dist');
+const RUNTIME_PY = IS_PACKAGED
+  ? path.join(process.resourcesPath, 'runtime', 'python', 'python.exe')
+  : null;
+const RUNTIME_SITE = IS_PACKAGED
+  ? path.join(process.resourcesPath, 'runtime', 'site-packages')
+  : null;
 const IS_DEV = process.env.VERA_DEV === '1';
 const DEV_URL = process.env.VERA_DEV_URL || 'http://localhost:3000';
 
@@ -40,9 +56,10 @@ function saveConfig(cfg) {
 
 /* ── Python 探测 ───────────────────────────────────────── */
 function findPython() {
+  if (IS_PACKAGED && RUNTIME_PY && fs.existsSync(RUNTIME_PY)) return RUNTIME_PY;
   const candidates = [
-    path.join(ROOT, '.venv', 'Scripts', 'python.exe'),
-    path.join(ROOT, '.venv', 'bin', 'python'),
+    path.join(DEV_ROOT, '.venv', 'Scripts', 'python.exe'),
+    path.join(DEV_ROOT, '.venv', 'bin', 'python'),
   ];
   for (const p of candidates) {
     if (fs.existsSync(p)) return p;
@@ -111,9 +128,14 @@ async function ensureBackend() {
     return;
   }
 
+  const spawnEnv = { ...process.env };
+  if (IS_PACKAGED && RUNTIME_SITE) {
+    spawnEnv.PYTHONPATH = RUNTIME_SITE;
+    spawnEnv.PYTHONDONTWRITEBYTECODE = '1';
+  }
   backendProc = spawn(python, [BACKEND_SCRIPT, '--port', String(port)], {
-    cwd: ROOT,
-    env: { ...process.env },
+    cwd: APP_BACKEND,
+    env: spawnEnv,
     stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
   });

@@ -23,8 +23,6 @@ def health_check() -> dict:
     前端可据此区分「后端未启动」与「环境配置缺失」。
     """
     missing: list[str] = []
-    if not os.getenv("CLIENT_FILES_ROOT"):
-        missing.append("CLIENT_FILES_ROOT")
     try:
         get_config()
     except BaseException:  # noqa: BLE001 — 配置校验失败仅上报，不让健康探针崩溃

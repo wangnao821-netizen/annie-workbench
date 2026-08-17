@@ -18,12 +18,13 @@ def test_health_ok_when_env_set(monkeypatch):
     assert body["missing_config"] == []
 
 
-def test_health_reports_missing_env(monkeypatch):
+def test_health_ok_without_client_root(monkeypatch):
+    """2026-08-17 起 CLIENT_FILES_ROOT 可选（每 case 手动关联文件夹）：缺失不再视为配置缺失。"""
     monkeypatch.delenv("CLIENT_FILES_ROOT", raising=False)
     monkeypatch.setenv("ENV", "development")
     resp = TestClient(app).get("/api/health")
     assert resp.status_code == 200
     body = resp.json()
     assert body["status"] == "ok"
-    assert body["config_ok"] is False
-    assert "CLIENT_FILES_ROOT" in body["missing_config"]
+    assert body["config_ok"] is True
+    assert body["missing_config"] == []
