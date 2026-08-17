@@ -1020,6 +1020,7 @@ class FileOpsItem(BaseModel):
     size: int | None = None
     mtime: str | None = None
     doc_type: str | None = None
+    file_id: str | None = None  # WO-48: 已落库文件的 processed_files id（供 Office 原样预览）
 
 
 class FileOpsListResponse(BaseModel):

@@ -19,7 +19,7 @@ from core.case_engine.folder import _get_default_client_root, validate_path_safe
 from core.case_folder.discovery import classify_file
 from core.case_folder.lookup import parse_one
 from core.logger import get_logger
-from core.models.orm import Case, FileEvent
+from core.models.orm import Case, CaseFile, FileEvent
 from core.security.path_guard import PathGuard, WriteNotAllowedError
 
 logger = get_logger(__name__)
@@ -62,11 +62,23 @@ def _log_event(db: Session, case_id: str, event_type: str, source_path: str,
                      timestamp=datetime.now(UTC).isoformat()))
     db.commit()
     return event_id
-def list_files(case: Case, rel_path: str = "", client_root: Path | None = None) -> dict:
+def list_files(case: Case, rel_path: str = "", client_root: Path | None = None,
+               db: Session | None = None) -> dict:
+    """一层列出案件文件夹（子目录在前；path 相对案件目录，空=根）。
+
+    WO-48：传入 db 时按绝对路径关联 processed_files，为已落库文件附带
+    file_id（供前端 Office 原样排版预览 /api/files/{id}/preview）；未关联为 None。
+    """
     case_dir, _root = _case_dir(case, client_root)
     target = _within(case_dir, rel_path) if rel_path else case_dir
     if not target.is_dir():
         raise ValueError(f"目录不存在：{rel_path or '/'}")
+    file_id_by_path: dict[str, str] = {}
+    if db is not None:
+        file_id_by_path = {
+            str(Path(row.nas_path).resolve()): row.id
+            for row in db.query(CaseFile).filter(CaseFile.case_id == case.id).all()
+        }
     dirs, files = [], []
     for child in sorted(target.iterdir()):
         if child.name in _IGNORED_NAMES or child.name.startswith("."):
@@ -74,10 +86,13 @@ def list_files(case: Case, rel_path: str = "", client_root: Path | None = None) 
         rel = child.relative_to(case_dir).as_posix()
         mtime = datetime.fromtimestamp(child.stat().st_mtime, tz=UTC).isoformat()
         if child.is_dir():
-            dirs.append({"name": child.name, "rel_path": rel, "is_dir": True, "size": None, "mtime": mtime, "doc_type": None})
+            dirs.append({"name": child.name, "rel_path": rel, "is_dir": True, "size": None,
+                         "mtime": mtime, "doc_type": None, "file_id": None})
         else:
             doc_type, _conf = classify_file(child.name)
-            files.append({"name": child.name, "rel_path": rel, "is_dir": False, "size": child.stat().st_size, "mtime": mtime, "doc_type": doc_type})
+            files.append({"name": child.name, "rel_path": rel, "is_dir": False,
+                          "size": child.stat().st_size, "mtime": mtime, "doc_type": doc_type,
+                          "file_id": file_id_by_path.get(str(child.resolve()))})
     return {"current_path": rel_path or "", "items": dirs + files}
 def preview_file(case: Case, rel_path: str, db: Session, client_root: Path | None = None) -> dict:
     case_dir, root = _case_dir(case, client_root)

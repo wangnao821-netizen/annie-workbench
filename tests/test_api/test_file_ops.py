@@ -10,7 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from core.file_ops import service
-from core.models.orm import Case, FileEvent
+from core.models.orm import Case, CaseFile, FileEvent
 from server.deps import get_db
 from server.main import app
 
@@ -82,6 +82,56 @@ class TestList:
         resp = client.get(f"/api/cases/{case_env.id}/folder/files", params={"path": "_Inbox"})
         assert resp.status_code == 200
         assert resp.json()["current_path"] == "_Inbox"
+
+
+class TestListFileIds:
+    """WO-48：folder files 响应为已落库文件附带 file_id（供 Office 原样预览）。"""
+
+    def test_list_linked_file_has_file_id(self, client, case_env, test_db, _api_env):
+        client_root = _api_env
+        case_dir = client_root / "张三_CBA_001"
+        target = case_dir / "Income Payslip June 2025 CBA.pdf"
+        test_db.add(CaseFile(
+            id="file_wo48_1", case_id=case_env.id,
+            original_name="Income Payslip June 2025 CBA.pdf", assigned_type="payslip_2",
+            nas_path=str(target), status="discovered", file_extension=".pdf",
+            file_size=target.stat().st_size,
+        ))
+        test_db.commit()
+
+        resp = client.get(f"/api/cases/{case_env.id}/folder/files")
+        assert resp.status_code == 200
+        payslip = next(i for i in resp.json()["items"]
+                       if i["name"].startswith("Income Payslip"))
+        assert payslip["file_id"] == "file_wo48_1"
+
+    def test_list_unlinked_file_and_dir_have_none(self, client, case_env):
+        resp = client.get(f"/api/cases/{case_env.id}/folder/files")
+        assert resp.status_code == 200
+        items = resp.json()["items"]
+        inbox = next(i for i in items if i["name"] == "_Inbox")
+        assert inbox["file_id"] is None
+        passport = next(i for i in items if i["name"].startswith("ID Passport"))
+        assert passport["file_id"] is None
+
+    def test_list_linked_rename_current_name_matches(self, client, case_env, test_db, _api_env):
+        """改名后文件以 current_name 存在：nas_path 指向目标路径，仍应匹配。"""
+        client_root = _api_env
+        case_dir = client_root / "张三_CBA_001"
+        target = case_dir / "ID Passport.pdf"
+        test_db.add(CaseFile(
+            id="file_wo48_2", case_id=case_env.id,
+            original_name="old_name.pdf", assigned_type="passport",
+            nas_path=str(target), status="discovered", file_extension=".pdf",
+            current_name="ID Passport.pdf", file_size=target.stat().st_size,
+        ))
+        test_db.commit()
+
+        resp = client.get(f"/api/cases/{case_env.id}/folder/files")
+        assert resp.status_code == 200
+        passport = next(i for i in resp.json()["items"]
+                        if i["name"].startswith("ID Passport"))
+        assert passport["file_id"] == "file_wo48_2"
 
 
 class TestPreview:

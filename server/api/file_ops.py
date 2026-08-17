@@ -62,7 +62,7 @@ def list_case_files(
     """一层列出案件文件夹（子目录在前；path 相对案件目录，空=根）。"""
     case = _case_or_404(case_id, db)
     try:
-        return FileOpsListResponse(**service.list_files(case, path))
+        return FileOpsListResponse(**service.list_files(case, path, db=db))
     except ValueError as exc:
         if "未关联文件夹" in str(exc):
             raise HTTPException(status_code=404, detail=str(exc)) from exc

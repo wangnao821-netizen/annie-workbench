@@ -321,9 +321,14 @@
 > 背景：F-43 补丁四把文件预览改为居中大模态并让 Office 走 LibreOffice 转 PDF iframe
 > （详情页附件已有 file_id，直接可用 `/api/files/{id}/preview`）。但中栏 FileDrawer 的
 > FileItem 无 file_id，其 Office 文件暂时只能看解析文本，无法原样排版预览。
-> **后端待办（小而必要）**：`GET /api/cases/{case_id}/folder/files` 响应为每个 FileItem
-> 带 `file_id`（按 rel_path 关联 processed_files）；前端 FileItem 已预留 `file_id?: string`
-> 字段（F-43 补丁四），后端返回后自动启用 Office iframe 原样预览。优先级：中（发布前完成）。
+> ✅ **WO-48 已完成（2026-08-17）**：`GET /api/cases/{case_id}/folder/files` 响应为每个
+> FileItem 带 `file_id`（按 nas_path 绝对路径关联 processed_files，discovery/导入已落库的
+> 文件即匹配）；schema FileOpsItem 加 `file_id: str | None`；service.list_files 增 db 参数
+> （向后兼容）；3 专项（关联命中/未关联与目录 None/改名 current_name 命中），全量
+> 1108 passed 0 failed。前端 FileItem 已预留 `file_id?: string`（F-43 补丁四），
+> 联真后端后 FileDrawer 的 Office 文件自动启用原样排版预览。注意：folder import
+> 端点目前只复制文件+写 FileEvent 不落库 CaseFile，此类新上传文件暂无 file_id，
+> 如需一并关联可后续让 import 落库（另行登记）。
 
 ### 2026-08-14 排查：AI 拟人化等"提过未落地"项登记
 
