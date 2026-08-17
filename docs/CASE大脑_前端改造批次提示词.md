@@ -5115,4 +5115,69 @@ const GLOBAL_QUICK_ASKS: QuickAsk[] = [
 3. "⚡ 工具"菜单：只剩计算器/写邮件/建案/文件夹 4 项，无"快捷提问"；
 4. 全局欢迎区不再有重复 chips；无报错、无回归。
 
+---
+
+# F-46 补丁三（2026-08-17）：右栏客户情况概览空数据占位（Client Banner 常显）
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (76)`（本批在 (76) 基础上改）。
+> 背景（Vera 反馈）：右栏"客户情况概览"（Client Banner：客户名/银行/阶段/摘要）目前是
+> `{context && ...}` 条件渲染——空库/无 context 数据时整块消失，右栏直接露出"关键截止"。
+> **目标：客户情况概览始终显示；无 context 时用当前案件基本信息 + 占位文案。**
+
+## 一、接入当前案件信息（src/components/brain/CasePanorama.tsx）
+
+1. 引入 caseStore 取当前案件：
+
+```ts
+import { useCaseStore } from '../../stores/caseStore';
+// 组件内
+const caseInfo = useCaseStore((s) =>
+  caseId ? s.cases.find((c) => c.caseId === caseId) : undefined
+);
+```
+
+2. **Client Banner 改为始终渲染**（L238 起 `{context && (...)}` → 无条件渲染，内容分两态）：
+
+```jsx
+{/* 1. Client Banner（客户情况概览，常显） */}
+<div className="p-3 rounded-xl border space-y-1.5" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+  <div className="flex items-center justify-between">
+    <span className="font-extrabold text-xs truncate" style={{ color: 'var(--text-primary)' }}>
+      {context?.facts.client_name || caseInfo?.clientName || '客户'}
+      {context?.facts.lender || caseInfo?.lender ? ` (${context?.facts.lender || caseInfo?.lender})` : ''}
+    </span>
+    <span className="px-2 py-0.5 rounded text-xs font-bold bg-[var(--purple-soft)] text-[var(--purple)] flex-shrink-0">
+      {context?.facts.stage || caseInfo?.stage || '推进中'}
+    </span>
+  </div>
+  {context?.summary || context?.memory ? (
+    <p className="text-[11px] leading-relaxed text-muted truncate pt-1 border-t" style={{ borderColor: 'var(--border)' }}>
+      ✨ {context.summary || context.memory}
+    </p>
+  ) : (
+    <p className="text-[11px] leading-relaxed text-muted pt-1 border-t" style={{ borderColor: 'var(--border)' }}>
+      暂无客户画像，录入资料后自动生成
+    </p>
+  )}
+</div>
+```
+
+（`caseInfo` 取不到时显示"客户"，银行/阶段取不到用占位——空库也完整显示区块。）
+
+## 二、红线
+
+1. 只改 CasePanorama.tsx（import + Client Banner）；不改其他区块/组件；不新增依赖；
+2. 有 context 时显示效果与原来一致；空数据只多占位，不报错。
+
+## 三、验收（AI Studio 侧）
+
+1. `npx tsc --noEmit` 零错误；
+2. Client Banner 无 `context &&` 条件（始终渲染），含 caseInfo 兜底与"暂无客户画像"占位文案；
+3. mock 预览：选择案件后右栏顶部始终有客户情况概览（有数据显数据，无数据显占位）。
+
+## 四、本地联调验收（Vera / Codex 执行，Electron 空库）
+
+1. 空库选案件：右栏顶部显示客户名/银行/阶段（来自案件）+ "暂无客户画像，录入资料后自动生成"；
+2. 录入数据后：显示 context 摘要；不崩、无回归。
+
 
