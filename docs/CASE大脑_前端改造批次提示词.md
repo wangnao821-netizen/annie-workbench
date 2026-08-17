@@ -5263,4 +5263,105 @@ suggested_actions 渲染处（约 L1124）：
 2. 全局模式（无案件）点邮件类建议动作 → 提示"请先选择案件"，不崩；
 3. 无死按钮（每个建议动作都有实际效果或明确提示）。
 
+---
+
+# F-46 补丁五（2026-08-17）：中栏按钮全量筛查收尾——解释信草稿 + 建议清单真实化
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (77)`（本批在 (77) 基础上改）。
+> 背景（Vera 要求全量筛查中栏按钮）：筛查发现 3 处假闭环——① suggested_actions
+> （F-46 补丁四已修）；② DeclarationCheckCard"生成审贷解释信草稿"点击只弹
+> "WO-20 交付后可用"占位 toast（后端 WO-20 早已返回 `draft_explanation`，前端没接）；
+> ③ GapAnalysisCard"生成建议清单"把草稿写进 **localStorage（vera_drafts_store）**，
+> 后端草稿箱（DraftsBox）看不到。本批把 ②③ 改为真实写入后端草稿箱。
+
+## 一、DeclarationCheckCard：解释信草稿真实化
+
+`src/components/brain/DeclarationCheckCard.tsx`：
+
+1. 引入 `createManualDraft`（`src/services/api/drafts.ts` 已有 `POST /api/drafts`，
+   参数 `{ case_id, subject, body, track }`；无则新增该函数）；
+2. `handleDraftExplainLetter` 改为：
+
+```ts
+const handleDraftExplainLetter = async () => {
+  const explanation = result?.draft_explanation;
+  if (!explanation) {
+    useToastStore.getState().showToast('info', '本次检查未生成解释信草稿，可直接在对话中让 AI 拟写');
+    return;
+  }
+  if (!caseId) {
+    useToastStore.getState().showToast('info', '请先选择案件，再生成解释信草稿');
+    return;
+  }
+  try {
+    await createManualDraft({
+      case_id: caseId,
+      subject: `审贷解释信草稿 (${new Date().toLocaleDateString()})`,
+      body: explanation,
+      track: 'external',
+    });
+    useToastStore.getState().showToast('success', '已生成并存入草稿箱 (只出草稿，绝不发送)');
+    window.dispatchEvent(new CustomEvent('drafts_updated'));
+  } catch (err: any) {
+    useToastStore.getState().showToast('error', `保存草稿失败: ${err?.message || '未知错误'}`);
+  }
+};
+```
+
+3. 若 `result.draft_explanation` 已存在，也可在结果区直接展示草稿正文（可选，优先保证按钮闭环）。
+
+## 二、GapAnalysisCard：建议清单写入后端草稿箱（替代 localStorage）
+
+`src/components/brain/GapAnalysisCard.tsx`：
+
+1. 引入 `createManualDraft`；
+2. `handleGenerateDraftList` 改为 **异步 + 调后端**（删除 localStorage 写入）：
+
+```ts
+const handleGenerateDraftList = async () => {
+  if (!caseId) {
+    useToastStore.getState().showToast('info', '请先选择案件，再生成建议清单草稿');
+    return;
+  }
+  const draftTitle = `材料缺口补件清单草稿 (${new Date().toLocaleDateString()})`;
+  const draftContent = `【补件清单建议】\n` +
+    missing.map((m, i) => `${i + 1}. 【缺】${m.name || m.item || ''} — 原因：${m.reason}`).join('\n') +
+    `\n\n【处理建议】\n` +
+    suggestions.map((s, i) => `${i + 1}. ${s.title || s.item || s.item_name || ''}: ${s.description || s.suggestion || ''}`).join('\n');
+  try {
+    await createManualDraft({ case_id: caseId, subject: draftTitle, body: draftContent, track: 'internal' });
+    useToastStore.getState().showToast('success', '已存入草稿箱 (只出草稿，绝不发送)');
+    window.dispatchEvent(new CustomEvent('drafts_updated'));
+  } catch (err: any) {
+    useToastStore.getState().showToast('error', `保存草稿失败: ${err?.message || '未知错误'}`);
+  }
+};
+```
+
+3. 确认 `GapAnalysisCardProps` 已接收 `caseId`（组件已有 `caseId?: string | null` prop，
+   BrainChat 调用处已传 `caseId={caseId}`——核对无误则直接用）。
+
+## 三、红线
+
+1. 只改 DeclarationCheckCard.tsx / GapAnalysisCard.tsx /（如需）services/api/drafts.ts；
+   不改后端；不新增依赖；
+2. 草稿全部走 `POST /api/drafts`（真实草稿箱），不再写 localStorage；
+3. 无案件/无解释信时给明确提示，不静默、不空 toast。
+
+## 四、验收（AI Studio 侧）
+
+1. `npx tsc --noEmit` 零错误；
+2. `rg -n "WO-20 交付后可用|vera_drafts_store" src` → 无残留（占位文案与 localStorage 模拟删除）；
+3. `rg -n "createManualDraft" src/components/brain/DeclarationCheckCard.tsx src/components/brain/GapAnalysisCard.tsx`
+   → 两处均已调用；
+4. 提交请求体符合 `{case_id, subject, body, track}`。
+
+## 五、本地联调验收（Vera / Codex 执行，Electron）
+
+1. 案件执行申报一致性检查（warning/fail）→ 点"生成审贷解释信草稿"→ 草稿箱出现解释信，
+   toast 明确；无解释信时提示可让 AI 拟写；
+2. 案件缺口预判 → 点"生成建议清单"→ 草稿箱出现补件清单草稿（不再只进 localStorage）；
+3. 全局模式（无案件）点这两个按钮 → 提示"请先选择案件"，不崩；
+4. 全中栏按钮无死按钮（每个点击都有真实动作或明确提示）。
+
 
