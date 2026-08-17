@@ -5180,4 +5180,87 @@ const caseInfo = useCaseStore((s) =>
 1. 空库选案件：右栏顶部显示客户名/银行/阶段（来自案件）+ "暂无客户画像，录入资料后自动生成"；
 2. 录入数据后：显示 context 摘要；不崩、无回归。
 
+---
+
+# F-46 补丁四（2026-08-17）：中栏 AI 回复"建议动作"按钮闭环（消除死按钮）
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (77)`（本批在 (77) 基础上改）。
+> 背景（Vera 要求深入检查中栏 AI 回复按钮）：工具卡/确认卡/草稿卡等**全部已闭环**，
+> 但 AI 回复底部的 **suggested_actions（⚡ 建议动作）按钮是死按钮**——当前
+> `onClick={() => useToastStore.getState().showToast('info', '建议动作已提交')}`
+> 点击只弹 toast，无任何实际动作。本批把建议动作映射到真实动作。
+
+## 一、新增 handleSuggestedAction（src/components/brain/BrainChat.tsx）
+
+在组件内新增处理函数（复用现有 state：coCreateFlowKey / coCreateSessionId /
+coCreateOpen / setNewCaseOpen 等）：
+
+```ts
+const handleSuggestedAction = (act: string) => {
+  const a = act || '';
+  if (/催件|催/.test(a) && !/邮件/.test(a)) {
+    // 催件 → 共创弹窗（chaser）
+    setCoCreateFlowKey('chaser');
+    setCoCreateSessionId('session-' + Date.now());
+    setCoCreateOpen(true);
+  } else if (/邮件|补件|回复/.test(a)) {
+    // 跟进/补件/回复邮件 → 共创弹窗（followup）
+    if (!activeCaseInfo) {
+      useToastStore.getState().showToast('info', '请先选择案件，再进入共创邮件');
+      return;
+    }
+    setCoCreateFlowKey('followup');
+    setCoCreateSessionId('session-' + Date.now());
+    setCoCreateOpen(true);
+  } else if (/OS|审贷/.test(a)) {
+    setCoCreateFlowKey('os_reply');
+    setCoCreateSessionId('session-' + Date.now());
+    setCoCreateOpen(true);
+  } else if (/申报|一致性/.test(a)) {
+    handleSend('检查申报一致性');
+  } else if (/建案|新建/.test(a)) {
+    setNewCaseOpen(true);
+  } else {
+    // 兜底：把建议动作作为普通提问继续对话
+    handleSend(a);
+  }
+};
+```
+
+## 二、按钮 onClick 替换
+
+suggested_actions 渲染处（约 L1124）：
+
+```jsx
+<button
+  key={idx}
+  type="button"
+  onClick={() => handleSuggestedAction(act)}
+  ...
+>
+  ⚡ {act}
+</button>
+```
+
+（删除原 showToast 占位；按钮样式/布局不变。）
+
+## 三、红线
+
+1. 只改 BrainChat.tsx（新增 handleSuggestedAction + 替换 onClick）；不改其他组件；不新增依赖；
+2. 共创弹窗行为与 F-40 v2 一致（案件模式才可写邮件，全局模式提示先选案件）；
+3. 兜底走 handleSend（继续对话），绝不弹空 toast。
+
+## 四、验收（AI Studio 侧）
+
+1. `npx tsc --noEmit` 零错误；
+2. `rg -n "建议动作已提交" src` → 无残留（占位 toast 删除）；
+3. `rg -n "handleSuggestedAction" src/components/brain/BrainChat.tsx` → 函数与调用都在。
+
+## 五、本地联调验收（Vera / Codex 执行，Electron）
+
+1. AI 回复底部建议动作：点"跟进邮件/补件邮件"→ 打开共创弹窗；点"催件"→ 催件共创；
+   点"OS 回复"→ OS 共创；点"检查申报一致性"→ 触发检查；其他 → 继续对话；
+2. 全局模式（无案件）点邮件类建议动作 → 提示"请先选择案件"，不崩；
+3. 无死按钮（每个建议动作都有实际效果或明确提示）。
+
 
