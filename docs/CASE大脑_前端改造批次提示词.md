@@ -4547,3 +4547,115 @@ FileMatchDetail / GeneralEmailDetail 三处复用，改一处三处生效）。
 2. 详情页附件预览：大模态展示，PDF/图片缩放旋转正常；
 3. 有 file_id 的 Office 文件（联真后端）：原样排版显示（LibreOffice 转 PDF）；
 4. 六套主题下大模态配色协调；圆角与窗口一致。
+
+---
+
+# F-44（2026-08-17）：Electron 无边框窗口标题栏（窗口按钮组 + API 地址注入）
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (72)`（本批在 (72) 基础上改）。
+> 背景：Electron 封装采用 `frame: false` 无边框窗口（方案见 docs/Electron封装方案_2026-08-17.md），
+> 窗口按钮由前端标题栏渲染（条件渲染，浏览器预览零影响）。Electron 侧 IPC 已实现
+> （preload 暴露 `window.veraElectron`），本批做前端配合。
+
+## 一、窗口按钮组（TopNavBar 右侧）
+
+`src/components/layout/TopNavBar.tsx` 右侧（AU 时间/通知/主题/头像之后）新增窗口按钮组，
+**仅当 `window.veraElectron` 存在时渲染**：
+
+```tsx
+const isElectron = typeof window !== 'undefined' && !!window.veraElectron;
+const [maximized, setMaximized] = useState(false);
+
+useEffect(() => {
+  if (!window.veraElectron?.onMaximizedChange) return;
+  const off = window.veraElectron.onMaximizedChange((m: boolean) => setMaximized(m));
+  window.veraElectron.isMaximized?.().then(setMaximized);
+  return off;
+}, []);
+```
+
+按钮组（三个图标按钮，`pl-2 border-l` 分隔，样式沿用现有图标按钮：
+`p-2 rounded-lg border text-muted hover:text-primary`）：
+
+1. **最小化**：`Minus` 图标 → `window.veraElectron.minimize()`；
+2. **最大化/还原**：`Square`（未最大化）/ `Copy`（最大化，还原图标）→
+   `window.veraElectron.toggleMaximize()`；
+3. **关闭**：`X` 图标 → `window.veraElectron.close()`（Electron 侧默认最小化到托盘）；
+
+非 Electron 环境（浏览器/AI Studio 预览）：整个按钮组不渲染。
+
+## 二、最大化时窗口圆角变直角
+
+监听 `onMaximizedChange`：`maximized=true` 时给 `#app-shell`（或 documentElement）
+加 `data-maximized` 属性，`index.css` 增加：
+
+```css
+#app-shell[data-maximized] {
+  border-radius: 0;
+}
+```
+
+还原时移除属性，圆角恢复 12px。
+
+## 三、API 地址注入（后端换端口时前端跟随）
+
+Electron 生产模式后端可能使用 8000-8010 中可用端口；preload 暴露
+`window.veraElectron.getApiBase()`。`src/services/http.ts`（及 sseClient.ts /
+calculator.ts 的 BASE_URL 定义）改为优先读：
+
+```ts
+const electronBase = (window as any).veraElectron?.getApiBase
+  ? awaitPromise((window as any).veraElectron.getApiBase())
+  : null;
+export const BASE_URL = electronBase || import.meta.env.VITE_API_URL || 'http://localhost:8000';
+```
+
+> 注：getApiBase 是 async（返回 Promise）。BASE_URL 若是模块级常量，改为
+> `let BASE_URL = ...` + 启动时异步覆盖；或在请求函数内每次取
+> `(window as any).veraElectron?.apiBase`（若 preload 同步暴露则更简单——由
+> Electron 侧在 preload 同步注入 `apiBase` 字符串，本批前端优先支持同步字段
+> `window.veraElectron?.apiBase`，没有则用默认值）。
+
+**推荐实现**：请求函数内取 `const base = (window as any).veraElectron?.apiBase ||
+import.meta.env.VITE_API_URL || 'http://localhost:8000';`（避免异步初始化问题）。
+
+## 四、类型声明
+
+`src/types/` 或 `src/vite-env.d.ts` 增加：
+
+```ts
+interface VeraElectronApi {
+  minimize: () => Promise<void>;
+  toggleMaximize: () => Promise<void>;
+  close: () => Promise<void>;
+  getVersion: () => Promise<string>;
+  getApiBase: () => Promise<string>;
+  apiBase?: string;
+  isMaximized: () => Promise<boolean>;
+  onMaximizedChange: (cb: (maximized: boolean) => void) => () => void;
+}
+declare global {
+  interface Window {
+    veraElectron?: VeraElectronApi;
+  }
+}
+```
+
+## 五、红线
+
+1. 只加窗口按钮组/样式/类型/apiBase 读取；不改其他组件逻辑；不新增依赖；
+2. 浏览器预览必须零影响（按钮组不渲染、BASE_URL 走默认值）；
+3. 交付报告附改动说明。
+
+## 六、验收（AI Studio 侧）
+
+1. `npx tsc --noEmit` 零错误；构建通过；
+2. 浏览器打开：无窗口按钮组（不渲染）；API 正常走默认 localhost:8000；
+3. `rg -n "veraElectron" src`：TopNavBar / http.ts / sseClient.ts / types 均有引用且类型完整。
+
+## 七、本地联调验收（Vera / Codex 执行，Electron 环境）
+
+1. `electron .` 启动：窗口无系统边框，右上角出现 最小化/最大化/关闭 三个按钮；
+2. 点击最小化 → 窗口最小化；最大化 → 圆角变直角、图标切换；还原 → 圆角恢复；
+3. 关闭 → 最小化到托盘；托盘"退出" → 完全退出且后端进程被清理；
+4. 后端在 8001（8000 被占）时：前端 API 自动指向 8001，数据正常加载。

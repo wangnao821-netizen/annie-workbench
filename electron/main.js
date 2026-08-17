@@ -1,0 +1,292 @@
+/* Vera 工作台 — Electron 主进程
+ * 职责：无边框窗口 + 后端进程管理 + 托盘 + 首次配置引导 + IPC（窗口控制/版本/通知）
+ * 红线：只写项目内 .env / config.json；不写客户文件夹；key 仅写入用户输入值。
+ */
+'use strict';
+
+const { app, BrowserWindow, Tray, Menu, ipcMain, dialog, nativeImage } = require('electron');
+const { spawn, execSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+const net = require('net');
+
+const ROOT = path.resolve(__dirname, '..');
+const CONFIG_PATH = path.join(__dirname, 'config.json');
+const ENV_PATH = path.join(ROOT, '.env');
+const ENV_EXAMPLE = path.join(ROOT, '.env.example');
+const BACKEND_SCRIPT = path.join(ROOT, 'run_backend.py');
+const DIST_DIR = path.join(ROOT, 'ui', 'vera-工作台 (73)', 'dist');
+const IS_DEV = process.env.VERA_DEV === '1';
+const DEV_URL = process.env.VERA_DEV_URL || 'http://localhost:3000';
+
+let mainWindow = null;
+let tray = null;
+let backendProc = null;
+let backendPort = 8000;
+let isQuitting = false;
+
+/* ── 配置 ─────────────────────────────────────────────── */
+function loadConfig() {
+  try {
+    return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
+function saveConfig(cfg) {
+  fs.writeFileSync(CONFIG_PATH, JSON.stringify(cfg, null, 2), 'utf8');
+}
+
+/* ── Python 探测 ───────────────────────────────────────── */
+function findPython() {
+  const candidates = [
+    path.join(ROOT, '.venv', 'Scripts', 'python.exe'),
+    path.join(ROOT, '.venv', 'bin', 'python'),
+  ];
+  for (const p of candidates) {
+    if (fs.existsSync(p)) return p;
+  }
+  for (const cmd of ['python', 'python3']) {
+    try {
+      execSync(`${cmd} --version`, { stdio: 'ignore', timeout: 3000 });
+      return cmd;
+    } catch {
+      /* try next */
+    }
+  }
+  return null;
+}
+
+/* ── 端口与健康检查 ────────────────────────────────────── */
+function portInUse(port) {
+  return new Promise((resolve) => {
+    const s = net.connect(port, '127.0.0.1');
+    s.once('connect', () => { s.destroy(); resolve(true); });
+    s.once('error', () => resolve(false));
+  });
+}
+
+async function checkHealth(port) {
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/api/health`, { signal: AbortSignal.timeout(1500) });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function ensureBackend() {
+  const cfg = loadConfig();
+  const python = cfg.pythonPath || findPython();
+  const preferred = cfg.port || 8000;
+
+  // 端口已被占用：是我们的后端 → 直接复用；否则向后探测空闲端口。
+  let port = preferred;
+  if (await portInUse(port)) {
+    if (await checkHealth(port)) {
+      backendPort = port;
+      return;
+    }
+    let found = null;
+    for (let p = preferred + 1; p < preferred + 11; p++) {
+      if (!(await portInUse(p))) { found = p; break; }
+    }
+    if (!found) {
+      dialog.showErrorBox('端口不可用', `端口 ${preferred}-${preferred + 10} 均被占用，请关闭占用程序后重试。`);
+      return;
+    }
+    port = found;
+  }
+
+  if (!python) {
+    dialog.showErrorBox(
+      '未找到 Python',
+      '未找到可用的 Python 环境。请安装 Python 3.11 并在 electron/config.json 中配置 pythonPath，或先通过 run_backend.py 手动启动后端。',
+    );
+    return;
+  }
+
+  backendProc = spawn(python, [BACKEND_SCRIPT, '--port', String(port)], {
+    cwd: ROOT,
+    env: { ...process.env },
+    stdio: ['ignore', 'pipe', 'pipe'],
+    windowsHide: true,
+  });
+  backendProc.stdout.on('data', (d) => console.log(`[backend] ${String(d).trimEnd()}`));
+  backendProc.stderr.on('data', (d) => console.error(`[backend:err] ${String(d).trimEnd()}`));
+  backendProc.on('exit', (code) => {
+    console.log(`[backend] exited code=${code}`);
+    backendProc = null;
+  });
+
+  // 等待健康就绪（最多 60 秒）
+  for (let i = 0; i < 120; i++) {
+    if (await checkHealth(port)) {
+      backendPort = port;
+      if (port !== preferred) {
+        cfg.port = port;
+        saveConfig(cfg);
+      }
+      return;
+    }
+    if (backendProc && backendProc.exitCode !== null) break;
+    await sleep(500);
+  }
+  dialog.showErrorBox('后端启动失败', '后端服务未能就绪，请查看日志或手动运行 run_backend.py 排查。');
+}
+
+/* ── 窗口 ──────────────────────────────────────────────── */
+function createWindow() {
+  mainWindow = new BrowserWindow({
+    width: 1440,
+    height: 900,
+    minWidth: 1024,
+    minHeight: 680,
+    frame: false,
+    show: false,
+    backgroundColor: '#0e1420',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.cjs'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
+    },
+  });
+
+  const loadTarget = IS_DEV ? DEV_URL : path.join(DIST_DIR, 'index.html');
+  mainWindow.loadURL(IS_DEV ? DEV_URL : `file://${loadTarget.replace(/\\/g, '/')}`);
+
+  mainWindow.once('ready-to-show', () => mainWindow.show());
+  mainWindow.on('maximize', () => {
+    mainWindow.webContents.send('window-maximized-changed', true);
+  });
+  mainWindow.on('unmaximize', () => {
+    mainWindow.webContents.send('window-maximized-changed', false);
+  });
+  mainWindow.on('close', (e) => {
+    if (!isQuitting && loadConfig().minimizeToTray !== false) {
+      e.preventDefault();
+      mainWindow.hide();
+    }
+  });
+  mainWindow.on('closed', () => { mainWindow = null; });
+}
+
+/* ── 托盘 ──────────────────────────────────────────────── */
+function createTray() {
+  // 图标：先用 16x16 纯色占位（正式图标后续替换 build/app.ico 与 tray 用 png）
+  const icon = nativeImage.createEmpty();
+  tray = new Tray(icon);
+  tray.setToolTip('Vera 工作台');
+  tray.setContextMenu(Menu.buildFromTemplate([
+    { label: '显示主窗口', click: () => { mainWindow?.show(); mainWindow?.focus(); } },
+    { type: 'separator' },
+    {
+      label: '退出',
+      click: () => {
+        isQuitting = true;
+        app.quit();
+      },
+    },
+  ]));
+  tray.on('click', () => {
+    if (mainWindow?.isVisible()) mainWindow.hide();
+    else { mainWindow?.show(); mainWindow?.focus(); }
+  });
+}
+
+/* ── 首次引导：.env 缺失 → 收集 CLIENT_FILES_ROOT / keys → 写 .env ── */
+async function ensureEnv() {
+  // 已有 .env 或环境变量已提供 CLIENT_FILES_ROOT → 跳过引导
+  if (fs.existsSync(ENV_PATH) || process.env.CLIENT_FILES_ROOT) return;
+  const hasTemplate = fs.existsSync(ENV_EXAMPLE);
+  const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+    title: '首次使用：请选择客户文件根目录（CLIENT_FILES_ROOT）',
+    properties: ['openDirectory', 'createDirectory'],
+  });
+  if (canceled || !filePaths[0]) {
+    dialog.showMessageBox(mainWindow, {
+      type: 'warning',
+      message: '未选择客户文件根目录，将跳过引导。可在项目根目录 .env 中手动配置 CLIENT_FILES_ROOT 后重启。',
+    });
+    return;
+  }
+  const clientRoot = filePaths[0];
+  const lines = [
+    '# Vera 工作台环境变量（由首次引导生成，请勿删除）',
+    `CLIENT_FILES_ROOT=${clientRoot.replace(/\\/g, '\\\\')}`,
+    'ENV=development',
+    '',
+    '# 云端 AI API（可稍后在 .env 中补充）',
+    'DEEPSEEK_API_KEY=',
+    'GEMINI_API_KEY=',
+    '',
+    '# OCR（可选，指向 tessdata 目录）',
+    '# TESSDATA_PREFIX=',
+    '',
+  ];
+  fs.writeFileSync(ENV_PATH, lines.join('\n'), 'utf8');
+  console.log(`[env] 已生成 .env，CLIENT_FILES_ROOT=${clientRoot}`);
+}
+
+/* ── IPC ───────────────────────────────────────────────── */
+function registerIpc() {
+  ipcMain.handle('window:minimize', () => mainWindow?.minimize());
+  ipcMain.handle('window:toggle-maximize', () => {
+    if (!mainWindow) return;
+    if (mainWindow.isMaximized()) mainWindow.unmaximize();
+    else mainWindow.maximize();
+  });
+  ipcMain.handle('window:close', () => {
+    if (loadConfig().minimizeToTray !== false) {
+      mainWindow?.hide();
+    } else {
+      isQuitting = true;
+      mainWindow?.close();
+    }
+  });
+  ipcMain.handle('app:version', () => app.getVersion());
+  ipcMain.handle('app:api-base', () => `http://127.0.0.1:${backendPort}`);
+  ipcMain.handle('app:is-maximized', () => mainWindow?.isMaximized() ?? false);
+}
+
+/* ── 生命周期 ──────────────────────────────────────────── */
+app.whenReady().then(async () => {
+  registerIpc();
+  await ensureEnv();
+  await ensureBackend();
+  createWindow();
+  createTray();
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  });
+});
+
+app.on('before-quit', () => {
+  isQuitting = true;
+});
+
+app.on('window-all-closed', () => {
+  // 托盘常驻；真正退出由托盘"退出"触发
+  if (process.platform !== 'darwin') {
+    // 不退出，保留托盘
+  }
+});
+
+process.on('exit', () => {
+  if (backendProc && backendProc.exitCode === null) {
+    try { backendProc.kill(); } catch { /* ignore */ }
+  }
+});
+
+app.on('quit', () => {
+  if (backendProc && backendProc.exitCode === null) {
+    try { backendProc.kill(); } catch { /* ignore */ }
+  }
+});

@@ -1,0 +1,52 @@
+{
+  "name": "vera-workbench-electron",
+  "version": "2.0.0",
+  "description": "Vera 工作台 Electron 封装（窗口/托盘/后端进程管理/打包）",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dev": "cross-env VERA_DEV=1 VERA_DEV_URL=http://localhost:3000 electron .",
+    "dist": "electron-builder",
+    "dist:dir": "electron-builder --dir"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.everstones.veraworkbench",
+    "productName": "Vera 工作台",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.cjs",
+      "config.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../ui/vera-工作台 (73)/dist",
+        "to": "web",
+        "filter": ["**/*"]
+      }
+    ],
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ],
+      "icon": "build/app.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Vera 工作台"
+    }
+  }
+}
