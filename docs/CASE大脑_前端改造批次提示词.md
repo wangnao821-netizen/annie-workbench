@@ -4032,3 +4032,44 @@ ManualNoteModal、TaskDetailOverlay 及所有 dropdown/popover 容器。
 2. 顶栏通知为空态"暂无任何通知"（不显示假通知）；
 3. 中栏任务/清单/文件抽屉与右栏：渠道徽章为图标+文字，无 emoji 混排；
 4. AU 时间面板无旗帜/emoji 状态，语义色清晰。
+
+---
+
+# F-42d 补丁（2026-08-15）：FloatingAI 无门控假数据清理 + 占位符 fallback 收尾
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (68)`（本批在 (68) 基础上改）。
+> 背景：F-42d 验收**主体通过**，发现 2 处漏网的无门控硬编码 + 2 处占位符 fallback，
+> 修完即 F-42 全系列收官。只改下列文件，禁止扩大范围。
+
+## 一、FloatingAIMessages.tsx 无门控假数据清理（最重要）
+
+`src/components/ai/FloatingAIMessages.tsx` 无任何 VITE_USE_MOCK 门控，是全局悬浮 AI
+的固定展示内容：
+
+1. L48 `⚡ 建议优先处理: Wang Li 的 ANZ OS 条件（Finance Due 仅剩 3 天）。` →
+   通用文案：`⚡ 建议优先处理：请在今日工作台查看最新逾期/紧急待办。`
+   （不得出现任何客户名/银行名/具体案件）；
+2. L37-40 写死的假统计（28 个活跃案件 / 5 个 OS 条件 / 12 封新邮件 / $12,350 佣金）：
+   - 若该文件已接真实数据来源 → 用真实数据；
+   - 若仍是写死 → 改为中性演示文案：
+     `• 活跃案件与紧急事项请查看今日工作台` / `• OS 条件与邮件进度请在对应页面查看`
+     （不出现具体数字与金额）；
+3. 保留 💰 图标可删除，文案保持中性。
+
+## 二、占位符 fallback 收尾（2 处）
+
+1. `src/components/os/OsWorkbench.tsx:18`：
+   `task?.caseName || 'PERSON_1'` → `task?.caseName || '客户'`；
+2. `src/components/os/OsDraftColumn.tsx` 两个草稿模板常量（DEFAULT_CN_DRAFT / DEFAULT_EN_DRAFT）：
+   `PERSON_1` → `【客户姓名】`（模板占位符，用户发送前替换）。
+
+## 三、红线
+
+1. 只改上述 3 个文件对应处；不改 tokens.css；不新增依赖；不改组件逻辑/布局；
+2. 交付报告附逐条改动说明。
+
+## 四、验收
+
+1. `npx tsc --noEmit` 零错误；
+2. rg 自查：全站无"Wang Li"、无"PERSON_1"（除 VITE_USE_MOCK 门控内与 placeholder）；
+3. FloatingAI 悬浮面板无假客户名/银行名/假金额。
