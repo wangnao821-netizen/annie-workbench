@@ -4716,3 +4716,51 @@ declare global {
 2. "在父目录下新建"：选父目录 + 确认文件夹名 → 系统创建标准子目录并关联；
 3. 一客多 CASE：第二个案件选同一文件夹 → 关联成功（共享）；
 4. 路径穿越/系统目录（选 C:\Windows）→ 后端 422 提示。
+
+---
+
+# F-45 补丁二（2026-08-17）：案件进度条按原前端加粗 h-2 + 侧栏阶段挤压修复
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (73)`（本批在 (73) 基础上改）。
+> 背景：Electron 连真后端后，案件卡片进度条偏细（h-1.5）且侧栏"阶段 + 进度%"一行
+> 在真实长阶段文字下挤压（truncate 缺 min-w-0 不生效，百分比被挤到贴着阶段）。
+> 网页 dev 正常是因为 mock 数据阶段短。原前端（Vera-Frontend）主进度条为 h-2，
+> 本批按原前端数据统一为 h-2 + 修复挤压。
+
+## 一、进度条加粗 h-1.5 → h-2（三处）
+
+1. `src/components/brain/CaseListSidebar.tsx`：6 节点阶段条
+   `className="h-1.5 w-full rounded-full ..."` → **`h-2 w-full rounded-full ...`**；
+2. `src/components/cases/CaseCard.tsx`：清单进度条
+   `className="w-full h-1.5 rounded-full overflow-hidden"` → **`w-full h-2 rounded-full overflow-hidden`**；
+3. `src/components/cases/KanbanCard.tsx`：清单进度条
+   `className="w-full h-1.5 rounded-full overflow-hidden"` → **`w-full h-2 rounded-full overflow-hidden`**。
+
+## 二、侧栏阶段/进度挤压修复（一处）
+
+`src/components/brain/CaseListSidebar.tsx` 节点条下方那行：
+
+```jsx
+<span className="truncate font-medium text-secondary">{c.stage}</span>
+```
+
+→ **`<span className="truncate font-medium text-secondary min-w-0 flex-1">{c.stage}</span>`**
+（truncate 在 flex 子项需 min-w-0 才生效；flex-1 保证省略后 % 固定右侧不挤压）。
+
+## 三、红线
+
+1. 只改上述 4 处 class；不改结构/逻辑/文案/其他样式；不新增依赖；
+2. 交付报告附改动说明。
+
+## 四、验收（AI Studio 侧）
+
+1. `npx tsc --noEmit` 零错误；
+2. `rg -n "h-1\\.5" src/components/cases src/components/brain/CaseListSidebar.tsx`
+   中进度条相关为 0（保留非进度条 h-1.5，如状态圆点）；
+3. CaseListSidebar 阶段 span 含 min-w-0。
+
+## 五、本地联调验收（Vera / Codex 执行，Electron 真后端）
+
+1. 左侧案件列表：真实长阶段文字省略显示，百分比固定右侧不挤压；
+2. 案件卡片/看板卡片进度条明显（h-2），与阶段/数据间距正常；
+3. 六套主题下进度条颜色正常。
