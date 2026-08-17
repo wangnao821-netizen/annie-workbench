@@ -4344,3 +4344,66 @@ Archive、DraftsBox、ImportHistory、CaseDetail、HomePage、BrainChat 等，�
 3. `rg -n -- "--on-purple" src/themes/tokens.css` 六主题各 1 个；
 4. `rg -n -- "--purple:" src/themes/tokens.css` 六主题值 = 38bdf8/c2570a/0369a1/a0523f/be5170/7dd3fc；
 5. 切 6 套主题：AI 元素（计算器/共创/AI 建议）颜色与主题协调且与主色可区分。
+
+---
+
+# F-43 补丁二（2026-08-17）：首页逾期预警闪烁点被裁剪修复（truncate 冲突）
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (71)`（本批在 (71) 基础上改）。
+> 背景：F-43 验收通过，但发现首页"到期/逾期预警"banner 的红色闪烁点（animate-ping）
+> 上半被切掉、显示不完整。根因：闪烁点所在外层容器带 `truncate`（Tailwind = overflow:hidden），
+> ping 扩散动画（scale 2x）超出容器顶部时被裁剪。全站仅此一处 animate-ping。
+
+## 一、修复（src/components/brain/HomePage.tsx，逾期 banner 区块）
+
+**原结构（约 L181-200）：**
+
+```jsx
+<div className="flex items-center space-x-3 truncate">
+  <div className="p-1.5 rounded-xl bg-[var(--yellow-soft)] text-[var(--yellow)] flex-shrink-0 relative overflow-visible">
+    <AlertTriangle className="w-4 h-4" />
+    <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5 pointer-events-none">
+      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--red)] opacity-75" />
+      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[var(--red)] shadow-xs" />
+    </span>
+  </div>
+  <div className="truncate">
+    …文字…
+  </div>
+</div>
+```
+
+**改为：**
+
+```jsx
+<div className="flex items-center space-x-3">
+  <div className="p-1.5 rounded-xl bg-[var(--yellow-soft)] text-[var(--yellow)] flex-shrink-0 relative overflow-visible">
+    <AlertTriangle className="w-4 h-4" />
+    <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5 pointer-events-none">
+      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--red)] opacity-75" />
+      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[var(--red)] shadow-xs" />
+    </span>
+  </div>
+  <div className="truncate">
+    …文字（不变）…
+  </div>
+</div>
+```
+
+要点：
+1. **只动外层容器**：`flex items-center space-x-3 truncate` → `flex items-center space-x-3`
+   （去掉 truncate，避免裁剪 ping 扩散）；
+2. **文字省略保留**：把 truncate 移到文字容器（若已是 `<div className="truncate">` 则不变），
+   保证小屏下文字仍省略、闪烁点完整显示；
+3. 闪烁点自身结构、颜色（var(--red)）、动画不动。
+
+## 二、红线
+
+1. 只改 HomePage.tsx 逾期 banner 外层容器这一行 class；不改其他任何内容；
+2. 不新增依赖；不改逻辑。
+
+## 三、验收
+
+1. `npx tsc --noEmit` 零错误；
+2. 本地打开首页（有逾期待办时）：闪烁点完整圆形，扩散动画不被裁剪；
+3. 缩小窗口宽度：文字省略正常，闪烁点仍完整。
