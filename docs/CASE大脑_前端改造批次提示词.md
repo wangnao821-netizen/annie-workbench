@@ -4744,23 +4744,45 @@ flex-shrink-0 兄弟（长文字会挤压兄弟元素），**必改**：
 1. `src/components/brain/CaseListSidebar.tsx` 客户名 + 银行徽章行（约 L284）：
 
 ```jsx
-<span className="font-bold text-xs truncate" style={{...}}>
+<div className="flex items-center justify-between space-x-1">
+  <span className="font-bold text-xs truncate" style={{...}}>{c.clientName}</span>
+  <span className="px-1.5 ... flex-shrink-0">{c.lender}</span>
+</div>
 ```
-→ **`<span className="font-bold text-xs truncate min-w-0 flex-1" style={{...}}>`**
-（银行徽章保持 flex-shrink-0 固定右侧，客户名超长省略）；
+
+→ **改为（银行徽章用 ml-auto 强制贴右，不依赖 justify-between；客户名 flex-1 省略）**：
+
+```jsx
+<div className="flex items-center space-x-1">
+  <span className="font-bold text-xs truncate min-w-0 flex-1" style={{...}}>{c.clientName}</span>
+  <span className="px-1.5 ... flex-shrink-0 ml-auto">{c.lender}</span>
+</div>
+```
 
 2. `src/components/brain/CaseListSidebar.tsx` 节点条下方阶段/进度行（约 L321）：
 
 ```jsx
-<span className="truncate font-medium text-secondary">{c.stage}</span>
+<div className="flex items-center justify-between text-[11px] text-muted pt-0.5">
+  <span className="truncate font-medium text-secondary">{c.stage}</span>
+  <span className="font-mono font-medium text-[11px]">{c.checklistProgress}%</span>
+</div>
 ```
 
-→ **`<span className="truncate font-medium text-secondary min-w-0 flex-1">{c.stage}</span>`**
-（省略后 % 固定右侧不挤压）；
+→ **改为**：
 
-3. `src/components/brain/CasePanorama.tsx` 右栏标题行（约 L188）：
-   `truncate` 标题 span → 加 `min-w-0 flex-1`（标题超长省略，折叠按钮固定右侧）；
-4. `src/components/brain/BrainChat.tsx` 中栏标题行（约 L674）：同上加 `min-w-0 flex-1`。
+```jsx
+<div className="flex items-center text-[11px] text-muted pt-0.5">
+  <span className="truncate font-medium text-secondary min-w-0 flex-1">{c.stage}</span>
+  <span className="font-mono font-medium text-[11px] flex-shrink-0 ml-auto">{c.checklistProgress}%</span>
+</div>
+```
+
+（核心：**右侧元素 `ml-auto`** 保证任何宽度下都贴最右，左侧 `flex-1 min-w-0 truncate` 省略）
+
+3. `src/components/brain/CasePanorama.tsx` 右栏标题行（约 L186-190）：
+   标题 span 加 `min-w-0 flex-1`，折叠按钮加 `ml-auto flex-shrink-0`（同样不依赖 justify-between）；
+4. `src/components/brain/BrainChat.tsx` 中栏标题行（约 L673-675）：
+   标题 span 加 `min-w-0 flex-1`，右侧元素 `ml-auto flex-shrink-0`。
 
 **不动**：非 flex 子项/独立行的 truncate（块级 p/h/独立 span，truncate 本身生效）
 ——TaskCard 摘要、AuTimePanel 假期名、DraftsBox subject 等，如不在 flex 挤压场景保持原样。
