@@ -5653,4 +5653,85 @@ onClick={() => {
 2. 任意操作触发反馈 → Toast 出现在顶部居中（顶栏下方），不遮挡输入区；
 3. "生成建议清单"无案件/案件不存在/正常三种情况提示明确；无回归。
 
+---
+
+# F-46 补丁八（2026-08-17）：Toast 移入中栏聊天区 + 建议动作精确映射 + 共创底部按钮一行
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (79)`（本批在 (79) 基础上改）。
+> 背景（Vera 反馈）：① Toast 顶部居中仍不合理——要**在中栏聊天活动区域内居中**、
+>   不碰中栏固定顶栏；② 建议动作"提醒账户补件"等因正则 `/邮件|补件|回复/` 误进邮件共创；
+>   ③ 共创弹窗底部"中文对照/复制英文/保存/确认"按钮挤成两行，观感差。
+
+## 一、Toast 移入中栏聊天区（App.tsx / Toast.tsx / BrainChat.tsx）
+
+1. `Toast.tsx` 容器定位：`fixed top-16 left-1/2 -translate-x-1/2` →
+   **`absolute top-12 left-1/2 -translate-x-1/2`**（中栏内定位，top-12 = 中栏标题栏下方，
+   水平居中于中栏聊天区；保留 z-50/动画/堆叠）；
+2. `App.tsx`：**移除**全局 `<Toast />`（L34）；
+3. `BrainChat.tsx`：中栏根容器（flex-1 flex-col，确认 `relative`；若无可加）内、
+   消息区上方/标题栏下方插入 `<Toast />`——Toast 只在中栏活动区域内出现，
+   不碰中栏固定顶栏、不遮挡输入区；
+4. 其他页面（首页/看板/设置等）操作反馈：因 Toast 挂中栏，跨页面时仍显示在中栏内——
+   可接受（中栏常驻）。若某页面无中栏（如设置页独立视图），全局反馈仍可见（中栏在 AppShell
+   内常驻渲染）。验收时确认设置页等也能看到 toast。
+
+## 二、handleSuggestedAction 精确映射（src/components/brain/BrainChat.tsx）
+
+规则细化——**只把明确"写邮件"意图进邮件共创**，避免"补件提醒/标记跟进"误跳：
+
+```ts
+const handleSuggestedAction = (act: string) => {
+  const a = act || '';
+  if (/邮件|草稿|拟写|写信/.test(a)) {
+    openEmailCoCreate();              // 明确写邮件
+  } else if (/催件|催/.test(a)) {
+    setCoCreateFlowKey('chaser'); setCoCreateSessionId('session-' + Date.now()); setCoCreateOpen(true);
+  } else if (/OS|审贷/.test(a)) {
+    setCoCreateFlowKey('os_reply'); setCoCreateSessionId('session-' + Date.now()); setCoCreateOpen(true);
+  } else if (/申报|一致性/.test(a)) {
+    handleSend('检查申报一致性');
+  } else if (/建案|新建/.test(a)) {
+    setNewCaseOpen(true);
+  } else {
+    handleSend(a);                    // 补件提醒/标记优先跟进/其他 → 继续对话，不跳共创
+  }
+};
+```
+
+（关键：**去掉 `/补件/` 与 `/回复/` 触发邮件**——"提醒账户补件"→ 对话；
+"标记优先跟进"→ 对话。只有含"邮件/草稿/拟写/写信"才进邮件共创。）
+
+## 三、CoCreateDialog 底部操作栏一行（src/components/brain/CoCreateDialog.tsx）
+
+底部操作栏（约 L724 `p-3 border-t glass-panel flex items-center justify-between`）：
+
+1. 容器加 `whitespace-nowrap`（按钮文字不换行）；保持 `flex items-center justify-between`；
+2. 左组（中文对照/复制英文）与右组（建待办 checkbox + 保存/确认）按钮 padding 紧凑化：
+   `px-3 py-1.5` → **`px-2.5 py-1.5`**，字号保持 text-xs，`space-x-2` 保持；
+3. 右组"保存草稿 / 确认版本"按钮若文字长，简化为"保存 / 确认"（title 保留完整提示）；
+4. 若弹窗在小窗口（max-w-[96vw]）仍挤压，允许底部栏 `gap-2 flex-wrap: nowrap` + 左组
+   `min-w-0`（按钮 `flex-shrink-0`），保证一行。
+
+## 四、红线
+
+1. 只改 App.tsx / Toast.tsx / BrainChat.tsx / CoCreateDialog.tsx；不改后端；不新增依赖；
+2. Toast 动画/层级/堆叠不变，仅定位与挂载点变化；确认仍走后端；
+3. 建议动作不误跳共创；共创按钮一行、不折行。
+
+## 五、验收（AI Studio 侧）
+
+1. `npx tsc --noEmit` 零错误；
+2. Toast 容器含 `absolute top-12 left-1/2 -translate-x-1/2`，App.tsx 无 `<Toast />`，
+   BrainChat 内含 `<Toast />`；
+3. handleSuggestedAction 正则无 `/补件/|/回复/` 触发邮件（只 `邮件|草稿|拟写|写信`）；
+4. CoCreateDialog 底部栏含 `whitespace-nowrap`，按钮 padding ≤ px-2.5。
+
+## 六、本地联调验收（Vera / Codex 执行，Electron）
+
+1. 任意操作触发反馈 → Toast 出现在**中栏聊天区内顶部居中**，不碰中栏顶栏、不挡输入区；
+2. 建议动作：点"提醒账户补件"→ 对话（不跳邮件共创）；点"跟进邮件"→ 邮件共创确认框；
+   点"标记优先跟进"→ 对话；
+3. 共创弹窗底部"中文对照/复制英文/保存/确认"一行排布，无折行；小窗口也不换行；
+4. 设置页等页面操作仍能看到 toast（中栏常驻）；无回归。
+
 
