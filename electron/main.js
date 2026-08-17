@@ -15,7 +15,7 @@ const CONFIG_PATH = path.join(__dirname, 'config.json');
 const ENV_PATH = path.join(ROOT, '.env');
 const ENV_EXAMPLE = path.join(ROOT, '.env.example');
 const BACKEND_SCRIPT = path.join(ROOT, 'run_backend.py');
-const DIST_DIR = path.join(ROOT, 'ui', 'vera-工作台 (74)', 'dist');
+const DIST_DIR = path.join(ROOT, 'ui', 'vera-工作台 (76)', 'dist');
 const IS_DEV = process.env.VERA_DEV === '1';
 const DEV_URL = process.env.VERA_DEV_URL || 'http://localhost:3000';
 

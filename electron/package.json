@@ -7,7 +7,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "cross-env VERA_DEV=1 VERA_DEV_URL=http://localhost:3000 electron .",
-    "build-web": "cd ../ui/vera-工作台 (74) && npm run build -- --base=./",
+    "build-web": "cd ../ui/vera-工作台 (76) && npm run build -- --base=./ --mode production",
     "dist": "npm run build-web && electron-builder",
     "dist:dir": "npm run build-web && electron-builder --dir"
   },
@@ -30,7 +30,7 @@
     ],
     "extraResources": [
       {
-        "from": "../ui/vera-工作台 (74)/dist",
+        "from": "../ui/vera-工作台 (76)/dist",
         "to": "web",
         "filter": ["**/*"]
       }
