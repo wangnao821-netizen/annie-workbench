@@ -4119,9 +4119,10 @@ ManualNoteModal、TaskDetailOverlay 及所有 dropdown/popover 容器。
 | --ring | #3b82f6 | **#e0a458** |
 | --shadow-card | 0 4px 16px rgba(0,0,0,0.40) | **0 4px 16px rgba(37,99,235,0.16)**（蓝色 tint） |
 | --shadow-overlay | 0 16px 40px rgba(0,0,0,0.65) | **0 16px 40px rgba(7,11,24,0.70)** |
-| --purple | #8b5cf6 | **#8b5cf6**（紫罗兰，与琥珀金互补协调；soft 改 rgba(139,92,246,0.16)） |
+| --purple | #8b5cf6 | **#38bdf8**（青蓝，金×青蓝互补协调；soft 改 rgba(56,189,248,0.16)） |
 | **新增 --on-accent** | — | **#1a1206**（浅金底上的深棕字） |
 | **新增 --on-accent-strong** | — | **#1a1206**（琥珀金底上的深棕字） |
+| **新增 --on-purple** | — | **#1a1206**（青蓝 AI 底上的深棕字，白字仅 2.14 不达标） |
 
 ### 2. light → Paper 纸感日光
 
@@ -4143,14 +4144,16 @@ ManualNoteModal、TaskDetailOverlay 及所有 dropdown/popover 容器。
 | --blue | #2563eb | **#1e4f8a** |
 | --ring | #2563eb | **#1e4f8a** |
 | --shadow-sm/card/overlay | 灰黑 | **暖灰 tint**（如 rgba(90,80,60,0.06)/0.07/0.12） |
-| --purple | #7c3aed | **#7c3aed**（紫，与墨蓝邻近协调；soft 不变） |
+| --purple | #7c3aed | **#c2570a**（深琥珀，纸面×琥珀=荧光笔批注感；soft 改 rgba(194,87,10,0.12)） |
 | **新增 --on-accent** | — | **#ffffff** |
 | **新增 --on-accent-strong** | — | **#ffffff** |
+| **新增 --on-purple** | — | **#ffffff**（深琥珀底白字 4.5 ✓） |
 
 ### 3. ivory 象牙米（微调，保留主色）
 
 - `--blue: #2563eb` → **`#d97757`**（清残留，与 accent 同步）；
-- `--purple` 保持 `#7c3aed`（紫，与陶土橙互补协调）；
+- `--purple` → **`#0369a1`**（深青，米底橙钮×青 AI 暖冷平衡；soft 改 rgba(3,105,161,0.12)）；
+- **新增 `--on-purple: #ffffff`**（深青底白字 ≥4.5）；
 - 新增 `--on-accent: #ffffff`、`--on-accent-strong: #ffffff`；
 - 其余不动。
 
@@ -4175,8 +4178,9 @@ ManualNoteModal、TaskDetailOverlay 及所有 dropdown/popover 容器。
 | --accent-soft | rgba(46,125,50,0.12) | rgba(74,107,46,0.12) |
 | --blue | #2563eb | **#4a6b2e** |
 | --ring | #2e7d32 | **#4a6b2e** |
-| --purple | #7c3aed | **#8a7a9c**（灰紫/莫兰迪紫，与暖米+橄榄绿调和不撞；soft 改 rgba(138,122,156,0.16)） |
+| --purple | #7c3aed | **#a0523f**（深陶土，橄榄绿钮×陶土 AI 自然暖调低刺激；soft 改 rgba(160,82,63,0.14)） |
 | **新增 --on-accent / --on-accent-strong** | — | **#ffffff / #ffffff** |
+| **新增 --on-purple** | — | **#ffffff**（深陶土底白字 5.57 ✓） |
 
 ### 5. blush → Sakura 樱花粉（给女生）
 
@@ -4197,14 +4201,16 @@ ManualNoteModal、TaskDetailOverlay 及所有 dropdown/popover 容器。
 | --accent-soft | rgba(190,81,112,0.12) | rgba(47,107,80,0.12) |
 | --blue | #3b82f6 | **#2f6b50** |
 | --ring | #be5170 | **#2f6b50** |
-| --purple | #9333ea | **#b45a8c**（粉紫/梅紫，融入粉底氛围、与墨绿互补；soft 改 rgba(180,90,140,0.14)） |
+| --purple | #9333ea | **#be5170**（玫粉，粉底×玫粉 AI 温柔女性向；soft 改 rgba(190,81,112,0.14)） |
 | **新增 --on-accent / --on-accent-strong** | — | **#ffffff / #ffffff** |
+| **新增 --on-purple** | — | **#ffffff**（玫粉底白字 4.56 ✓） |
 
 ### 6. sand 暖沙（保留微调）
 
 - 主色保留（暖棕黑底 `#1c1812` + 琥珀 `#d97706`）；
-- `--purple` 保持 `#c084fc`（浅紫，与琥珀互补协调）；
+- `--purple` → **`#7dd3fc`**（青蓝，暖棕底×青蓝 AI 冷暖对比突出；soft 改 rgba(125,211,252,0.16)）；
 - **新增 `--on-accent: #1a1206`、`--on-accent-strong: #1a1206`**（金系按钮深字，与 Midnight 一致）；
+- **新增 `--on-purple: #1a1206`**（青蓝 AI 底上的深棕字）；
 - 其余不动。
 
 ## 二、按钮文字色机制（.btn-primary 与组件）
@@ -4220,6 +4226,12 @@ ManualNoteModal、TaskDetailOverlay 及所有 dropdown/popover 容器。
    - **图标/链接/边框用 var(--accent) 的前景色不用改**（不是实心底，无文字色问题）；
 3. **语义色按钮（bg-[var(--red)] text-white 等 37 处）保持白字，本次不动**；
 4. 头像/渐变/非令牌背景的 text-white（61 处）不动。
+
+5. **AI 实心底 21 处 `bg-[var(--purple)] text-white` → `text-[var(--on-purple)]`**：
+   FloatingAIMessages（AI 气泡）、AssistantOnboardingCard（开始配置）、AssistantSettingsCard
+   （保存）、FileDrawer（AI 解析）、SkillCenter（开关）、FlowDialogCard（确认）、BrainChat
+   （气泡角标）等——Midnight/sand 的 AI 青蓝色白字仅 1.67-2.14 不达标，必须深棕字；
+   AiUsageBar 进度条、CasePanorama 圆点等无文字元素不动。
 
 重点文件（39 处分布）：CalculatorPanel、CoCreateDialog、ChatPanel、FloatingAI、CaseBoard、
 Archive、DraftsBox、ImportHistory、CaseDetail、HomePage、BrainChat 等，逐文件扫
@@ -4256,3 +4268,71 @@ Archive、DraftsBox、ImportHistory、CaseDetail、HomePage、BrainChat 等，�
 1. 切 6 套主题逐套走查：主按钮文字对比清晰、无"绿底绿钮/粉底粉钮"同色系现象；
 2. 首页/中栏/右栏/设置/计算器/通知/草稿箱/AU 面板配色协调，语义色仍可辨识；
 3. 悬浮 AI 演示回复中性；无回归（色类 0、bg-black 0、spring 两档、字号、reduced-motion）。
+
+---
+
+# F-43 补丁（2026-08-17）：验收未过的 4 项收尾（--purple 协调色 / --on-purple / 30 处文字色替换）
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (70).zip`（解压后在本批基础上改）。
+> 背景：F-43 验收发现**主色重构已正确，但 AI 色与按钮文字替换漏做**：
+> ① 六主题 --purple 仍是旧紫（协调色方案未落地）；② --on-purple 令牌未加；
+> ③ accent+text-white 残留 17 处；④ purple+text-white 残留 13 处。
+> 本补丁只做这 4 项，其余（已完成的背景/accent/on-accent/btn-primary/FloatingAI）不要再动。
+
+## 一、tokens.css 六主题 --purple / --purple-soft 更新 + --on-purple 新增
+
+在每个主题块（:root[data-theme="..."]）内：
+
+| 主题 | --purple 改为 | --purple-soft 改为 | 新增 --on-purple |
+|---|---|---|---|
+| dark (Midnight) | `#38bdf8`（青蓝） | `rgba(56,189,248,0.16)` | `#1a1206`（深棕，白字仅 2.14 ✗） |
+| light (Paper) | `#c2570a`（深琥珀） | `rgba(194,87,10,0.12)` | `#ffffff` |
+| ivory | `#0369a1`（深青） | `rgba(3,105,161,0.12)` | `#ffffff` |
+| eyecare (Warm Paper) | `#a0523f`（深陶土） | `rgba(160,82,63,0.14)` | `#ffffff` |
+| blush (Sakura) | `#be5170`（玫粉） | `rgba(190,81,112,0.14)` | `#ffffff` |
+| sand | `#7dd3fc`（青蓝） | `rgba(125,211,252,0.16)` | `#1a1206`（深棕，白字仅 1.67 ✗） |
+
+同步更新 --purple 行注释为"AI 高亮色（每主题协调，非固定紫）"。
+
+## 二、17 处 accent+text-white → on-accent（逐条替换）
+
+| 文件:行 | 原 | 改 |
+|---|---|---|
+| BrainChat.tsx:714 | `bg-[var(--accent)] text-white` | `bg-[var(--accent)] text-[var(--on-accent)]` |
+| CoCreateDialog.tsx:600 | `bg-[var(--accent-strong)] text-white` | `text-[var(--on-accent-strong)]` |
+| ManualNoteModal.tsx:124 | `bg-[var(--accent)] ... text-white` | `text-[var(--on-accent)]` |
+| FileDrawer.tsx:368 / 519 / 531 / 916 | `bg-[var(--accent)] ... text-white` | `text-[var(--on-accent)]` |
+| HomePage.tsx:582 | `bg-[var(--accent)] text-white` | `text-[var(--on-accent)]` |
+| CaseFolderCard.tsx:236 / 303 / 403 | `bg-[var(--accent)] ... text-white` | `text-[var(--on-accent)]` |
+| NewCaseFields.tsx:105 | `bg-[var(--accent)] text-white` | `text-[var(--on-accent)]` |
+| EmailDispatchDetail.tsx:235 | style backgroundColor accent + `text-white` | style 加 `color: 'var(--on-accent)'` |
+| FileFieldsPanel.tsx:111 | `bg-[var(--accent)] text-white` | `text-[var(--on-accent)]` |
+| FilePreviewPanel.tsx:145 / 195 | `bg-[var(--accent)] text-white` | `text-[var(--on-accent)]` |
+| GeneralEmailDetail.tsx:232 | style backgroundColor accent + `text-white` | style 加 `color: 'var(--on-accent)'` |
+
+## 三、13 处 purple+text-white → on-purple（逐条替换）
+
+| 文件:行 | 原 | 改 |
+|---|---|---|
+| SkillCenter.tsx:333 | `bg-[var(--purple)] text-white` | `text-[var(--on-purple)]` |
+| AssistantSettingsCard.tsx:163 | 同上 | `text-[var(--on-purple)]` |
+| AssistantOnboardingCard.tsx:164 | 同上 | `text-[var(--on-purple)]` |
+| BrainChat.tsx:807 | 同上（角标） | `text-[var(--on-purple)]` |
+| NewCaseFields.tsx:216 | 同上 | `text-[var(--on-purple)]` |
+| NewCaseSheet.tsx:575 / 878 / 887 / 896 | 同上 | `text-[var(--on-purple)]` |
+| FactAmendModal.tsx:137 | 同上 | `text-[var(--on-purple)]` |
+| FileDrawer.tsx:727 | 同上 | `text-[var(--on-purple)]` |
+| FlowDialogCard.tsx:199 / 333 | 同上 | `text-[var(--on-purple)]` |
+
+## 四、红线
+
+1. 只做上述 4 项；不改已完成的背景/accent/on-accent/btn-primary/FloatingAI；不改逻辑/结构/字号/动效；
+2. 不新增依赖；交付报告附逐条替换明细。
+
+## 五、验收（AI Studio 侧）
+
+1. `npx tsc --noEmit` 零错误；构建通过；
+2. `rg -n "text-white" src --glob "*.tsx"` 中 accent/purple 底组合为 0；
+3. `rg -n -- "--on-purple" src/themes/tokens.css` 六主题各 1 个；
+4. `rg -n -- "--purple:" src/themes/tokens.css` 六主题值 = 38bdf8/c2570a/0369a1/a0523f/be5170/7dd3fc；
+5. 切 6 套主题：AI 元素（计算器/共创/AI 建议）颜色与主题协调且与主色可区分。
