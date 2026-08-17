@@ -6,102 +6,7 @@
 
 ---
 
-# F-45 补丁二（2026-08-17 终版）：进度条充满整行（不加粗）+ 右侧元素贴右 + truncate 修复
 
-> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (74)`（本批在 (74) 基础上改）。
-> 背景（Vera 反馈，Electron 真机）：
-> ① 进度条压缩靠左、未横跨整行；② 银行徽章/进度% 未固定右侧，跟着客户名/阶段跑；
-> ③ 长客户名/长阶段与右侧元素贴合。根因：卡片内行容器宽度未显式撑满 + truncate
-> 在 flex 子项缺 min-w-0 + 右侧元素依赖 justify-between（宽度塌缩时失效）。
-
-## 一、进度条：不加粗、充满整行（高度保持 h-1.5）
-
-1. `src/components/brain/CaseListSidebar.tsx` 6 节点阶段条容器：
-   `<div className="flex items-center justify-between gap-0.5">` → **`flex items-center gap-0.5 w-full`**
-   （去掉 justify-between，加 w-full；每个节点 `flex-1 w-full h-1.5` 保持——容器占满行宽后
-   节点条即横跨整行）；
-2. `src/components/cases/CaseCard.tsx` 清单进度条：外层 `<div className="space-y-1.5">`
-   → **加 `w-full`**；进度条 `w-full h-1.5` 保持；
-3. `src/components/cases/KanbanCard.tsx` 清单进度条：外层 `<div className="space-y-1">`
-   → **加 `w-full`**；进度条 `w-full h-1.5` 保持。
-
-## 二、右侧元素强制贴右（ml-auto，不依赖 justify-between）
-
-1. `CaseListSidebar.tsx` 客户名 + 银行徽章行：
-   容器 `flex items-center justify-between space-x-1` → **`flex items-center space-x-1 w-full`**；
-   客户名 span → **`min-w-0 flex-1 truncate`**；银行徽章 span → **`ml-auto flex-shrink-0`**
-   （保持原样式类）；
-2. `CaseListSidebar.tsx` 节点条下方阶段/进度行：
-   容器 `flex items-center justify-between ... pt-0.5` → **`flex items-center ... pt-0.5 w-full`**；
-   阶段 span → **`min-w-0 flex-1 truncate`**；% span → **`ml-auto flex-shrink-0`**；
-3. `CasePanorama.tsx` 右栏标题行（约 L186-190）：标题 span 加 `min-w-0 flex-1 truncate`，
-   折叠按钮加 `ml-auto flex-shrink-0`；容器加 `w-full`；
-4. `BrainChat.tsx` 中栏标题行（约 L673-675）：标题 span 加 `min-w-0 flex-1 truncate`，
-   右侧元素加 `ml-auto flex-shrink-0`；容器加 `w-full`。
-
-## 三、不动
-
-- 非 flex 子项/独立行的 truncate（块级 p/h/独立 span，本身生效）：TaskCard 摘要、
-  AuTimePanel 假期名、DraftsBox subject 等保持原样；
-- 进度条高度 h-1.5 保持（**不加粗**）。
-
-## 四、红线
-
-1. 只改上述 class；不改结构/逻辑/文案/其他样式；不新增依赖；
-2. 交付报告附改动说明。
-
-## 五、验收（AI Studio 侧）
-
-1. `npx tsc --noEmit` 零错误；
-2. 进度条容器均含 `w-full`、高度仍 `h-1.5`；
-3. 客户名/stage/标题 span 均含 `min-w-0 flex-1 truncate`，银行/%/按钮含 `ml-auto`；
-4. CaseListSidebar 节点条容器无 `justify-between`。
-
-## 六、本地联调验收（Vera / Codex 执行，Electron）
-
-1. 进度条横跨整行、不靠左压缩、高度正常；
-2. 长客户名省略、银行徽章恒在右侧；长阶段省略、% 恒在右侧；
-3. 右栏/中栏标题超长省略、按钮不被挤压；六套主题正常。
-
-## 批次计划
-
-| 批次 | 内容 | 状态 |
-|------|------|------|
-| F-1 | 三栏骨架：左栏案件列表 + 中栏 BrainChat + 右栏客户全景，AI 从悬浮球变主角 | ✅ 已交付（vera-工作台 (24)），待真机运行验收 |
-| F-2 | 中栏实化：确认记录交互（低置信确认卡 + "已记录 N 条 [查看]" + 逐条撤销） | ✅ 已交付（vera-工作台 (25)），待真机运行验收 |
-| F-2b | 中栏：递交模式横幅 + 建议卡 + 草稿卡骨架（依赖 WO-16 ✅；draft 真实数据等 WO-18） | ✅ 已交付（vera-工作台 (27)），待真机运行验收 |
-| F-3 | 右栏实化：事实卡（BrainFact）/补全进度灰提示（依赖 WO-15 ✅） | ✅ 已交付（vera-工作台 (26)），待真机运行验收 |
-| F-3b | 右栏重构：案件指挥中心（待办卡/风险/时间线/事实折叠，移除记一笔）+ 老看板入口收进"更多" | ✅ 已交付（vera-工作台 (27)），待真机运行验收 |
-| F-5 | 全局咨询右栏：统计分析面板（概览 + 趋势 + AI 用量） | ✅ 已交付（vera-工作台 (27)），待真机运行验收 |
-| F-4 | Apple 风格打磨——玻璃材质/排版层级/动效/微交互/空态/旧页面视觉统一（已读 apple-design 规范） | 已出（下文） |
-| F-6 | 首页（今日工作台）界面设计——应用框架感 + 今日概览/待办/提醒/快捷操作/对话入口（自由发挥，功能要求到位） | 已出（下文） |
-| F-6c | 首页融合 + 侧栏布局修整——原型设计模式 × 主前端真实数据（固定顶栏/Bento 小组件/待办 tabs/侧栏分区） | 已出（下文） |
-| F-6d（最终版） | 侧栏内容上导航下 + 图标统一 + 搜索图标化 + 顶栏下拉优化 + 阶段节点 + 头部精简 + 动效统一 | ✅ 已交付（(32) 大部分落地） |
-| F-6e | 主导航上移顶栏：今日工作台/全局咨询 → TopNavBar（搜索栏旁）；侧栏底部只留 4 入口 + 更多；搜索保留图标式 | ✅ 已交付（(33)），待真机验收 |
-| F-6f | 全局咨询快捷发问 chips（空态引导：到期查询/建案/统计/政策/写邮件） | ✅ 已交付（(33)），待真机验收 |
-| F-7 | 统一建案表单 sheet（新客户/存量壳/历史导入；文件导入口 + 一段话识别 + 中断恢复）+ 今日待办间距修复 | ✅ 已交付（(34)，底部空白修复 (35) 进行中） |
-| F-8 | 能力中心 V1（设置里 Agent/工具列表 + 启用开关 + 能力提示） | 已出（下文） |
-| F-9 | 政策提示卡 + 申报一致性检查功能卡（建档后/全景/对话触发，接 WO-19/20） | 已出（下文） |
-| F-10 | 提醒展示（对话内自然提醒 + 首页/全景联动，接 WO-21） | 已出（下文） |
-| F-11 | 首页 B 方案布局：AI 输入框移入右栏（今日待办最大化 + 整列对齐）+ 文案修正 | 已出（下文） |
-
-> ✅ **已定稿（2026-08-12）**：在现有 `ui/vera-工作台 (23)` 基础上**增量改造**（换壳不换内脏）——
-> 保留 services/types/stores/themes/已验证组件，换 AppShell 外壳 + 新增 `src/components/brain/` 目录；
-> 旧页面降级为次级入口，不重写、不删除、不新建项目。
-
----
-
-## 批 F-1：三栏"案件上下文工作台"骨架
-
-### 前置决策（待拍板）
-
-- [x] ✅ 改造基准（2026-08-12 拍板）：**在现有 `ui/vera-工作台 (23)` 基础上增量改造**
-  - 保留 store/services/types/themes/mock 与已验收页面（统计/全景/记一笔/任务），换 AppShell 外壳 + 新增 `src/components/brain/` 目录；旧页面降级为次级入口，不重写、不新建项目。
-- [x] ✅ 全局咨询入口（2026-08-12 拍板）：左栏案件列表**顶部**加"全局咨询"（不绑定案件）——承载建案/导入/通用咨询；建案成功自动切到新案件对话。并入 F-1 骨架。
-
-### 提示词正文（复制给 AI Studio）
-
-```
 # 任务：Vera Workbench — 三栏"案件上下文工作台"骨架改造（AI First 布局）
 
 ## 背景
@@ -4776,3 +4681,102 @@ declare global {
 
 ---
 
+
+---
+
+# F-45 补丁二（2026-08-17 终版）：进度条充满整行（不加粗）+ 右侧元素贴右 + truncate 修复
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (74)`（本批在 (74) 基础上改）。
+> 背景（Vera 反馈，Electron 真机）：
+> ① 进度条压缩靠左、未横跨整行；② 银行徽章/进度% 未固定右侧，跟着客户名/阶段跑；
+> ③ 长客户名/长阶段与右侧元素贴合。根因：卡片内行容器宽度未显式撑满 + truncate
+> 在 flex 子项缺 min-w-0 + 右侧元素依赖 justify-between（宽度塌缩时失效）。
+
+## 一、进度条：不加粗、充满整行（高度保持 h-1.5）
+
+1. `src/components/brain/CaseListSidebar.tsx` 6 节点阶段条容器：
+   `<div className="flex items-center justify-between gap-0.5">` → **`flex items-center gap-0.5 w-full`**
+   （去掉 justify-between，加 w-full；每个节点 `flex-1 w-full h-1.5` 保持——容器占满行宽后
+   节点条即横跨整行）；
+2. `src/components/cases/CaseCard.tsx` 清单进度条：外层 `<div className="space-y-1.5">`
+   → **加 `w-full`**；进度条 `w-full h-1.5` 保持；
+3. `src/components/cases/KanbanCard.tsx` 清单进度条：外层 `<div className="space-y-1">`
+   → **加 `w-full`**；进度条 `w-full h-1.5` 保持。
+
+## 二、右侧元素强制贴右（ml-auto，不依赖 justify-between）
+
+1. `CaseListSidebar.tsx` 客户名 + 银行徽章行：
+   容器 `flex items-center justify-between space-x-1` → **`flex items-center space-x-1 w-full`**；
+   客户名 span → **`min-w-0 flex-1 truncate`**；银行徽章 span → **`ml-auto flex-shrink-0`**
+   （保持原样式类）；
+2. `CaseListSidebar.tsx` 节点条下方阶段/进度行：
+   容器 `flex items-center justify-between ... pt-0.5` → **`flex items-center ... pt-0.5 w-full`**；
+   阶段 span → **`min-w-0 flex-1 truncate`**；% span → **`ml-auto flex-shrink-0`**；
+3. `CasePanorama.tsx` 右栏标题行（约 L186-190）：标题 span 加 `min-w-0 flex-1 truncate`，
+   折叠按钮加 `ml-auto flex-shrink-0`；容器加 `w-full`；
+4. `BrainChat.tsx` 中栏标题行（约 L673-675）：标题 span 加 `min-w-0 flex-1 truncate`，
+   右侧元素加 `ml-auto flex-shrink-0`；容器加 `w-full`。
+
+## 三、不动
+
+- 非 flex 子项/独立行的 truncate（块级 p/h/独立 span，本身生效）：TaskCard 摘要、
+  AuTimePanel 假期名、DraftsBox subject 等保持原样；
+- 进度条高度 h-1.5 保持（**不加粗**）。
+
+## 四、红线
+
+1. 只改上述 class；不改结构/逻辑/文案/其他样式；不新增依赖；
+2. 交付报告附改动说明。
+
+## 五、验收（AI Studio 侧）
+
+1. `npx tsc --noEmit` 零错误；
+2. 进度条容器均含 `w-full`、高度仍 `h-1.5`；
+3. 客户名/stage/标题 span 均含 `min-w-0 flex-1 truncate`，银行/%/按钮含 `ml-auto`；
+4. CaseListSidebar 节点条容器无 `justify-between`。
+
+## 六、本地联调验收（Vera / Codex 执行，Electron）
+
+1. 进度条横跨整行、不靠左压缩、高度正常；
+2. 长客户名省略、银行徽章恒在右侧；长阶段省略、% 恒在右侧；
+3. 右栏/中栏标题超长省略、按钮不被挤压；六套主题正常。
+
+## 批次计划
+
+| 批次 | 内容 | 状态 |
+|------|------|------|
+| F-1 | 三栏骨架：左栏案件列表 + 中栏 BrainChat + 右栏客户全景，AI 从悬浮球变主角 | ✅ 已交付（vera-工作台 (24)），待真机运行验收 |
+| F-2 | 中栏实化：确认记录交互（低置信确认卡 + "已记录 N 条 [查看]" + 逐条撤销） | ✅ 已交付（vera-工作台 (25)），待真机运行验收 |
+| F-2b | 中栏：递交模式横幅 + 建议卡 + 草稿卡骨架（依赖 WO-16 ✅；draft 真实数据等 WO-18） | ✅ 已交付（vera-工作台 (27)），待真机运行验收 |
+| F-3 | 右栏实化：事实卡（BrainFact）/补全进度灰提示（依赖 WO-15 ✅） | ✅ 已交付（vera-工作台 (26)），待真机运行验收 |
+| F-3b | 右栏重构：案件指挥中心（待办卡/风险/时间线/事实折叠，移除记一笔）+ 老看板入口收进"更多" | ✅ 已交付（vera-工作台 (27)），待真机运行验收 |
+| F-5 | 全局咨询右栏：统计分析面板（概览 + 趋势 + AI 用量） | ✅ 已交付（vera-工作台 (27)），待真机运行验收 |
+| F-4 | Apple 风格打磨——玻璃材质/排版层级/动效/微交互/空态/旧页面视觉统一（已读 apple-design 规范） | 已出（下文） |
+| F-6 | 首页（今日工作台）界面设计——应用框架感 + 今日概览/待办/提醒/快捷操作/对话入口（自由发挥，功能要求到位） | 已出（下文） |
+| F-6c | 首页融合 + 侧栏布局修整——原型设计模式 × 主前端真实数据（固定顶栏/Bento 小组件/待办 tabs/侧栏分区） | 已出（下文） |
+| F-6d（最终版） | 侧栏内容上导航下 + 图标统一 + 搜索图标化 + 顶栏下拉优化 + 阶段节点 + 头部精简 + 动效统一 | ✅ 已交付（(32) 大部分落地） |
+| F-6e | 主导航上移顶栏：今日工作台/全局咨询 → TopNavBar（搜索栏旁）；侧栏底部只留 4 入口 + 更多；搜索保留图标式 | ✅ 已交付（(33)），待真机验收 |
+| F-6f | 全局咨询快捷发问 chips（空态引导：到期查询/建案/统计/政策/写邮件） | ✅ 已交付（(33)），待真机验收 |
+| F-7 | 统一建案表单 sheet（新客户/存量壳/历史导入；文件导入口 + 一段话识别 + 中断恢复）+ 今日待办间距修复 | ✅ 已交付（(34)，底部空白修复 (35) 进行中） |
+| F-8 | 能力中心 V1（设置里 Agent/工具列表 + 启用开关 + 能力提示） | 已出（下文） |
+| F-9 | 政策提示卡 + 申报一致性检查功能卡（建档后/全景/对话触发，接 WO-19/20） | 已出（下文） |
+| F-10 | 提醒展示（对话内自然提醒 + 首页/全景联动，接 WO-21） | 已出（下文） |
+| F-11 | 首页 B 方案布局：AI 输入框移入右栏（今日待办最大化 + 整列对齐）+ 文案修正 | 已出（下文） |
+
+> ✅ **已定稿（2026-08-12）**：在现有 `ui/vera-工作台 (23)` 基础上**增量改造**（换壳不换内脏）——
+> 保留 services/types/stores/themes/已验证组件，换 AppShell 外壳 + 新增 `src/components/brain/` 目录；
+> 旧页面降级为次级入口，不重写、不删除、不新建项目。
+
+---
+
+## 批 F-1：三栏"案件上下文工作台"骨架
+
+### 前置决策（待拍板）
+
+- [x] ✅ 改造基准（2026-08-12 拍板）：**在现有 `ui/vera-工作台 (23)` 基础上增量改造**
+  - 保留 store/services/types/themes/mock 与已验收页面（统计/全景/记一笔/任务），换 AppShell 外壳 + 新增 `src/components/brain/` 目录；旧页面降级为次级入口，不重写、不新建项目。
+- [x] ✅ 全局咨询入口（2026-08-12 拍板）：左栏案件列表**顶部**加"全局咨询"（不绑定案件）——承载建案/导入/通用咨询；建案成功自动切到新案件对话。并入 F-1 骨架。
+
+### 提示词正文（复制给 AI Studio）
+
+```
