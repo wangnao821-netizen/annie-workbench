@@ -4279,6 +4279,14 @@ Archive、DraftsBox、ImportHistory、CaseDetail、HomePage、BrainChat 等，�
 > ③ accent+text-white 残留 17 处；④ purple+text-white 残留 13 处。
 > 本补丁只做这 4 项，其余（已完成的背景/accent/on-accent/btn-primary/FloatingAI）不要再动。
 
+> ⚠️ **冲突解除说明（重要，先读）**：本补丁是对 F-43 的收尾，与任何历史指令冲突时**以本补丁为准**：
+> ① F-42 系列"紫色保留为 AI 高亮、不改 tokens.css、text-white 保持"等表述**本轮不适用**
+> （Vera 已拍板 AI 色改为每主题协调色，不再固定紫）；
+> ② F-43 原红线"令牌名不删不改（只改值、新增 --on-accent/--on-accent-strong）"中
+> 的"只改值"**包含 --purple 的值**，"新增"**包含 --on-purple**——本补丁逐一列明，照做即可；
+> ③ tokens.css 中 --purple 行的旧注释（"仅保留为智能 AI 特殊高亮辅助"）**请同步更新为
+> "AI 高亮色（每主题协调色，非固定紫）"**，避免后续误读。
+
 ## 一、tokens.css 六主题 --purple / --purple-soft 更新 + --on-purple 新增
 
 在每个主题块（:root[data-theme="..."]）内：
