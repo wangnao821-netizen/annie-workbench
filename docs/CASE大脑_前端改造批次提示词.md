@@ -4783,3 +4783,136 @@ declare global {
 2. 长客户名省略、银行徽章恒在右侧；长阶段省略、% 恒在右侧；
 3. 右栏/中栏标题超长省略、按钮不被挤压；六套主题正常。
 
+---
+
+# F-46（2026-08-17）：统计接口真机适配（后端 current/previous 结构，修复页面崩溃）
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (74)`（本批在 (74) 基础上改）。
+> 背景（Electron 真机联调发现，页面打开即崩）：
+> `GET /api/analytics/overview` 后端真实返回 **`{ granularity, current: {...}, previous: {...} }`**，
+> 但前端按旧 mock 结构读 `overview.active_cases.value`——`active_cases` 为 undefined →
+> `Cannot read properties of undefined (reading 'value')` → 首页/统计页/全局面板全崩。
+> 根因：统计接口从未真机联调，mock 结构掩盖了契约断裂。本批按后端真实结构适配。
+> **范围说明（Vera 拍板）**：交付为**空数据库**给试用方，本批只做"必要项"：
+> ① 页面不崩（空库/无数据兜底 0）；② 读后端 current 结构（对方录入数据后统计可见）。
+> **不做精美上期对比**：空库 previous 全 0，百分比无意义——prev>0 才显示百分比，
+> 否则显示 0 或 "—"。改动保持最小，不做新 UI。
+
+## 一、后端真实响应结构（契约，勿再偏离）
+
+`GET /api/analytics/overview` 返回：
+
+```json
+{
+  "granularity": "week",
+  "current":  { "active_cases": 5, "new_cases": 1, "submitted": 2, "approved": 0, "settled": 0, "commission_estimate": 0.0, "tasks_done": 0 },
+  "previous": { "active_cases": 0, "new_cases": 0, "submitted": 0, "approved": 0, "settled": 0, "commission_estimate": 0.0, "tasks_done": 0 }
+}
+```
+
+（`pipeline` / `lenders` / `efficiency` / `usage` 端点返回结构不变，前端已按各自类型使用。）
+
+## 二、types/api.ts：AnalyticsOverview 改为后端结构
+
+```ts
+export interface AnalyticsPeriodMetrics {
+  active_cases: number;
+  new_cases: number;
+  submitted: number;
+  approved: number;
+  settled: number;
+  commission_estimate: number;
+  tasks_done: number;
+}
+
+export interface AnalyticsOverview {
+  granularity: string;
+  current: AnalyticsPeriodMetrics;
+  previous: AnalyticsPeriodMetrics;
+}
+```
+
+删除不再使用的 `AnalyticsMetricItem`（或保留供他处使用——确认无引用后删）。
+
+## 三、HomePage.tsx（首页 4 个 KPI 卡，L286-361）
+
+现有 `analyticsOverview?.active_cases.value ?? cases.length` 等 → 改为 current 指标，变化率由
+current/previous 计算：
+
+```ts
+const current = analyticsOverview?.current;
+const previous = analyticsOverview?.previous;
+const pct = (cur: number, prev: number) =>
+  prev > 0 ? Math.round(((cur - prev) / prev) * 1000) / 10 : null;  // null → 渲染 "—"
+```
+
+- 活跃案件：`current?.active_cases ?? cases.length`，变化 `+{pct(current?.active_cases ?? 0, previous?.active_cases ?? 0)}%`；
+- 本月新增：`current?.new_cases ?? 0`（无后端字段用 current.new_cases）；
+- 已递交：`current?.submitted ?? 0`；
+- 预估佣金：`${(current?.commission_estimate ?? 0).toLocaleString()}`；
+- **删除** `?.active_cases.value` / `.change_pct` 等旧字段读取（保留 `??` 兜底防空）。
+- **变化率渲染**：pct 返回 null 时显示 "—"（空库不显示百分比）；
+
+## 四、Analytics.tsx（统计页 overview 卡，L97-107）
+
+6 指标卡改为 current 值 + 与 previous 对比：
+
+```ts
+const cur = overview?.current;
+const prev = overview?.previous;
+const cards = [
+  { label: '活跃案件', value: cur?.active_cases ?? 0, pct: pct(cur?.active_cases ?? 0, prev?.active_cases ?? 0) },
+  { label: '新增案件', value: cur?.new_cases ?? 0, pct: pct(cur?.new_cases ?? 0, prev?.new_cases ?? 0) },
+  { label: '递交审批', value: cur?.submitted ?? 0, pct: pct(cur?.submitted ?? 0, prev?.submitted ?? 0) },
+  { label: '获得批复', value: cur?.approved ?? 0, pct: pct(cur?.approved ?? 0, prev?.approved ?? 0) },
+  { label: '完成结算', value: cur?.settled ?? 0, pct: pct(cur?.settled ?? 0, prev?.settled ?? 0) },
+  { label: '预计佣金', value: cur?.commission_estimate ?? 0, pct: pct(cur?.commission_estimate ?? 0, prev?.commission_estimate ?? 0), currency: true },
+];
+```
+
+渲染 `cards.map`（替换原 `item.m.value.toLocaleString()` / `renderTrend(item.m.change_pct, ...)`）；
+`compare_label` 不再存在（后端无该字段）→ 标题改 `业务总体概览 ({overview?.granularity})` 或直接"业务总体概览"。
+
+## 五、GlobalStatsPanel.tsx（业务概览卡，L52-57）
+
+`overviewCards` 改为：
+
+```ts
+const cur = overview?.current;
+const overviewCards = cur ? [
+  { key: 'active', label: '活跃案件', value: cur.active_cases },
+  { key: 'new', label: '新增案件', value: cur.new_cases },
+  { key: 'submitted', label: '递交案件', value: cur.submitted },
+  { key: 'approved', label: '批准案件', value: cur.approved },
+  { key: 'settled', label: '结算案件', value: cur.settled },
+  { key: 'commission', label: '预期佣金', value: cur.commission_estimate, isCurrency: true },
+] : [];
+```
+
+渲染处 `item.value`（替换 `item.item.value` 旧读法；无旧字段则保持当前渲染逻辑适配）。
+
+## 六、services/api/analytics.ts：mock 同步为后端结构
+
+`getOverview` 的 mock 返回值改为 `{ granularity, current: {...}, previous: {...} }`（字段照 §一），
+保证 AI Studio 网页预览（mock 模式）也能正常渲染统计页。
+
+## 七、红线
+
+1. 只改上述 4 个文件（types/api.ts、HomePage.tsx、Analytics.tsx、GlobalStatsPanel.tsx、
+   services/api/analytics.ts）；不改后端；不新增依赖；
+2. 所有读取必须可选链 + 兜底（`?.` + `?? 0`），页面永不因空数据崩溃；
+3. 交付报告附改动说明。
+
+## 八、验收（AI Studio 侧）
+
+1. `npx tsc --noEmit` 零错误；构建通过；
+2. `rg -n "active_cases\.value|change_pct|compare_label|item\.m" src` → 无残留旧结构读取；
+3. mock 预览：统计页 6 指标显示 current 值 + 对比 %，不报错。
+
+## 九、本地联调验收（Vera / Codex 执行，Electron 真后端）
+
+1. 打开首页：4 个 KPI 显示真实数据（活跃案件=5 等），不崩；
+2. 打开统计页：6 指标 + 与上期对比正常；切天/周/月正常；
+3. 全局咨询右栏（GlobalStatsPanel）：6 卡片正常；
+4. 空库/无案件时不崩（全 0 或兜底值）。
+
