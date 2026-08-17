@@ -16,7 +16,7 @@ from datetime import datetime, timedelta
 import pytest
 
 from core.events.sse import sse_manager
-from core.models.orm import Action
+from core.models.orm import Action, Case
 from core.task_engine.boss_decision import record_boss_reply
 from core.task_engine.delegation import (
     check_overdue,
@@ -24,7 +24,7 @@ from core.task_engine.delegation import (
     recall_delegation,
     record_feedback,
 )
-from core.task_engine.dispatcher import create_task, dispatch_task
+from core.task_engine.dispatcher import create_task, dispatch_task, to_task_response
 
 
 def _make_task(db, **overrides) -> Action:
@@ -42,6 +42,19 @@ def _make_task(db, **overrides) -> Action:
 
 class TestCreateTask:
     """create_task 契约测试。"""
+
+    def test_to_task_response_case_none_fields(self, test_db):
+        """case 存在但 loan_amount/lender 为 None 时响应不崩（前端链路验证发现）。"""
+        case = Case(id="CASE-NOAMT-001", client_name="测试", broker_name="Brandon",
+                    stage="收集资料", folder_path="x")
+        test_db.add(case)
+        test_db.commit()
+        action = _make_task(test_db, case_id="CASE-NOAMT-001")
+        test_db.add(action)
+        test_db.commit()
+        data = to_task_response(action, case)
+        assert data["loan_amount"] == 0.0
+        assert data["case_bank"] == ""
 
     def test_default_source_channel(self, test_db):
         """source_channel 缺省必须是 email。"""
