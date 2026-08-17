@@ -6,6 +6,63 @@
 
 ---
 
+# F-45 补丁二（2026-08-17 终版）：进度条充满整行（不加粗）+ 右侧元素贴右 + truncate 修复
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (74)`（本批在 (74) 基础上改）。
+> 背景（Vera 反馈，Electron 真机）：
+> ① 进度条压缩靠左、未横跨整行；② 银行徽章/进度% 未固定右侧，跟着客户名/阶段跑；
+> ③ 长客户名/长阶段与右侧元素贴合。根因：卡片内行容器宽度未显式撑满 + truncate
+> 在 flex 子项缺 min-w-0 + 右侧元素依赖 justify-between（宽度塌缩时失效）。
+
+## 一、进度条：不加粗、充满整行（高度保持 h-1.5）
+
+1. `src/components/brain/CaseListSidebar.tsx` 6 节点阶段条容器：
+   `<div className="flex items-center justify-between gap-0.5">` → **`flex items-center gap-0.5 w-full`**
+   （去掉 justify-between，加 w-full；每个节点 `flex-1 w-full h-1.5` 保持——容器占满行宽后
+   节点条即横跨整行）；
+2. `src/components/cases/CaseCard.tsx` 清单进度条：外层 `<div className="space-y-1.5">`
+   → **加 `w-full`**；进度条 `w-full h-1.5` 保持；
+3. `src/components/cases/KanbanCard.tsx` 清单进度条：外层 `<div className="space-y-1">`
+   → **加 `w-full`**；进度条 `w-full h-1.5` 保持。
+
+## 二、右侧元素强制贴右（ml-auto，不依赖 justify-between）
+
+1. `CaseListSidebar.tsx` 客户名 + 银行徽章行：
+   容器 `flex items-center justify-between space-x-1` → **`flex items-center space-x-1 w-full`**；
+   客户名 span → **`min-w-0 flex-1 truncate`**；银行徽章 span → **`ml-auto flex-shrink-0`**
+   （保持原样式类）；
+2. `CaseListSidebar.tsx` 节点条下方阶段/进度行：
+   容器 `flex items-center justify-between ... pt-0.5` → **`flex items-center ... pt-0.5 w-full`**；
+   阶段 span → **`min-w-0 flex-1 truncate`**；% span → **`ml-auto flex-shrink-0`**；
+3. `CasePanorama.tsx` 右栏标题行（约 L186-190）：标题 span 加 `min-w-0 flex-1 truncate`，
+   折叠按钮加 `ml-auto flex-shrink-0`；容器加 `w-full`；
+4. `BrainChat.tsx` 中栏标题行（约 L673-675）：标题 span 加 `min-w-0 flex-1 truncate`，
+   右侧元素加 `ml-auto flex-shrink-0`；容器加 `w-full`。
+
+## 三、不动
+
+- 非 flex 子项/独立行的 truncate（块级 p/h/独立 span，本身生效）：TaskCard 摘要、
+  AuTimePanel 假期名、DraftsBox subject 等保持原样；
+- 进度条高度 h-1.5 保持（**不加粗**）。
+
+## 四、红线
+
+1. 只改上述 class；不改结构/逻辑/文案/其他样式；不新增依赖；
+2. 交付报告附改动说明。
+
+## 五、验收（AI Studio 侧）
+
+1. `npx tsc --noEmit` 零错误；
+2. 进度条容器均含 `w-full`、高度仍 `h-1.5`；
+3. 客户名/stage/标题 span 均含 `min-w-0 flex-1 truncate`，银行/%/按钮含 `ml-auto`；
+4. CaseListSidebar 节点条容器无 `justify-between`。
+
+## 六、本地联调验收（Vera / Codex 执行，Electron）
+
+1. 进度条横跨整行、不靠左压缩、高度正常；
+2. 长客户名省略、银行徽章恒在右侧；长阶段省略、% 恒在右侧；
+3. 右栏/中栏标题超长省略、按钮不被挤压；六套主题正常。
+
 ## 批次计划
 
 | 批次 | 内容 | 状态 |
@@ -4719,106 +4776,3 @@ declare global {
 
 ---
 
-# F-45 补丁二（2026-08-17）：案件进度条按原前端加粗 h-2 + 侧栏阶段挤压修复
-
-> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (73)`（本批在 (73) 基础上改）。
-> 背景：Electron 连真后端后，案件卡片进度条偏细（h-1.5）且侧栏"阶段 + 进度%"一行
-> 在真实长阶段文字下挤压（truncate 缺 min-w-0 不生效，百分比被挤到贴着阶段）。
-> 网页 dev 正常是因为 mock 数据阶段短。原前端（Vera-Frontend）主进度条为 h-2，
-> 本批按原前端数据统一为 h-2 + 修复挤压。
-
-## 一、进度条加粗 h-1.5 → h-2（三处）
-
-1. `src/components/brain/CaseListSidebar.tsx`：6 节点阶段条
-   `className="h-1.5 w-full rounded-full ..."` → **`h-2 w-full rounded-full ...`**；
-2. `src/components/cases/CaseCard.tsx`：清单进度条
-   `className="w-full h-1.5 rounded-full overflow-hidden"` → **`w-full h-2 rounded-full overflow-hidden`**；
-3. `src/components/cases/KanbanCard.tsx`：清单进度条
-   `className="w-full h-1.5 rounded-full overflow-hidden"` → **`w-full h-2 rounded-full overflow-hidden`**。
-
-## 二、truncate + flex 子项补 min-w-0（flex 容器内才会挤压，独立行 truncate 不动）
-
-**规则**：`truncate` 在 flex 子项上需 `min-w-0` 才生效。以下均在 flex 容器内、旁边有
-flex-shrink-0 兄弟（长文字会挤压兄弟元素），**必改**：
-
-1. `src/components/brain/CaseListSidebar.tsx` 客户名 + 银行徽章行（约 L284）：
-
-```jsx
-<div className="flex items-center justify-between space-x-1">
-  <span className="font-bold text-xs truncate" style={{...}}>{c.clientName}</span>
-  <span className="px-1.5 ... flex-shrink-0">{c.lender}</span>
-</div>
-```
-
-→ **改为（银行徽章用 ml-auto 强制贴右，不依赖 justify-between；客户名 flex-1 省略）**：
-
-```jsx
-<div className="flex items-center space-x-1">
-  <span className="font-bold text-xs truncate min-w-0 flex-1" style={{...}}>{c.clientName}</span>
-  <span className="px-1.5 ... flex-shrink-0 ml-auto">{c.lender}</span>
-</div>
-```
-
-2. `src/components/brain/CaseListSidebar.tsx` 节点条下方阶段/进度行（约 L321）：
-
-```jsx
-<div className="flex items-center justify-between text-[11px] text-muted pt-0.5">
-  <span className="truncate font-medium text-secondary">{c.stage}</span>
-  <span className="font-mono font-medium text-[11px]">{c.checklistProgress}%</span>
-</div>
-```
-
-→ **改为**：
-
-```jsx
-<div className="flex items-center text-[11px] text-muted pt-0.5">
-  <span className="truncate font-medium text-secondary min-w-0 flex-1">{c.stage}</span>
-  <span className="font-mono font-medium text-[11px] flex-shrink-0 ml-auto">{c.checklistProgress}%</span>
-</div>
-```
-
-（核心：**右侧元素 `ml-auto`** 保证任何宽度下都贴最右，左侧 `flex-1 min-w-0 truncate` 省略）
-
-3. `src/components/brain/CasePanorama.tsx` 右栏标题行（约 L186-190）：
-   标题 span 加 `min-w-0 flex-1`，折叠按钮加 `ml-auto flex-shrink-0`（同样不依赖 justify-between）；
-4. `src/components/brain/BrainChat.tsx` 中栏标题行（约 L673-675）：
-   标题 span 加 `min-w-0 flex-1`，右侧元素 `ml-auto flex-shrink-0`。
-
-**不动**：非 flex 子项/独立行的 truncate（块级 p/h/独立 span，truncate 本身生效）
-——TaskCard 摘要、AuTimePanel 假期名、DraftsBox subject 等，如不在 flex 挤压场景保持原样。
-
-## 三、红线
-
-1. 只改上述 class；不改结构/逻辑/文案/其他样式；不新增依赖；
-2. 交付报告附改动说明。
-
-## 四、验收（AI Studio 侧）
-
-1. `npx tsc --noEmit` 零错误；
-2. `rg -n "h-1\\.5" src/components/cases src/components/brain/CaseListSidebar.tsx`
-   中进度条相关为 0（保留非进度条 h-1.5，如状态圆点）；
-3. CaseListSidebar 客户名/stage、CasePanorama/BrainChat 标题 span 均含 min-w-0。
-
-## 五、本地联调验收（Vera / Codex 执行，Electron 真后端）
-
-1. 左侧案件列表：长客户名省略、银行徽章固定右侧；长阶段省略、% 固定右侧；
-2. 右栏标题/中栏标题超长省略，按钮不被挤压；
-3. 案件卡片/看板卡片进度条明显（h-2）；六套主题正常。
-
-## 三、红线
-
-1. 只改上述 4 处 class；不改结构/逻辑/文案/其他样式；不新增依赖；
-2. 交付报告附改动说明。
-
-## 四、验收（AI Studio 侧）
-
-1. `npx tsc --noEmit` 零错误；
-2. `rg -n "h-1\\.5" src/components/cases src/components/brain/CaseListSidebar.tsx`
-   中进度条相关为 0（保留非进度条 h-1.5，如状态圆点）；
-3. CaseListSidebar 阶段 span 含 min-w-0。
-
-## 五、本地联调验收（Vera / Codex 执行，Electron 真后端）
-
-1. 左侧案件列表：真实长阶段文字省略显示，百分比固定右侧不挤压；
-2. 案件卡片/看板卡片进度条明显（h-2），与阶段/数据间距正常；
-3. 六套主题下进度条颜色正常。
