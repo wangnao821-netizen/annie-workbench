@@ -5366,6 +5366,77 @@ const handleGenerateDraftList = async () => {
 
 ---
 
+# F-46 补丁六（2026-08-17）：待确认记录"确认后就地变已确认"，去掉弹窗反馈
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (77)`（本批在 (77) 基础上改）。
+> 背景（Vera 拍板）：确认后的弹窗/toast 位置随意、遮挡内容——**确认动作就地在按钮上反馈，
+> 不弹窗**：点"确认"→ 按钮变"✓ 已确认"（禁用/变绿）→ 短暂过渡后卡片移入"已记录"。
+
+## 一、ConfirmCard 就地确认态（src/components/brain/ConfirmCard.tsx）
+
+1. 组件增加本地状态 `const [confirming, setConfirming] = useState(false);` 与
+   `const [justConfirmed, setJustConfirmed] = useState(false);`；
+2. 确认按钮 onClick 改为：
+
+```tsx
+<motion.button
+  whileTap={{ scale: 0.96 }}
+  disabled={confirming || justConfirmed}
+  onClick={() => {
+    setJustConfirmed(true);
+    setConfirming(true);
+    onConfirm(event.id);   // 触发父级后端确认 + 刷新
+  }}
+  className="px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-1 cursor-pointer shadow-xs disabled:opacity-60"
+  style={{
+    backgroundColor: justConfirmed ? 'var(--green-soft)' : 'var(--accent)',
+    color: justConfirmed ? 'var(--green)' : 'var(--on-accent)',
+  }}
+  id={`confirm-card-accept-${event.id}`}
+>
+  {justConfirmed ? (
+    <>
+      <CheckCircle2 className="w-3.5 h-3.5" />
+      <span>已确认</span>
+    </>
+  ) : (
+    <>
+      <CheckCircle2 className="w-3.5 h-3.5" />
+      <span>确认</span>
+    </>
+  )}
+</motion.button>
+```
+
+3. 确认后父级刷新（pendingEvents 移除该事件）→ 卡片自然消失；若需过渡，卡片根节点可加
+   `justConfirmed ? 'opacity-60' : ''`（短暂保留"已确认"视觉后随刷新移除）。
+
+## 二、去掉确认后的弹窗反馈（src/components/brain/BrainChat.tsx）
+
+`handleConfirmEvent`（约 L630）确认成功后**删除 toast 成功弹窗**（若有
+`showToast('success', ...)`），改为静默刷新（`fetchContextEventsData()`）。
+失败时保留错误 toast（必要反馈）。
+
+## 三、红线
+
+1. 只改 ConfirmCard.tsx + BrainChat.tsx 的 handleConfirmEvent；不改后端；不新增依赖；
+2. 确认仍走后端 confirm 端点 + 刷新；已确认事件进"已记录"抽屉不变；
+3. 不弹确认成功 toast（就地按钮反馈替代）；错误提示保留。
+
+## 四、验收（AI Studio 侧）
+
+1. `npx tsc --noEmit` 零错误；
+2. ConfirmCard 含 justConfirmed 状态与"已确认"分支；
+3. `rg -n "确认成功|已确认记录" src/components/brain/BrainChat.tsx` → 无成功 toast 残留。
+
+## 五、本地联调验收（Vera / Codex 执行，Electron）
+
+1. 有待确认记录时点"确认"→ 按钮就地变"✓ 已确认"（绿/禁用），无弹窗无遮挡；
+2. 卡片随后移入"📌 已记录"抽屉；右栏/时间线出现该事件；
+3. 确认失败时仍有错误提示；无回归。
+
+---
+
 # F-47（2026-08-17）：邮件全链路统一——入口确认弹窗 + 共创编写 + 主对话记录卡
 
 > 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (77)`（本批在 (77) 基础上改）。
