@@ -5580,4 +5580,77 @@ co_create_session 恢复机制。）
 3. 记录卡"重新打开共创"恢复会话继续改；"复制正文"真复制；
 4. 草稿箱同步有草稿；翻聊天记录能看到历史邮件记录卡；无回归。
 
+---
+
+# F-46 补丁七（2026-08-17）：确认延迟反馈 + Toast 位置优化 + 建议清单错误明确化
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (78)`（本批在 (78) 基础上改）。
+> 背景（Vera 反馈）：① 点"确认"后卡片瞬间消失，"已确认"过渡看不到；② Toast 固定在
+> 右下角输入区上方（bottom-24 right-6），所有操作反馈都弹在那、遮挡内容；③ "生成建议清单"
+> 报错文案不明确（后端实测 POST /api/drafts 正常，错误多为无案件/案件不存在）。
+
+## 一、ConfirmCard 确认延迟反馈（src/components/brain/ConfirmCard.tsx）
+
+确认按钮 onClick 改为"先显示已确认，1 秒后再执行父级确认+移除"：
+
+```tsx
+onClick={() => {
+  setJustConfirmed(true);
+  setConfirming(true);
+  // 先展示"✓ 已确认"（绿色/禁用），停留约 1 秒再调后端确认 → 父级刷新移除
+  setTimeout(() => onConfirm(event.id), 1000);
+}}
+```
+
+（按钮已因 justConfirmed 变"已确认"+禁用；卡片 opacity-60。1 秒后事件才从待确认列表移除，
+用户能看到反馈再消失。confirming/justConfirmed 已 disabled，快速连点无效。）
+
+## 二、Toast 位置改顶部居中（src/components/ui/Toast.tsx）
+
+`fixed bottom-24 right-6` → **`fixed top-16 left-1/2 -translate-x-1/2`**：
+
+- `top-16`（64px）= 顶栏（h-14）下方，不盖顶栏；
+- 水平居中，不遮挡中栏输入区与消息；
+- 保留现有动画/样式/层级（z-50、spring 进场、退出右滑不变）；
+- 多 toast 垂直堆叠（space-y-2）行为不变。
+
+## 三、GapAnalysisCard 错误提示明确化（src/components/brain/GapAnalysisCard.tsx）
+
+`handleGenerateDraftList` catch 分支改为明确文案：
+
+```ts
+} catch (err: any) {
+  const detail = err?.detail || err?.message || '';
+  if (/404|不存在/.test(detail)) {
+    useToastStore.getState().showToast('error', '保存草稿失败：案件不存在，请刷新后重试');
+  } else if (/422|校验/.test(detail)) {
+    useToastStore.getState().showToast('error', `保存草稿失败：${detail}`);
+  } else {
+    useToastStore.getState().showToast('error', `保存草稿失败：${detail || '后端不可用'}`);
+  }
+}
+```
+
+（`createManualDraft` 若只暴露 message，取 `err?.message`；若 ApiError 有 detail 优先 detail。
+无案件分支已提示"请先选择案件"，保持。）
+
+## 四、红线
+
+1. 只改 ConfirmCard.tsx / Toast.tsx / GapAnalysisCard.tsx；不改后端；不新增依赖；
+2. 确认仍走后端 confirm 端点 + 刷新；Toast 层级/交互不变，仅改位置；
+3. 错误文案区分场景，不再笼统"未知错误"。
+
+## 五、验收（AI Studio 侧）
+
+1. `npx tsc --noEmit` 零错误；
+2. ConfirmCard onClick 含 `setTimeout(..., 1000)`；
+3. Toast 定位含 `top-16 left-1/2 -translate-x-1/2`，无 `bottom-24 right-6`；
+4. GapAnalysisCard catch 含场景化文案（404/422/后端不可用）。
+
+## 六、本地联调验收（Vera / Codex 执行，Electron）
+
+1. 有待确认记录点"确认"→ 按钮变"✓ 已确认"停留约 1 秒 → 卡片再移入"已记录"；
+2. 任意操作触发反馈 → Toast 出现在顶部居中（顶栏下方），不遮挡输入区；
+3. "生成建议清单"无案件/案件不存在/正常三种情况提示明确；无回归。
+
 
