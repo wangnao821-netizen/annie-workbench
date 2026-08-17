@@ -4407,3 +4407,71 @@ Archive、DraftsBox、ImportHistory、CaseDetail、HomePage、BrainChat 等，�
 1. `npx tsc --noEmit` 零错误；
 2. 本地打开首页（有逾期待办时）：闪烁点完整圆形，扩散动画不被裁剪；
 3. 缩小窗口宽度：文字省略正常，闪烁点仍完整。
+
+---
+
+# F-43 补丁三（2026-08-17）：窗口四角弧形（前端圆角 + 拖拽区预留，Electron 模式）
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (71)`（本批在 (71) 基础上改）。
+> 背景：Vera 要求软件最外层四角弧形。调研结论（Codex/Cursor/ChatGPT 等主流 Electron 应用）：
+> **不做真透明窗口（transparent:true 代价大：不能系统最大化/双击最大化/resize 要自研/
+> Windows 材质 bug），而是"无边框窗口 + 前端 CSS 圆角 + 自定义标题栏拖拽区"**。
+> 本批做前端部分（浏览器预览即可见圆角、不影响 Web 模式）；Electron 封装部分已记入 BACKLOG。
+
+## 一、窗口圆角（前端，现在做）
+
+1. `src/themes/tokens.css` 的 `:root` 全局块（首个 :root 处）新增：
+   `--window-radius: 12px;`（窗口圆角比卡片 --radius 10px 稍大，更耐看；注释"窗口外层圆角"）；
+2. `src/index.css` 新增（放 :root 定义后）：
+
+```css
+/* 窗口外层圆角（Electron 无边框窗口 + 浏览器预览通用） */
+#app-shell {
+  border-radius: var(--window-radius);
+  overflow: hidden;
+}
+```
+
+（AppShell 外层已有 `id="app-shell"` 与 `overflow-hidden`，无需改 JSX；
+圆角后内容不溢出，浏览器预览直接可见。）
+
+## 二、拖拽区预留（Electron 无边框窗口用）
+
+1. `src/index.css` 新增：
+
+```css
+/* Electron 无边框窗口拖拽区（浏览器预览无效、无副作用） */
+.electron-drag {
+  -webkit-app-region: drag;
+}
+.electron-drag button,
+.electron-drag input,
+.electron-drag a,
+.electron-drag select,
+.electron-drag [role="button"] {
+  -webkit-app-region: no-drag;
+}
+```
+
+2. `src/components/layout/TopNavBar.tsx`：header 元素 className 追加 `electron-drag`
+   （如 `className="h-14 border-b ... glass-panel relative electron-drag"`）；
+   交互元素（搜索框/按钮/下拉）自动被 CSS 选择器设为 no-drag，无需逐个改 JSX。
+
+## 三、红线
+
+1. 只加上述 CSS 与 header 一个类；不改布局/逻辑/文案/动效；不改组件结构；
+2. 不新增 npm 依赖；浏览器模式零影响（-webkit-app-region 在非 Electron 环境无效）；
+3. 交付报告附改动说明。
+
+## 四、验收（AI Studio 侧）
+
+1. `npx tsc --noEmit` 零错误；构建通过；
+2. 浏览器打开：App 四角呈现 12px 圆角，内容不溢出；
+3. `rg -n "window-radius|electron-drag" src` 检查：tokens.css 有 --window-radius、
+   index.css 有 #app-shell 圆角与 .electron-drag 规则、TopNavBar header 有 electron-drag 类。
+
+## 五、本地联调验收（Vera / Codex 执行）
+
+1. 浏览器预览：四角圆角清晰，无内容溢出四角；
+2. 各页面切换（首页/中栏/右栏/设置）圆角不破；
+3. 六套主题下圆角一致。

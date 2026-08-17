@@ -313,6 +313,7 @@
   - ✅ **WO-46b 已完成**（2026-08-16，cd8c615）：POST /api/agent/co-create/chat——clarify（_case_panorama 全景 + 澄清问题 LLM/模板）/ generate（注入全景 + 用户指令）/ version / branch / confirm（写事件 + create_todo 建待办）；draft session 独立不污染主对话；24 专项；全量 1094
   - ✅ **WO-47 已完成**（2026-08-16，4b8acca）：跟进提醒 job——普通任务（pending + scheduled_at≤now+remind_before_days + 案件未关闭）→ FOLLOWUP_REMINDER 待办（到期 high/窗口内 medium、去重幂等、不改原任务）；followup.enabled 默认 false（观察后开）；11 专项、全量 1105
 - **A 发布前**：Electron（WO-05：窗口/托盘/系统通知/自动更新/端口冲突/首装引导）→ S5 真机试用 + V1 验收（日均记录 ≥5 / AI 上下文命中 / 愿继续用 / 每周开统计 ≥2 次）→ 版本发布（version 三处同步 + CHANGELOG）
+  - 📋 **窗口圆角封装事项（2026-08-17 定，配合 F-43 补丁三）**：前端已加 `--window-radius: 12px`（AppShell 圆角）+ `.electron-drag` 拖拽区（TopNavBar header 已挂）。封装时：`BrowserWindow { frame: false }`（**不做 transparent:true**——Windows 不能系统最大化/双击最大化/resize 自研/材质 bug）；自定义标题栏窗口按钮（最小化/最大化/关闭，补 Vera 早前提的窗口按钮缺口）；监听 maximize/unmaximize 切圆角直角（最大化时 `#app-shell` 去 border-radius）；系统 `roundedCorners` 保持默认（Win11/macOS/Linux 无边框自带圆角）。
 - **V2 延后**：云同步（WO-06）、微信（WO-11 PoC）、邮件/日历自动化、文件主动扫描、历史导入、团队共享、Screenpipe、**联网搜索（SearXNG 自托管元搜索，本地零 API key，过工具准入三关后接入；2026-08-15 定方向）**
 
 ### 2026-08-14 排查：AI 拟人化等"提过未落地"项登记
