@@ -4475,3 +4475,75 @@ Archive、DraftsBox、ImportHistory、CaseDetail、HomePage、BrainChat 等，�
 1. 浏览器预览：四角圆角清晰，无内容溢出四角；
 2. 各页面切换（首页/中栏/右栏/设置）圆角不破；
 3. 六套主题下圆角一致。
+
+---
+
+# F-43 补丁四（2026-08-17）：文件预览改居中大悬浮窗 + Office 原样排版（ifrrame 接线）
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (71)`（本批在 (71) 基础上改）。
+> 背景：文件预览目前两处都偏小——FileDrawer 内嵌预览（悬浮抽屉内小区域）、FilePreviewPanel
+> （右侧 520px 抽屉）。后端已具备 Office→PDF 预览能力（core/pipeline/preview.py LibreOffice
+> 转换 + `GET /api/files/{file_id}/preview` 返回转换后 PDF），但前端把 doc/docx/xlsx 打进了
+> "格式无法内置直显"fallback。本批：① 预览改居中大悬浮窗；② Office 格式接 iframe。
+> 调研依据：旧项目 preview_converter.py 同款方案（新项目已移植后端）。
+
+## 一、FilePreviewPanel.tsx（详情页附件预览）改居中大模态 + Office iframe
+
+文件：`src/components/panel/details/FilePreviewPanel.tsx`（被 EmailDispatchDetail /
+FileMatchDetail / GeneralEmailDetail 三处复用，改一处三处生效）。
+
+1. **布局改居中大模态**：
+   - 外层 `fixed top-0 right-0 bottom-0 w-full sm:w-[520px]` → `fixed inset-0 z-50 flex
+     items-center justify-center p-4 sm:p-8`（深色遮罩 `bg-black/60 backdrop-blur-xs`
+     + 点击遮罩关闭）；
+   - 内容容器 `max-w-[92vw] w-full max-h-[90vh] h-[90vh] rounded-2xl border shadow-2xl
+     flex flex-col overflow-hidden`（圆角 12px 与窗口一致，背景 var(--bg-card)）；
+   - 保留现有 header（文件名/类型/下载/新标签/关闭）；
+   - **Esc 关闭**：useEffect 监听 keydown Escape → onClose；
+   - 关闭按钮与遮罩点击均调 onClose。
+2. **加 Office 格式 iframe 接线**：
+   - 新增 `const isOffice = ['doc','docx','docm','odt','rtf','xls','xlsx','xlsm','ods',
+     'ppt','pptx','pptm','odp','csv','tsv'].includes(ext);`
+   - 渲染分支：`isPdf || isOffice` → iframe（`src={previewUrl}`，后端对 Office 自动转 PDF
+     返回，浏览器直接显示原样排版）；zoom/rotate 工具栏对 isOffice 同样生效；
+   - fallback 分支收窄为只剩 msg 等真正无法转换的格式（保留"点击下载原文件"）。
+3. 图片/文本分支不变（img object-contain / pre 文本），全部在大模态内展示。
+
+## 二、FileDrawer.tsx（中栏文件抽屉）预览区加"全屏预览"
+
+文件：`src/components/brain/FileDrawer.tsx`（内嵌预览区约 L495-612）。
+
+1. **FileItem 类型加可选 file_id**：`src/types/api.ts` 的 `FileItem` 增加
+   `file_id?: string;`（后端 folder files 响应将来带该字段，未带时 undefined 不报错）；
+2. 内嵌预览区加"⛶ 全屏预览"按钮（预览区右上角）→ 打开大预览模态
+   （`fixed inset-0 z-50` 居中，样式同 FilePreviewPanel 大模态，或直接复用
+   FilePreviewPanel 组件传入 fileId=file.file_id / filename / docType）；
+3. 大模态内容分派：
+   - 图片/PDF：rawUrl / previewUrl 大屏（现有数据）；
+   - Office（doc/docx/xls/xlsx 等）且 `file.file_id` 存在 → iframe
+     `/api/files/{file_id}/preview`（后端转 PDF 原样排版）；
+   - Office 无 file_id 或 msg → 显示解析文本（previewData.text_preview）+ 提示
+     "原样排版预览将随文件库关联自动启用"；
+4. 内嵌预览区保留（快速预览用），全屏按钮是入口。
+
+## 三、红线
+
+1. 只改 FilePreviewPanel.tsx / FileDrawer.tsx / types/api.ts（FileItem 加字段）；
+   不改后端、不改其他组件；不新增依赖；不改逻辑/文案/动效；
+2. 大模态沿用现有设计令牌（var 背景/边框/圆角 + spring 300 进场 + reduced-motion 分支）；
+3. 交付报告附改动说明与格式支持矩阵。
+
+## 四、验收（AI Studio 侧）
+
+1. `npx tsc --noEmit` 零错误；构建通过；
+2. 详情页附件预览为居中大模态（遮罩 + Esc/遮罩关闭）；
+3. doc/docx/xlsx 等 Office 文件在详情页走 iframe（previewUrl），不再显示
+   "格式无法内置直显"；
+4. FileDrawer 预览区有"全屏预览"按钮，点击开大模态不报错。
+
+## 五、本地联调验收（Vera / Codex 执行）
+
+1. 中栏文件抽屉：点文件 → 内嵌快速预览；点"全屏预览" → 居中大悬浮窗，Esc 关闭；
+2. 详情页附件预览：大模态展示，PDF/图片缩放旋转正常；
+3. 有 file_id 的 Office 文件（联真后端）：原样排版显示（LibreOffice 转 PDF）；
+4. 六套主题下大模态配色协调；圆角与窗口一致。

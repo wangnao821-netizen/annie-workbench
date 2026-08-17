@@ -316,6 +316,15 @@
   - 📋 **窗口圆角封装事项（2026-08-17 定，配合 F-43 补丁三）**：前端已加 `--window-radius: 12px`（AppShell 圆角）+ `.electron-drag` 拖拽区（TopNavBar header 已挂）。封装时：`BrowserWindow { frame: false }`（**不做 transparent:true**——Windows 不能系统最大化/双击最大化/resize 自研/材质 bug）；自定义标题栏窗口按钮（最小化/最大化/关闭，补 Vera 早前提的窗口按钮缺口）；监听 maximize/unmaximize 切圆角直角（最大化时 `#app-shell` 去 border-radius）；系统 `roundedCorners` 保持默认（Win11/macOS/Linux 无边框自带圆角）。
 - **V2 延后**：云同步（WO-06）、微信（WO-11 PoC）、邮件/日历自动化、文件主动扫描、历史导入、团队共享、Screenpipe、**联网搜索（SearXNG 自托管元搜索，本地零 API key，过工具准入三关后接入；2026-08-15 定方向）**
 
+### 2026-08-17 登记：WO-48 候选 — 文件夹文件预览补 file_id（配合 F-43 补丁四）
+
+> 背景：F-43 补丁四把文件预览改为居中大模态并让 Office 走 LibreOffice 转 PDF iframe
+> （详情页附件已有 file_id，直接可用 `/api/files/{id}/preview`）。但中栏 FileDrawer 的
+> FileItem 无 file_id，其 Office 文件暂时只能看解析文本，无法原样排版预览。
+> **后端待办（小而必要）**：`GET /api/cases/{case_id}/folder/files` 响应为每个 FileItem
+> 带 `file_id`（按 rel_path 关联 processed_files）；前端 FileItem 已预留 `file_id?: string`
+> 字段（F-43 补丁四），后端返回后自动启用 Office iframe 原样预览。优先级：中（发布前完成）。
+
 ### 2026-08-14 排查：AI 拟人化等"提过未落地"项登记
 
 > 背景：Vera 指出"AI 拟人化为什么一直没有记录"。排查确认：有记录但长期停在待拍板/未实现，现统一登记防遗漏。
