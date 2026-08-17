@@ -5364,4 +5364,149 @@ const handleGenerateDraftList = async () => {
 3. 全局模式（无案件）点这两个按钮 → 提示"请先选择案件"，不崩；
 4. 全中栏按钮无死按钮（每个点击都有真实动作或明确提示）。
 
+---
+
+# F-47（2026-08-17）：邮件全链路统一——入口确认弹窗 + 共创编写 + 主对话记录卡
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (77)`（本批在 (77) 基础上改）。
+> 背景（Vera 拍板方案）：三个邮件入口（工具菜单"写补件邮件"、AI 回复建议动作邮件类、
+> 首页"写邮件"）行为不统一，且共创确认后主对话流无记录、无法回看。
+> **目标：任何邮件动作 → 轻量确认框（无案件先提示选案）→ 共创弹窗编写 → 确认后
+> 存草稿箱 + 主对话插入"邮件共创记录卡"（可回看/重新打开/复制）。**
+
+## 一、统一邮件入口 openEmailCoCreate（src/components/brain/BrainChat.tsx）
+
+新增函数与 state：
+
+```ts
+const [emailConfirmOpen, setEmailConfirmOpen] = useState(false);
+
+const openEmailCoCreate = () => {
+  if (!activeCaseInfo) {
+    useToastStore.getState().showToast('info', '请先选择案件，再写补件邮件');
+    return;
+  }
+  setEmailConfirmOpen(true);  // 轻量确认框
+};
+
+const confirmEnterEmailCoCreate = () => {
+  setEmailConfirmOpen(false);
+  setCoCreateFlowKey('followup');
+  setCoCreateSessionId('session-' + Date.now());
+  setCoCreateOpen(true);
+};
+```
+
+**替换三个入口**：
+
+1. 工具菜单 `tool-opt-email` 的 onClick → `openEmailCoCreate()`；
+2. `handleSuggestedAction` 中邮件/补件/回复分支 → `openEmailCoCreate()`（不再直接
+   setCoCreateOpen；无案件提示逻辑已在函数内）；
+3. 首页"写邮件"（src/components/brain/HomePage.tsx `quick-compose-mail-btn`，L247）：
+   onClick 改为 dispatch 全局事件（或经 uiStore）触发中栏：
+
+```tsx
+// HomePage
+window.dispatchEvent(new CustomEvent('open-email-co-create'));
+onNavigate('brain');  // 跳到中栏
+```
+
+```ts
+// BrainChat useEffect 监听
+useEffect(() => {
+  const h = () => openEmailCoCreate();
+  window.addEventListener('open-email-co-create', h);
+  return () => window.removeEventListener('open-email-co-create', h);
+}, [activeCaseInfo]);
+```
+
+## 二、轻量确认框（新增，样式沿用现有模态）
+
+BrainChat 内新增确认框（或独立小组件 `EmailCoCreateConfirmModal`）：
+
+- 内容：`进入补件跟进邮件共创？` + 一行场景：`客户：{activeCaseInfo.clientName}（{activeCaseInfo.lender}）· 递交模式：{mode === 'external' ? '递交' : '内线'}`
+- 按钮：`取消`（关框）/ `进入共创`（confirmEnterEmailCoCreate）
+- 样式：居中模态，遮罩，Esc/遮罩关闭（与 CoCreateDialog 一致风格）
+
+## 三、CoCreateDialog 确认回调（src/components/brain/CoCreateDialog.tsx）
+
+1. Props 增加 `onConfirmed?: (info: { flow_key: string; subject?: string; body?: string; version?: string; session_id?: string | null }) => void;`
+2. 确认成功处（现有 confirm 动作成功分支，写草稿/事件后）调用 `onConfirmed?.({ flow_key: flowKey, subject: currentVersion?.subject, body: currentVersion?.body, version: currentVersion?.version, session_id: sessionId });`
+
+## 四、主对话"邮件共创记录卡"（src/components/brain/BrainChat.tsx）
+
+1. BrainChat 传 `onConfirmed` 给 CoCreateDialog：确认成功后**向主对话消息流插入**一条 assistant
+   消息，含 tool_card `type: 'co_create_record'`：
+
+```ts
+const handleCoCreateConfirmed = (info: {...}) => {
+  setMessages((prev) => [...prev, {
+    id: `co-record-${Date.now()}`,
+    role: 'assistant',
+    content: `已确认【${info.flow_key === 'followup' ? '补件跟进邮件' : info.flow_key}】${info.version || 'V1'} 并存入草稿箱`,
+    created_at: '刚刚',
+    tool_cards: [{ type: 'co_create_record', title: '邮件共创记录', payload: info }],
+  }]);
+};
+```
+
+2. 消息渲染分支新增 `co_create_record` 卡：
+
+```jsx
+if (card.type === 'co_create_record') {
+  const rec = card.payload as any;
+  return (
+    <div key={idx} className="p-3.5 rounded-2xl border bg-[var(--bg-card)] border-[var(--border)] space-y-2 text-xs" id={`co-record-${idx}`}>
+      <div className="flex items-center justify-between">
+        <span className="font-bold text-xs" style={{ color: 'var(--text-primary)' }}>
+          ✉️ {rec.subject || '补件邮件'} <span className="text-muted">({rec.version || 'V1'})</span>
+        </span>
+        <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-[var(--yellow-soft)] text-[var(--yellow)]">
+          草稿 · 已存入草稿箱
+        </span>
+      </div>
+      <div className="rounded-xl border bg-[var(--bg-subtle)] p-2 text-[11px] whitespace-pre-wrap max-h-40 overflow-auto" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+        {rec.body}
+      </div>
+      <div className="flex items-center justify-end space-x-2 pt-1">
+        <button type="button" onClick={() => { setCoCreateFlowKey((rec.flow_key || 'followup') as any); setCoCreateSessionId(rec.session_id || null); setCoCreateOpen(true); }}
+          className="px-3 py-1.5 rounded-xl font-bold text-[11px] text-white cursor-pointer shadow-xs btn-primary">
+          重新打开共创
+        </button>
+        <button type="button" onClick={() => { navigator.clipboard.writeText(rec.body || ''); useToastStore.getState().showToast('success', '邮件正文已复制'); }}
+          className="px-3 py-1.5 rounded-xl font-bold text-[11px] border cursor-pointer" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+          复制正文
+        </button>
+      </div>
+    </div>
+  );
+}
+```
+
+（记录卡渲染与 tool_cards 现有分支并列；"重新打开共创"恢复会话——复用
+co_create_session 恢复机制。）
+
+## 五、红线
+
+1. 只改 BrainChat.tsx / CoCreateDialog.tsx / HomePage.tsx；不改后端；不新增依赖；
+2. 邮件确认仍只存草稿箱 + 写事件，**绝不自动发送**；
+3. draft 起草过程消息仍不污染主对话（只在确认后插入最终记录卡）；
+4. 记录卡不重复插入（每次确认插一条，历史确认各自保留在对应位置）。
+
+## 六、验收（AI Studio 侧）
+
+1. `npx tsc --noEmit` 零错误；构建通过；
+2. `rg -n "openEmailCoCreate|confirmEnterEmailCoCreate|co_create_record|onConfirmed" src`
+   → 函数/分支齐全；
+3. 工具菜单/建议动作/首页三入口均走 openEmailCoCreate；首页按钮 dispatch
+   `open-email-co-create` 事件；
+4. 确认框、记录卡、重新打开/复制逻辑完整。
+
+## 七、本地联调验收（Vera / Codex 执行，Electron）
+
+1. 三个邮件入口 → 有案件弹确认框（显示客户/银行）→ 确认进共创；无案件提示"请先选择案件"；
+2. 共创完成（confirm）→ 主对话出现"邮件共创记录卡"（标题/版本/正文/草稿标签）；
+3. 记录卡"重新打开共创"恢复会话继续改；"复制正文"真复制；
+4. 草稿箱同步有草稿；翻聊天记录能看到历史邮件记录卡；无回归。
+
 
