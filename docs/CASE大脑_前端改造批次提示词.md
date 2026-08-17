@@ -4119,6 +4119,7 @@ ManualNoteModal、TaskDetailOverlay 及所有 dropdown/popover 容器。
 | --ring | #3b82f6 | **#e0a458** |
 | --shadow-card | 0 4px 16px rgba(0,0,0,0.40) | **0 4px 16px rgba(37,99,235,0.16)**（蓝色 tint） |
 | --shadow-overlay | 0 16px 40px rgba(0,0,0,0.65) | **0 16px 40px rgba(7,11,24,0.70)** |
+| --purple | #8b5cf6 | **#8b5cf6**（紫罗兰，与琥珀金互补协调；soft 改 rgba(139,92,246,0.16)） |
 | **新增 --on-accent** | — | **#1a1206**（浅金底上的深棕字） |
 | **新增 --on-accent-strong** | — | **#1a1206**（琥珀金底上的深棕字） |
 
@@ -4142,12 +4143,14 @@ ManualNoteModal、TaskDetailOverlay 及所有 dropdown/popover 容器。
 | --blue | #2563eb | **#1e4f8a** |
 | --ring | #2563eb | **#1e4f8a** |
 | --shadow-sm/card/overlay | 灰黑 | **暖灰 tint**（如 rgba(90,80,60,0.06)/0.07/0.12） |
+| --purple | #7c3aed | **#7c3aed**（紫，与墨蓝邻近协调；soft 不变） |
 | **新增 --on-accent** | — | **#ffffff** |
 | **新增 --on-accent-strong** | — | **#ffffff** |
 
 ### 3. ivory 象牙米（微调，保留主色）
 
 - `--blue: #2563eb` → **`#d97757`**（清残留，与 accent 同步）；
+- `--purple` 保持 `#7c3aed`（紫，与陶土橙互补协调）；
 - 新增 `--on-accent: #ffffff`、`--on-accent-strong: #ffffff`；
 - 其余不动。
 
@@ -4172,6 +4175,7 @@ ManualNoteModal、TaskDetailOverlay 及所有 dropdown/popover 容器。
 | --accent-soft | rgba(46,125,50,0.12) | rgba(74,107,46,0.12) |
 | --blue | #2563eb | **#4a6b2e** |
 | --ring | #2e7d32 | **#4a6b2e** |
+| --purple | #7c3aed | **#8a7a9c**（灰紫/莫兰迪紫，与暖米+橄榄绿调和不撞；soft 改 rgba(138,122,156,0.16)） |
 | **新增 --on-accent / --on-accent-strong** | — | **#ffffff / #ffffff** |
 
 ### 5. blush → Sakura 樱花粉（给女生）
@@ -4193,11 +4197,13 @@ ManualNoteModal、TaskDetailOverlay 及所有 dropdown/popover 容器。
 | --accent-soft | rgba(190,81,112,0.12) | rgba(47,107,80,0.12) |
 | --blue | #3b82f6 | **#2f6b50** |
 | --ring | #be5170 | **#2f6b50** |
+| --purple | #9333ea | **#b45a8c**（粉紫/梅紫，融入粉底氛围、与墨绿互补；soft 改 rgba(180,90,140,0.14)） |
 | **新增 --on-accent / --on-accent-strong** | — | **#ffffff / #ffffff** |
 
 ### 6. sand 暖沙（保留微调）
 
 - 主色保留（暖棕黑底 `#1c1812` + 琥珀 `#d97706`）；
+- `--purple` 保持 `#c084fc`（浅紫，与琥珀互补协调）；
 - **新增 `--on-accent: #1a1206`、`--on-accent-strong: #1a1206`**（金系按钮深字，与 Midnight 一致）；
 - 其余不动。
 
