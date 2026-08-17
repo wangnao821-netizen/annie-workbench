@@ -5734,4 +5734,103 @@ const handleSuggestedAction = (act: string) => {
 3. 共创弹窗底部"中文对照/复制英文/保存/确认"一行排布，无折行；小窗口也不换行；
 4. 设置页等页面操作仍能看到 toast（中栏常驻）；无回归。
 
+---
+
+# F-46 补丁九（2026-08-17）：进入邮件共创改为"聊天流卡片确认"（替代模态确认框）
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (79)`（本批在 (79) 基础上改）。
+> 背景（Vera 拍板）：F-47 的"模态确认框"不符合预期——**应恢复聊天流卡片确认**：
+> 点邮件入口 → 主对话先出 AI 回复 + 卡片（进入共创 / 取消）→ 点卡片才进共创弹窗。
+
+## 一、openEmailCoCreate 改为插聊天卡（src/components/brain/BrainChat.tsx）
+
+1. 移除/停用 `emailConfirmOpen` 模态确认框（F-47 的模态 + L1528 渲染块删除）；
+2. `openEmailCoCreate` 改为**向主对话流插入 AI 消息 + co_create_confirm 卡**：
+
+```ts
+const openEmailCoCreate = () => {
+  if (!activeCaseInfo) {
+    useToastStore.getState().showToast('info', '请先选择案件，再写补件邮件');
+    return;
+  }
+  const sessionId = 'session-' + Date.now();
+  setMessages((prev) => [...prev, {
+    id: `co-confirm-${Date.now()}`,
+    role: 'assistant',
+    content: `已准备补件跟进邮件共创（${activeCaseInfo.clientName} · ${activeCaseInfo.lender}）。进入后可在弹窗中澄清意图、生成 V1-V3 多版本并确认。`,
+    created_at: '刚刚',
+    tool_cards: [{
+      type: 'co_create_confirm',
+      title: '进入补件跟进邮件共创',
+      payload: { flow_key: 'followup', session_id: sessionId },
+    }],
+  }]);
+};
+```
+
+3. 移除 `confirmEnterEmailCoCreate` 及其调用（模态逻辑不再使用）。
+
+## 二、渲染 co_create_confirm 卡（src/components/brain/BrainChat.tsx）
+
+在 tool_cards 渲染分支新增：
+
+```jsx
+if (card.type === 'co_create_confirm') {
+  const p = card.payload as any;
+  return (
+    <div key={idx} className="p-3.5 rounded-2xl border bg-[var(--purple-soft)] border-[var(--purple-soft)] space-y-2 text-xs my-2"
+         id={`co-create-confirm-${idx}`}>
+      <div className="flex items-center space-x-2 font-bold text-[var(--purple)]">
+        <Sparkles className="w-4 h-4 text-[var(--purple)] flex-shrink-0" />
+        <span>{card.title || '进入补件跟进邮件共创'}</span>
+      </div>
+      <p className="text-[11px] text-muted leading-relaxed">
+        进入后将拉起案件全景，支持澄清意图、V1-V3 版本链与 A/B 分支对比；确认后存入草稿箱（绝不自动发送）。
+      </p>
+      <div className="flex items-center justify-end space-x-2 pt-1">
+        <button type="button" onClick={() => dismissCard(messageIdx, idx)}
+          className="px-3 py-1.5 rounded-xl font-bold text-[11px] border cursor-pointer"
+          style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
+          取消
+        </button>
+        <button type="button" onClick={() => {
+          setCoCreateFlowKey((p?.flow_key || 'followup') as any);
+          setCoCreateSessionId(p?.session_id || null);
+          setCoCreateOpen(true);
+          dismissCard(messageIdx, idx);
+        }}
+          className="px-3.5 py-1.5 rounded-xl font-bold text-[11px] text-white cursor-pointer shadow-xs btn-primary">
+          进入共创
+        </button>
+      </div>
+    </div>
+  );
+}
+```
+
+## 三、三入口共用（工具菜单 / 建议动作 / 首页）
+
+工具菜单 `tool-opt-email`、`handleSuggestedAction` 邮件分支、首页 `open-email-co-create`
+事件监听——全部已调 `openEmailCoCreate()`，改完即统一为聊天卡确认（无需再改入口）。
+
+## 四、红线
+
+1. 只改 BrainChat.tsx（openEmailCoCreate + co_create_confirm 卡渲染 + 删模态）；不改后端；
+   不新增依赖；
+2. 点"进入共创"才打开 CoCreateDialog；"取消"只移除卡片不弹窗；
+3. 无案件仍提示先选案；确认后邮件记录卡（co_create_record，F-47）逻辑不变。
+
+## 五、验收（AI Studio 侧）
+
+1. `npx tsc --noEmit` 零错误；
+2. `rg -n "emailConfirmOpen|confirmEnterEmailCoCreate" src/components/brain/BrainChat.tsx` → 无残留；
+3. `rg -n "co_create_confirm" src/components/brain/BrainChat.tsx` → 插入与渲染齐全；
+4. 工具菜单/建议动作/首页三入口均走 openEmailCoCreate（聊天卡）。
+
+## 六、本地联调验收（Vera / Codex 执行，Electron）
+
+1. 点"写补件邮件"（工具菜单/建议动作/首页）→ **主对话出现 AI 回复 + 卡片**（进入共创/取消）；
+2. 点"进入共创"→ 打开共创弹窗；点"取消"→ 卡片消失（无模态弹窗）；
+3. 无案件 → 提示"请先选择案件"；确认完成后邮件记录卡照常进主对话；无回归。
+
 
