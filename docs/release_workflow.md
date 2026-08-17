@@ -43,6 +43,9 @@
 - 前置：`ui/vera-工作台 (N)/npm run build` 生成 dist（electron-builder 会打进 `resources/web`）；
 - `cd electron && npm run dist`（生成 NSIS 安装包 + portable 便携版到 `electron/release/`）；
 - 快速验证：`npm run dist:dir`（只出 `release/win-unpacked` 免安装目录）。
+- **`npm run build-web`**：打包前自动用 `vite build --base=./` 构建前端 dist（相对路径，
+  修复 Electron file:// 白屏）。**不要依赖前端 vite.config.ts 的 base 字段**——AI Studio
+  交付新前端时可能不带 base，构建用 CLI 参数强制覆盖即可。
 - **已知限制（2026-08-17）**：Windows 上 winCodeSign 解压需创建符号链接，普通权限会失败；
   可设 `CSC_IDENTITY_AUTO_DISCOVERY=false` + `--config.win.signAndEditExecutable=false`
   跳过签名打包（产物未签名，正式分发时需补代码签名证书）。
