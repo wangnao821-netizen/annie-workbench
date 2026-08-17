@@ -4916,3 +4916,82 @@ const overviewCards = cur ? [
 3. 全局咨询右栏（GlobalStatsPanel）：6 卡片正常；
 4. 空库/无案件时不崩（全 0 或兜底值）。
 
+---
+
+# F-46 补丁（2026-08-17）：统计页 pipeline/efficiency 契约适配（overview 已修，补剩余接口）
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (75)`（本批在 (75) 基础上改）。
+> 背景：F-46 只适配了 overview；真机复测发现统计页仍崩——**pipeline 与 efficiency 也是
+> current/previous 结构**，前端仍按旧 mock 平铺读。补两处：
+
+## 一、pipeline（后端 `{ granularity, series: [...] }`，前端误读 buckets）
+
+后端真实返回：
+
+```json
+{ "granularity": "month", "series": [
+  { "period": "2026-03", "new_cases": 0, "submitted": 0, "approved": 0, "settled": 0, "amount": 0.0, "commission": 0.0 }
+] }
+```
+
+1. `src/pages/Analytics.tsx`（约 L150）：`pipeline.buckets.length === 0` / `pipeline.buckets.map`
+   → **`pipeline.series.length === 0` / `pipeline.series.map`**（b 字段 new_cases/submitted/approved/
+   settled/commission 与后端一致，其余渲染不变）；
+2. `src/components/brain/GlobalStatsPanel.tsx`（约 L66）：`pipeline?.buckets || []`
+   → **`pipeline?.series || []`**；
+3. `src/types/api.ts`：`AnalyticsPipeline` 的 `buckets` 字段改 `series`（类型对齐后端）。
+
+## 二、efficiency（后端 `{ granularity, current: {...}, previous: {...} }`，前端误读平铺）
+
+后端真实返回：
+
+```json
+{ "granularity": "month",
+  "current":  { "tasks_done": 0, "on_time_rate": 0.0, "checklist_confirm_rate": 0.0,
+                "ai_adoption_count": 0, "avg_client_reply_days": null },
+  "previous": { ...同字段... } }
+```
+
+`src/pages/Analytics.tsx`（约 L195-210，efficiency 卡）：
+
+```ts
+const ecur = efficiency?.current;
+const eprev = efficiency?.previous;
+const ePct = (c: number | null, p: number | null) =>
+  (p ?? 0) > 0 && c != null ? Math.round(((c - (p ?? 0)) / (p ?? 0)) * 1000) / 10 : null;
+const effCards = [
+  { label: '处理任务总数', value: ecur?.tasks_done ?? 0, pct: ePct(ecur?.tasks_done ?? 0, eprev?.tasks_done ?? 0) },
+  { label: '按时完成率', value: ecur?.on_time_rate ?? 0, unit: '%', pct: ePct(ecur?.on_time_rate ?? 0, eprev?.on_time_rate ?? 0) },
+  { label: '清单确认率', value: ecur?.checklist_confirm_rate ?? 0, unit: '%', pct: ePct(ecur?.checklist_confirm_rate ?? 0, eprev?.checklist_confirm_rate ?? 0) },
+  { label: 'AI 深度采纳', value: ecur?.ai_adoption_count ?? 0, pct: ePct(ecur?.ai_adoption_count ?? 0, eprev?.ai_adoption_count ?? 0) },
+  { label: '客户平均回复', value: ecur?.avg_client_reply_days, unit: '天', pct: null },
+];
+```
+
+渲染 `effCards.map`（替换原 `item.m.current/change_pct/previous/unit` 读取；value 为 null 显示 "—"）。
+`src/types/api.ts`：`AnalyticsEfficiency` 改为 `{ granularity, current: AnalyticsEfficiencyMetrics,
+previous: AnalyticsEfficiencyMetrics }`，指标字段对齐后端
+（tasks_done / on_time_rate / checklist_confirm_rate / ai_adoption_count / avg_client_reply_days）。
+
+## 三、无需改
+
+- **usage**：AiUsageBar 已用 `usage?.current / previous` ✓；
+- **lenders**：后端 `{ lenders: [] }` 与前端 `lenders.lenders` 匹配 ✓；
+- **overview**：F-46 已适配 ✓。
+
+## 四、红线
+
+1. 只改 Analytics.tsx / GlobalStatsPanel.tsx / types/api.ts；不改后端；不新增依赖；
+2. 所有读取 `?.` + `?? 0` 兜底；value null 显示 "—"。
+
+## 五、验收（AI Studio 侧）
+
+1. `npx tsc --noEmit` 零错误；
+2. `rg -n "pipeline\.buckets|efficiency\.[a-z_]+\.|item\.m" src/pages/Analytics.tsx` → 无残留；
+3. mock 预览统计页正常（pipeline 表 + efficiency 卡显示 0/—）。
+
+## 六、本地联调验收（Vera / Codex 执行，Electron 真后端空库）
+
+1. 统计页整页打开不崩：overview 6 卡 / pipeline 表（空态"暂无数据"）/ efficiency 5 卡 / lenders（空态）；
+2. 首页 4 KPI 正常；全局右栏正常；切天/周/月不崩。
+
