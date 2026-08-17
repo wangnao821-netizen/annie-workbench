@@ -209,25 +209,21 @@ def link_or_create_case_folder(
     req: CaseFolderRequest,
     db: Session = Depends(get_db),  # noqa: B008
 ) -> CaseFolderResponse:
-    """案件文件夹关联（选已有/自动创建）。
+    """案件文件夹关联（Vera 手动选择：选已有 / 选父目录新建）。
 
     - 案件不存在 → 404
     - mode 非法 → 422
     - 路径越界/穿越/不存在 → 422
     """
     _get_case_or_404(case_id, db)
-    import os
-    from pathlib import Path
-    env_root = os.getenv("CLIENT_FILES_ROOT")
-    client_root = Path(env_root) if env_root else get_config().client_files_root
 
     try:
         if req.mode == "existing":
-            if not req.path or not req.path.strip():
-                raise HTTPException(status_code=422, detail="mode 为 existing 时必填 path")
-            updated_case = link_existing(db, case_id=case_id, path=req.path, client_root=client_root)
-        elif req.mode == "auto":
-            updated_case = auto_create(db, case_id=case_id, naming=req.path, client_root=client_root)
+            updated_case = link_existing(db, case_id=case_id, path=req.path)
+        elif req.mode == "create":
+            updated_case = auto_create(
+                db, case_id=case_id, parent_dir=req.path, folder_name=req.folder_name,
+            )
         else:
             raise HTTPException(status_code=422, detail=f"不支持的 mode: {req.mode}")
     except ValueError as exc:

@@ -4659,3 +4659,60 @@ declare global {
 2. 点击最小化 → 窗口最小化；最大化 → 圆角变直角、图标切换；还原 → 圆角恢复；
 3. 关闭 → 最小化到托盘；托盘"退出" → 完全退出且后端进程被清理；
 4. 后端在 8001（8000 被占）时：前端 API 自动指向 8001，数据正常加载。
+
+---
+
+# F-45（2026-08-17）：案件文件夹关联双模式（选已有 / 选父目录新建）+ Electron 原生目录选择器
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (73)`（本批在 (73) 基础上改）。
+> 背景（Vera 拍板，主文档 §十三"无总根模式"）：**CLIENT_FILES_ROOT 不再是总根**，
+> 每个 CASE 关联 Vera 手动选择的**任意绝对路径**文件夹。后端契约已更新：
+> `POST /api/cases/{id}/folder` 请求体 `{ mode: "existing"|"create", path: 绝对路径, folder_name?: string }`。
+> 本批做前端 UI 配套。
+
+## 一、FolderPickerModal 双模式（src/components/folderPicker/FolderPickerModal.tsx）
+
+现有"关联文件夹"弹窗改为两个明确 Tab/按钮：
+
+1. **关联已有文件夹（existing）**：
+   - Electron：调用 `window.veraElectron.chooseDirectory()`（原生目录选择器，返回绝对路径）
+     → 选中后预览路径 → 提交 `{ mode: "existing", path }`；
+   - Web 过渡：保留文件夹树浏览（`/api/folders/browse?path=` 现支持任意绝对目录，
+     当前端有值传入浏览该目录）+ 手动输入路径；
+2. **在父目录下新建（create）**：
+   - Electron：`chooseDirectory()` 选**父目录** → 显示文件夹名输入框
+     （预填"客户名_case_id"，可改）→ 提交 `{ mode: "create", path: 父目录, folder_name }`；
+   - Web 过渡：同 browse/输入父目录 + 文件夹名；
+3. 提交后沿用现有成功/错误处理（422 detail 显示）；关联成功后刷新案件列表/文件夹卡。
+
+## 二、Electron 原生目录选择器接线
+
+1. `src/types/` 的 `VeraElectronApi` 增加 `chooseDirectory: () => Promise<string | null>`；
+2. preload（Electron 侧，Codex 已实现）暴露同名方法；前端仅调用，**浏览器预览时
+   `window.veraElectron` 不存在 → 走 Web 过渡（browse/输入）**；
+3. FolderPickerModal 判断 `window.veraElectron?.chooseDirectory` 存在则用原生选择器。
+
+## 三、NewCaseSheet / CaseFolderCard 入口文案微调
+
+- "自动创建"文案 → **"在父目录下新建"**（避免误解为系统随便建）；
+- 一客多 CASE 说明：允许"关联已有文件夹"选择已关联的同一文件夹（共享）。
+
+## 四、红线
+
+1. 只改 FolderPickerModal / 入口文案 / types；不改后端；不新增依赖；
+2. 浏览器预览零影响（Electron API 不存在时走 Web 过渡）；
+3. 交付报告附改动说明。
+
+## 五、验收（AI Studio 侧）
+
+1. `npx tsc --noEmit` 零错误；构建通过；
+2. 浏览器：FolderPickerModal 有"关联已有 / 在父目录下新建"两模式，Web 过渡可用；
+3. `rg -n "chooseDirectory|mode.*create|folder_name" src`：调用与类型完整；
+4. 提交请求体符合 `{mode, path, folder_name?}` 契约。
+
+## 六、本地联调验收（Vera / Codex 执行，Electron）
+
+1. 新建案件 → 关联文件夹：原生目录选择器打开，选已有文件夹 → 关联成功；
+2. "在父目录下新建"：选父目录 + 确认文件夹名 → 系统创建标准子目录并关联；
+3. 一客多 CASE：第二个案件选同一文件夹 → 关联成功（共享）；
+4. 路径穿越/系统目录（选 C:\Windows）→ 后端 422 提示。

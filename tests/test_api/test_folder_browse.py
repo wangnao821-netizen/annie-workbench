@@ -27,10 +27,10 @@ def test_browse_root_lists_subdirs(test_env, client):
     root = test_env["client_root"]
     (root / "Brandon" / "ZhangSan" / "CASE-1").mkdir(parents=True, exist_ok=True)
     (root / "Brandon" / "LiSi" / "CASE-2").mkdir(parents=True, exist_ok=True)
-    resp = client.get("/api/folders/browse")
+    resp = client.get("/api/folders/browse", params={"path": str(root)})
     assert resp.status_code == 200
     body = resp.json()
-    assert body["current_path"] == ""
+    assert body["current_path"] == str(root.resolve()).replace("\\", "/")
     names = [i["name"] for i in body["items"]]
     assert "Brandon" in names
     assert all(i["is_dir"] for i in body["items"])
@@ -40,7 +40,7 @@ def test_browse_root_lists_subdirs(test_env, client):
 def test_browse_enter_subdir(test_env, client):
     root = test_env["client_root"]
     (root / "Brandon" / "ZhangSan" / "CASE-1").mkdir(parents=True, exist_ok=True)
-    resp = client.get("/api/folders/browse", params={"path": "Brandon"})
+    resp = client.get("/api/folders/browse", params={"path": str(root / "Brandon")})
     assert resp.status_code == 200
     names = [i["name"] for i in resp.json()["items"]]
     assert "ZhangSan" in names
@@ -52,7 +52,7 @@ def test_browse_traversal_422(client):
 
 
 def test_browse_missing_dir_422(test_env, client):
-    resp = client.get("/api/folders/browse", params={"path": "Brandon/NoSuch"})
+    resp = client.get("/api/folders/browse", params={"path": str(test_env["client_root"] / "Brandon" / "NoSuch")})
     assert resp.status_code == 422
 
 
@@ -60,7 +60,8 @@ def test_browse_hidden_dirs_filtered(test_env, client):
     root = test_env["client_root"]
     (root / "Brandon").mkdir(parents=True, exist_ok=True)
     (root / ".hidden").mkdir(exist_ok=True)
-    resp = client.get("/api/folders/browse")
+    resp = client.get("/api/folders/browse", params={"path": str(root)})
+    assert resp.status_code == 200
     names = [i["name"] for i in resp.json()["items"]]
     assert ".hidden" not in names
 

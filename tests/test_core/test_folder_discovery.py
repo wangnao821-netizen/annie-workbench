@@ -37,8 +37,9 @@ def _enable_discovery() -> None:
 def _make_case(db, cid: str, with_folder: bool = True) -> Case:
     case = Case(id=cid, client_name=f"Case {cid}", broker_name="Brandon")
     if with_folder:
-        case.folder_path = f"Brandon/Client/{cid}"
-        (Path(core.config.get_config().client_files_root) / case.folder_path).mkdir(parents=True, exist_ok=True)
+        # 2026-08-17 无总根：folder_path = 任意绝对路径
+        case.folder_path = str((core.config.get_config().client_files_root or Path.cwd()) / f"Brandon/Client/{cid}")
+        Path(case.folder_path).mkdir(parents=True, exist_ok=True)
     db.add(case)
     mid = _payslip_master_id()
     db.add(CaseChecklist(case_id=cid, item_name="Payslip", category="income",

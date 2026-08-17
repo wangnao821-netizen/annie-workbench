@@ -406,6 +406,19 @@ Agent 的呈现方式由**动作类型**决定，不硬套同一模式：
   - 只读 + 脱敏索引（元数据 + 脱敏摘要，不复制全文）+ 可重建；
   - 三档渐进、每档可关，信任成本分步评估。
 
+### 无总根模式（2026-08-17 拍板，重要修正）
+- **CLIENT_FILES_ROOT 不再是强制总根**（已降为可选，仅作为旧兼容；run_backend 不再 fail-fast）。
+- **案件文件夹 = 每个 CASE 手动关联的任意绝对路径**（Vera 原生目录选择器选择）：
+  - mode=existing：选**已存在**的案件文件夹 → 直接关联；
+  - mode=create：选一个**父目录** → 系统在父目录下创建"客户名_case_id"案件文件夹 + 标准子目录 → 关联；
+  - 一客多 CASE：允许多个 case 关联同一文件夹（共享），也可各选各的（彻底解决"自动建错位置"）。
+- **安全不松**：`..` 穿越拒绝；系统关键目录（C:\Windows 等）黑名单；文件操作始终限该 case
+  文件夹内（PathGuard 新增 case_dir 边界）；Vera 确认才执行物理操作。
+- 实现：core/case_engine/folder.py（validate_path_safety 支持任意绝对路径 + auto_create 改
+  parent_dir+folder_name）、file_ops/lookup/discovery 基于 case.folder_path 绝对路径、
+  PathGuard.assert_user_action_allowed 增 case_dir 参数。
+- 前端（F-45）：FolderPickerModal 双模式 + Electron 原生目录选择器（chooseDirectory）。
+
 ---
 
 ## 十四、Agent 引擎 V2 延后清单（2026-08-13 定稿）

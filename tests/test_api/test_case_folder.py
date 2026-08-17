@@ -57,8 +57,8 @@ def test_link_existing_success(test_env, client):
     assert "CASE-WO29-001" in case.folder_path
 
 
-def test_link_existing_out_of_bounds(test_env, client):
-    """2. 路径越界（client_root 之外 / `..` 穿越）→ 422 拒绝"""
+def test_link_existing_arbitrary_abs_path(test_env, client):
+    """2. 任意绝对路径可关联（2026-08-17 无总根）；`..` 穿越 → 422"""
     db = test_env["db"]
     case = _create_sample_case(db, "CASE-WO29-002")
 
@@ -70,7 +70,7 @@ def test_link_existing_out_of_bounds(test_env, client):
     assert resp.status_code == 422
     assert "穿越" in resp.json()["detail"] or ".." in resp.json()["detail"]
 
-    # client_root 之外
+    # client_root 之外的任意绝对路径 → 允许关联（无总根模式）
     outside_dir = test_env["tmp_path"] / "outside_secret"
     outside_dir.mkdir(parents=True, exist_ok=True)
 
@@ -78,8 +78,27 @@ def test_link_existing_out_of_bounds(test_env, client):
         f"/api/cases/{case.id}/folder",
         json={"mode": "existing", "path": str(outside_dir)},
     )
+    assert resp.status_code == 200
+    assert outside_dir.as_posix() in resp.json()["folder_path"]
+
+
+def test_link_existing_system_dir_rejected(test_env, client, monkeypatch):
+    """2b. 系统关键目录（如 C:/Windows）→ 422 拒绝"""
+    db = test_env["db"]
+    case = _create_sample_case(db, "CASE-WO29-002B")
+
+    monkeypatch.setattr("core.case_engine.folder._FORBIDDEN_ROOTS",
+                        (str(test_env["client_root"] / "_sys"),))
+    forbidden = test_env["client_root"] / "_sys"
+    forbidden.mkdir(parents=True, exist_ok=True)
+
+    resp = client.post(
+        f"/api/cases/{case.id}/folder",
+        json={"mode": "existing", "path": str(forbidden / "sub")},
+    )
+    (forbidden / "sub").mkdir(exist_ok=True)
     assert resp.status_code == 422
-    assert "越界" in resp.json()["detail"] or "CLIENT_FILES_ROOT" in resp.json()["detail"]
+    assert "系统目录" in resp.json()["detail"]
 
 
 def test_link_existing_target_not_found(test_env, client):
@@ -132,14 +151,14 @@ def test_auto_create_success(test_env, client):
 
     resp = client.post(
         f"/api/cases/{case.id}/folder",
-        json={"mode": "auto"},
+        json={"mode": "create", "path": str(client_root), "folder_name": f"{case.client_name}_{case.id}"},
     )
     assert resp.status_code == 200
     data = resp.json()
     assert data["case_id"] == case.id
-    assert data["mode"] == "auto"
+    assert data["mode"] == "create"
 
-    created_dir = client_root / data["folder_path"]
+    created_dir = client_root / f"{case.client_name}_{case.id}"
     assert created_dir.is_dir()
 
     for subdir in ["_Inbox", "Send to Lender", "Don't send"]:
@@ -152,18 +171,17 @@ def test_auto_create_conflict(test_env, client):
     client_root = test_env["client_root"]
     case = _create_sample_case(db, "CASE-WO29-006")
 
-    default_dir = client_root / "Brandon" / "ZhangSan" / "CASE-WO29-006"
+    default_dir = client_root / f"{case.client_name}_{case.id}"
     default_dir.mkdir(parents=True, exist_ok=True)
 
     resp = client.post(
         f"/api/cases/{case.id}/folder",
-        json={"mode": "auto"},
+        json={"mode": "create", "path": str(client_root), "folder_name": f"{case.client_name}_{case.id}"},
     )
     assert resp.status_code == 200
-    data = resp.json()
 
-    new_dir = client_root / data["folder_path"]
-    assert new_dir.name.startswith("CASE-WO29-006_")
+    new_dir = client_root / f"{case.client_name}_{case.id}_1"
+    assert new_dir.name.startswith(f"{case.client_name}_{case.id}_")
     assert new_dir.is_dir()
 
 
@@ -171,7 +189,7 @@ def test_case_not_found(test_env, client):
     """7. 案件不存在 → 404"""
     resp = client.post(
         "/api/cases/CASE-NON-EXISTENT/folder",
-        json={"mode": "auto"},
+        json={"mode": "create", "path": "C:/Temp"},
     )
     assert resp.status_code == 404
     assert "不存在" in resp.json()["detail"]
@@ -198,9 +216,9 @@ def test_direct_core_function_unit_tests(test_env):
     with pytest.raises(ValueError, match="关联路径不能为空"):
         link_existing(db, case.id, "", client_root=client_root)
 
-    updated = auto_create(db, case.id, naming="CustomFolder/SubCase", client_root=client_root)
-    assert updated.folder_path == "CustomFolder/SubCase"
-    assert (client_root / "CustomFolder/SubCase").is_dir()
+    updated = auto_create(db, case.id, parent_dir=str(client_root), folder_name="CustomFolder")
+    assert updated.folder_path == str((client_root / "CustomFolder").resolve()).replace("\\", "/")
+    assert (client_root / "CustomFolder").is_dir()
 
 
 def test_auto_create_mkdir_failure_422(test_env, client, monkeypatch):
@@ -214,6 +232,9 @@ def test_auto_create_mkdir_failure_422(test_env, client, monkeypatch):
         raise OSError("permission denied (simulated)")
 
     monkeypatch.setattr(pathlib.Path, "mkdir", boom_mkdir)
-    resp = client.post(f"/api/cases/{case.id}/folder", json={"mode": "auto"})
+    resp = client.post(
+        f"/api/cases/{case.id}/folder",
+        json={"mode": "create", "path": str(test_env["client_root"])},
+    )
     assert resp.status_code == 422
     assert "无法创建" in resp.json()["detail"]

@@ -193,6 +193,7 @@ class PathGuard:
         target: Path,
         user_confirmed: bool,
         client_files_root: Path,
+        case_dir: Path | None = None,
     ) -> None:
         """Assert that a user-confirmed file move is allowed.
 
@@ -209,6 +210,9 @@ class PathGuard:
                (first-level child of ``client_files_root``).
             5. Target path must not contain ``..`` (path traversal).
             6. Target file must not already exist (no accidental overwrite).
+
+        ``case_dir``（2026-08-17 无总根模式）：提供时以 case 文件夹为边界，源/目标
+        必须都在其中（root 仅作兼容；无总根时 root 即 case 文件夹本身）。
 
         Args:
             source: Path to the source file.
@@ -237,24 +241,34 @@ class PathGuard:
         resolved_source = source.resolve()
         resolved_target = target.resolve()
         resolved_root = client_files_root.resolve()
+        resolved_case = case_dir.resolve() if case_dir is not None else None
+        boundary = resolved_case or resolved_root
 
-        # Rule 2: Source must be under client_files_root
+        # Rule 2/3: Source & target must be under boundary (case dir or root)
         try:
-            resolved_source.relative_to(resolved_root)
+            resolved_source.relative_to(boundary)
         except ValueError:
             raise WriteNotAllowedError(
                 f"Source '{source}' is not under CLIENT_FILES_ROOT"
             )
 
-        # Rule 3: Target must be under client_files_root
         try:
-            resolved_target.relative_to(resolved_root)
+            resolved_target.relative_to(boundary)
         except ValueError:
             raise WriteNotAllowedError(
                 f"Target '{target}' is not under CLIENT_FILES_ROOT"
             )
 
-        # Rule 4: Same case directory (first-level child of root)
+        if resolved_case is not None:
+            # 无总根模式：case_dir 即边界，源/目标同在其内即同一案件
+            if target.exists():
+                raise WriteNotAllowedError(
+                    f"Target file already exists: '{target}'. "
+                    f"Cannot overwrite existing files."
+                )
+            return
+
+        # Rule 4 (总根模式): Same case directory (first-level child of root)
         source_relative = resolved_source.relative_to(resolved_root)
         target_relative = resolved_target.relative_to(resolved_root)
 
@@ -274,3 +288,4 @@ class PathGuard:
                 f"Target file already exists: '{target}'. "
                 f"Cannot overwrite existing files."
             )
+

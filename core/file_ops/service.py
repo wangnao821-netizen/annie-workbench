@@ -15,7 +15,7 @@ from uuid import uuid4
 import yaml
 from sqlalchemy.orm import Session
 
-from core.case_engine.folder import _get_default_client_root, validate_path_safety
+from core.case_engine.folder import validate_path_safety
 from core.case_folder.discovery import classify_file
 from core.case_folder.lookup import parse_one
 from core.logger import get_logger
@@ -41,8 +41,9 @@ _CONFIG_DIR = Path(__file__).resolve().parents[2] / "config"
 def _case_dir(case: Case, client_root: Path | None = None) -> tuple[Path, Path]:
     if case is None or not case.folder_path or not str(case.folder_path).strip():
         raise ValueError("案件未关联文件夹")
-    root = Path(client_root).resolve() if client_root else _get_default_client_root()
-    return validate_path_safety(case.folder_path, root), root
+    # 2026-08-17：案件文件夹 = Vera 手动选择的任意绝对路径（无总根模式）
+    case_dir = validate_path_safety(case.folder_path, client_root)
+    return case_dir, case_dir
 def _within(base: Path, rel: str | None) -> Path:
     raw = Path(rel or "")
     if ".." in raw.parts:
@@ -137,7 +138,9 @@ def rename_file(case: Case, source: str, new_name: str, db: Session,
     if not name or "/" in name or "\\" in name or ".." in name or name.startswith("."):
         raise ValueError("非法文件名：不能为空、含路径分隔符或 '..'，不能以 '.' 开头")
     dst = src.parent / name
-    PathGuard.assert_user_action_allowed(src, dst, user_confirmed=True, client_files_root=root)
+    PathGuard.assert_user_action_allowed(
+        src, dst, user_confirmed=True, client_files_root=root, case_dir=case_dir,
+    )
     os.rename(src, dst)
     event_id = _log_event(db, case.id, "folder_rename", src.relative_to(case_dir).as_posix(),
                           dst.relative_to(case_dir).as_posix(), original_name=src.name)
@@ -153,7 +156,9 @@ def move_file(case: Case, source: str, target_dir: str, db: Session,
     if not tdir.is_dir():
         raise ValueError(f"目标目录不存在：{target_dir or '/'}")
     dst = tdir / src.name
-    PathGuard.assert_user_action_allowed(src, dst, user_confirmed=True, client_files_root=root)
+    PathGuard.assert_user_action_allowed(
+        src, dst, user_confirmed=True, client_files_root=root, case_dir=case_dir,
+    )
     os.rename(src, dst)
     event_id = _log_event(db, case.id, "folder_move", src.relative_to(case_dir).as_posix(),
                           dst.relative_to(case_dir).as_posix(), original_name=src.name)

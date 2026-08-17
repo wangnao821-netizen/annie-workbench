@@ -363,11 +363,12 @@ class ConfigLoader:
         return self._settings
 
     @property
-    def client_files_root(self) -> Path:
-        """Return the validated CLIENT_FILES_ROOT path."""
+    def client_files_root(self) -> Path | None:
+        """Return the validated CLIENT_FILES_ROOT path, or None if unset (2026-08-17 可选化)."""
         if self._settings is None:
             raise RuntimeError("ConfigLoader not initialized")
-        return Path(self._settings.watch.root_path)
+        raw = (self._settings.watch.root_path or "").strip()
+        return Path(raw).resolve() if raw else None
 
     @property
     def allowed_doc_types(self) -> set[str]:
@@ -544,20 +545,15 @@ class ConfigLoader:
         logger.info("Configuration consistency check passed")
 
     def _validate_client_files_root(self) -> None:
-        """Validate that CLIENT_FILES_ROOT exists and is accessible.
-
-        Raises:
-            ConfigError: If the path is missing, not a directory,
-                or not accessible.
-        """
+        """CLIENT_FILES_ROOT 可选（2026-08-17）：缺失仅警告；配置后校验存在与可访问。"""
         if self.settings is None:
             raise RuntimeError("ConfigLoader not initialized")
         root = self.settings.watch.root_path
         if not root:
-            raise ConfigError(
-                "CLIENT_FILES_ROOT environment variable is not set. "
-                "Please set it in .env file."
+            logger.warning(
+                "CLIENT_FILES_ROOT 未配置（可选）：文件 Agent 功能需在案件关联文件夹后使用。"
             )
+            return
         root_path = Path(root)
         if not root_path.exists():
             try:

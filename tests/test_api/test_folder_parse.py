@@ -51,10 +51,12 @@ def test_parse_absolute_within_root(test_env, client):
     assert body["case_id"] == "CASE-9"
 
 
-def test_parse_absolute_outside_root_422(test_env, client, tmp_path):
+def test_parse_absolute_outside_root_ok(test_env, client, tmp_path):
+    """2026-08-17 无总根：parse 为纯命名解析，任意绝对路径均 200。"""
     outside = tmp_path / "outside" / "ClientX"
     resp = client.get("/api/folders/parse", params={"path": str(outside)})
-    assert resp.status_code == 422
+    assert resp.status_code == 200
+    assert resp.json()["case_id"] == "ClientX"
 
 
 def test_parse_traversal_422(client):

@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('veraElectron', {
   getVersion: () => ipcRenderer.invoke('app:version'),
   getApiBase: () => ipcRenderer.invoke('app:api-base'),
   isMaximized: () => ipcRenderer.invoke('app:is-maximized'),
+  chooseDirectory: () => ipcRenderer.invoke('dialog:choose-directory'),
   notify: (title, body) => ipcRenderer.invoke('notify:show', { title, body }),
   onMaximizedChange: (cb) => {
     const listener = (_e, maximized) => cb(maximized);

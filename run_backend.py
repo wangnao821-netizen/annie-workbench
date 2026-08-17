@@ -57,11 +57,9 @@ def main() -> int:
     if loaded:
         print(f"[启动] 已从 .env 加载变量: {', '.join(sorted(loaded))}")
 
-    missing = [k for k in ("CLIENT_FILES_ROOT",) if not os.getenv(k)]
-    if missing:
-        print(f"[启动检查] 缺少环境变量: {', '.join(missing)}")
-        print("请复制 .env.example 为 .env 并填写，或设置环境变量后重试。")
-        return 1
+    # 2026-08-17：CLIENT_FILES_ROOT 可选（案件文件夹 = 每 case 手动选择的绝对路径）
+    if not os.getenv("CLIENT_FILES_ROOT"):
+        print("[启动检查] CLIENT_FILES_ROOT 未配置（可选）：文件 Agent 功能在案件关联文件夹后使用。")
 
     import uvicorn
 

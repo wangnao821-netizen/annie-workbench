@@ -12,7 +12,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from core.case_engine.folder import _get_default_client_root, validate_path_safety
+from core.case_engine.folder import validate_path_safety
 from core.case_folder.discovery import classify_file
 from core.logger import get_logger
 from core.models.orm import Case
@@ -49,8 +49,8 @@ def lookup_files(
     if ".." in raw_q:
         raise ValueError(f"路径穿越拒绝：query '{query}' 包含 '..' 字符")
 
-    root = Path(client_root).resolve() if client_root else _get_default_client_root()
-    case_dir = validate_path_safety(case.folder_path, root)
+    # 2026-08-17 无总根模式：folder_path 即案件文件夹绝对路径（Vera 手动选择）
+    case_dir = validate_path_safety(case.folder_path, client_root)
 
     if not case_dir.is_dir():
         return []
@@ -62,12 +62,12 @@ def lookup_files(
         if not f.is_file() or f.name in _IGNORED_NAMES or f.name.startswith("."):
             continue
 
-        rel_to_root = f.relative_to(root).as_posix()
+        rel_to_case = f.relative_to(case_dir).as_posix()
         doc_type, _confidence = classify_file(f.name)
 
         if q:
             name_match = q in f.name.lower()
-            rel_match = q in rel_to_root.lower()
+            rel_match = q in rel_to_case.lower()
             type_match = bool(doc_type and q in doc_type.lower())
             if not (name_match or rel_match or type_match):
                 continue
@@ -75,7 +75,7 @@ def lookup_files(
         stat = f.stat()
         mtime_iso = datetime.fromtimestamp(stat.st_mtime, tz=UTC).isoformat()
         results.append({
-            "rel_path": rel_to_root,
+            "rel_path": rel_to_case,
             "size": stat.st_size,
             "mtime": mtime_iso,
             "doc_type": doc_type,
@@ -110,8 +110,15 @@ def parse_one(
     if not rel_path or ".." in rel_path:
         raise ValueError(f"路径穿越拒绝：rel_path '{rel_path}' 包含 '..' 字符")
 
-    root = Path(client_root).resolve() if client_root else _get_default_client_root()
-    target_path = validate_path_safety(rel_path, root)
+    case_dir = validate_path_safety(case.folder_path, client_root)
+    raw = Path(rel_path)
+    if ".." in raw.parts:
+        raise ValueError(f"路径穿越拒绝：rel_path '{rel_path}' 包含 '..' 字符")
+    target_path = (case_dir / raw).resolve()
+    try:
+        target_path.relative_to(case_dir.resolve())
+    except ValueError:
+        raise ValueError(f"路径越界拒绝：'{rel_path}' 不位于案件文件夹内") from None
 
     if not target_path.is_file():
         raise ValueError(f"文件不存在：{rel_path}")
@@ -121,7 +128,7 @@ def parse_one(
     clean_summary = desensitize(raw_text, case.id, db)
 
     return {
-        "rel_path": target_path.relative_to(root).as_posix(),
+        "rel_path": target_path.relative_to(case_dir).as_posix(),
         "summary": clean_summary,
         "text_quality": getattr(res, "text_quality", "high"),
         "parse_route": getattr(res, "parse_route", "native_text"),

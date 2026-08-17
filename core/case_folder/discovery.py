@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import re
 from datetime import UTC, datetime
+from pathlib import Path
 from uuid import uuid4
 
 from sqlalchemy.orm import Session
@@ -88,11 +89,11 @@ def scan_case_folders(db: Session) -> list[dict]:
     cfg = get_config().settings.case_folder.auto_discover
     if not cfg.enabled:
         return []
-    root = get_config().client_files_root
     events: list[dict] = []
     cases = db.query(Case).filter(Case.folder_path.isnot(None), Case.folder_path != "").all()
     for case in cases:
-        folder = root / str(case.folder_path)
+        # 2026-08-17 无总根模式：folder_path 即案件文件夹绝对路径
+        folder = Path(str(case.folder_path))
         if not folder.is_dir():
             continue
         for f in sorted(folder.rglob("*")):
@@ -111,7 +112,7 @@ def scan_case_folders(db: Session) -> list[dict]:
             db.add(record)
             db.flush()
             _log_event(db, case.id, file_id, "folder_discovered",
-                       {"path": f.relative_to(root).as_posix(), "doc_type": doc_type, "confidence": confidence})
+                       {"path": f.relative_to(folder).as_posix(), "doc_type": doc_type, "confidence": confidence})
             matched: list[int] = []
             if doc_type and confidence >= cfg.confidence_threshold:
                 matched = _auto_match(db, case, record)

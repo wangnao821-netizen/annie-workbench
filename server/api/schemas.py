@@ -814,8 +814,16 @@ class SkillRollbackRequest(BaseModel):
 # ── WO-29 案件文件夹关联 Schemas ─────────────────────────────────────────
 
 class CaseFolderRequest(BaseModel):
-    mode: Literal["existing", "auto"]
-    path: str | None = None
+    """案件文件夹关联（2026-08-17 无总根模式）。
+
+    mode=existing: path = 已存在的案件文件夹（任意绝对路径，Vera 手动选）。
+    mode=create:   path = Vera 选定的父目录；folder_name 可选（缺省"客户名_case_id"），
+                   系统在父目录下创建案件文件夹 + 标准子目录。
+    """
+
+    mode: Literal["existing", "create"]
+    path: str
+    folder_name: str | None = None
 
 
 class CaseFolderResponse(BaseModel):

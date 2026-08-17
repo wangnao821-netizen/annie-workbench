@@ -42,8 +42,8 @@ def test_lookup_files_hit(client_root_env):
     (case_dir / "payslip_202608.pdf").write_text("dummy pdf content", encoding="utf-8")
     (case_dir / "bank_statement.pdf").write_text("dummy bank statement", encoding="utf-8")
 
-    case = Case(id="case_101", folder_path="Brandon/ClientA/case_101")
-    results = lookup_files(case, "payslip", client_root=client_root_env)
+    case = Case(id="case_101", folder_path=str(case_dir))
+    results = lookup_files(case, "payslip")
 
     assert len(results) == 1
     assert "payslip_202608.pdf" in results[0]["rel_path"]
@@ -55,7 +55,7 @@ def test_lookup_files_path_traversal(client_root_env):
     """用例 2: 路径穿越/越界（query 含 ..）→ 可读错误。"""
     case_dir = client_root_env / "Brandon" / "ClientA" / "case_102"
     case_dir.mkdir(parents=True, exist_ok=True)
-    case = Case(id="case_102", folder_path="Brandon/ClientA/case_102")
+    case = Case(id="case_102", folder_path=str(case_dir))
 
     with pytest.raises(ValueError) as exc_info:
         lookup_files(case, "../secret.txt", client_root=client_root_env)
@@ -88,7 +88,7 @@ def test_lookup_read_only_assertion(client_root_env):
     target_file.write_text(content, encoding="utf-8")
     stat_before = target_file.stat()
 
-    case = Case(id="case_105", folder_path="Brandon/ClientA/case_105")
+    case = Case(id="case_105", folder_path=str(case_dir))
     results = lookup_files(case, "tax_return", client_root=client_root_env)
 
     stat_after = target_file.stat()
@@ -114,9 +114,9 @@ def test_parse_one_desensitized(client_root_env, db_session, monkeypatch):
 
     monkeypatch.setattr("core.case_folder.lookup.parse_file", mock_parse_file)
 
-    case = Case(id="case_106", folder_path="Brandon/ClientA/case_106")
-    rel_path = "Brandon/ClientA/case_106/payslip.pdf"
-    res = parse_one(case, rel_path, db=db_session, client_root=client_root_env)
+    case = Case(id="case_106", folder_path=str(case_dir))
+    rel_path = "payslip.pdf"
+    res = parse_one(case, rel_path, db=db_session)
 
     assert res["rel_path"] == rel_path
     assert "summary" in res
@@ -151,7 +151,7 @@ def test_run_flow_folder_lookup_contract(client_root_env, db_session):
     case_dir.mkdir(parents=True, exist_ok=True)
     (case_dir / "payslip.pdf").write_text("Dummy payslip", encoding="utf-8")
 
-    case = Case(id="case_108", client_name="ClientA", folder_path="Brandon/ClientA/case_108")
+    case = Case(id="case_108", client_name="ClientA", folder_path=str(case_dir))
     db_session.add(case)
     db_session.commit()
 

@@ -46,7 +46,7 @@ def case_env(test_db, _api_env):
     (case_dir / "Income Payslip June 2025 CBA.pdf").write_bytes(b"%PDF-1.4 fake")
     (case_dir / "ID Passport.pdf").write_bytes(b"%PDF-1.4 fake")
     case = Case(id="CASE-WO44-001", client_name="张三", broker_name="Brandon",
-                stage="收集资料", folder_path="张三_CBA_001")
+                stage="收集资料", folder_path=str(case_dir))
     test_db.add(case)
     test_db.commit()
     return case
@@ -298,7 +298,7 @@ class TestRaw:
         other_dir.mkdir()
         (other_dir / "Other Bank Statement.pdf").write_bytes(b"%PDF-1.4 other")
         other = Case(id="CASE-WO46-OTHER", client_name="李四", broker_name="Brandon",
-                     stage="收集资料", folder_path="李四_NAB_002")
+                     stage="收集资料", folder_path=str(other_dir))
         test_db.add(other)
         test_db.commit()
         resp = client.get(f"/api/cases/{case_env.id}/folder/files/raw",

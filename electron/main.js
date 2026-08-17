@@ -200,38 +200,20 @@ function createTray() {
   });
 }
 
-/* ── 首次引导：.env 缺失 → 收集 CLIENT_FILES_ROOT / keys → 写 .env ── */
+/* 首次引导（2026-08-17 无总根）：不再强制选择 CLIENT_FILES_ROOT。
+ * 案件文件夹 = 每 case 手动选择（应用内操作）；LLM key / OCR 稍后在 .env 配置即可。 */
 async function ensureEnv() {
-  // 已有 .env 或环境变量已提供 CLIENT_FILES_ROOT → 跳过引导
-  if (fs.existsSync(ENV_PATH) || process.env.CLIENT_FILES_ROOT) return;
-  const hasTemplate = fs.existsSync(ENV_EXAMPLE);
-  const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
-    title: '首次使用：请选择客户文件根目录（CLIENT_FILES_ROOT）',
-    properties: ['openDirectory', 'createDirectory'],
-  });
-  if (canceled || !filePaths[0]) {
-    dialog.showMessageBox(mainWindow, {
-      type: 'warning',
-      message: '未选择客户文件根目录，将跳过引导。可在项目根目录 .env 中手动配置 CLIENT_FILES_ROOT 后重启。',
-    });
-    return;
-  }
-  const clientRoot = filePaths[0];
+  if (fs.existsSync(ENV_PATH)) return;
   const lines = [
-    '# Vera 工作台环境变量（由首次引导生成，请勿删除）',
-    `CLIENT_FILES_ROOT=${clientRoot.replace(/\\/g, '\\\\')}`,
+    '# Vera 工作台环境变量（可留空，按需补充）',
     'ENV=development',
-    '',
-    '# 云端 AI API（可稍后在 .env 中补充）',
-    'DEEPSEEK_API_KEY=',
-    'GEMINI_API_KEY=',
-    '',
-    '# OCR（可选，指向 tessdata 目录）',
+    '# DEEPSEEK_API_KEY=',
+    '# GEMINI_API_KEY=',
     '# TESSDATA_PREFIX=',
     '',
   ];
   fs.writeFileSync(ENV_PATH, lines.join('\n'), 'utf8');
-  console.log(`[env] 已生成 .env，CLIENT_FILES_ROOT=${clientRoot}`);
+  console.log('[env] 已生成 .env（占位，可按需补充 AI/OCR 配置）');
 }
 
 /* ── IPC ───────────────────────────────────────────────── */
@@ -253,6 +235,14 @@ function registerIpc() {
   ipcMain.handle('app:version', () => app.getVersion());
   ipcMain.handle('app:api-base', () => `http://127.0.0.1:${backendPort}`);
   ipcMain.handle('app:is-maximized', () => mainWindow?.isMaximized() ?? false);
+  // 原生目录选择器（F-45：案件文件夹关联 existing/create 共用）
+  ipcMain.handle('dialog:choose-directory', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+      title: '选择案件文件夹',
+      properties: ['openDirectory', 'createDirectory'],
+    });
+    return canceled ? null : (filePaths[0] ?? null);
+  });
   // 系统通知骨架（后端/前端通知 → 系统托盘气泡；V1 接口就绪，接真实通知源后续）
   ipcMain.handle('notify:show', (_e, { title, body }) => {
     const { Notification } = require('electron');
