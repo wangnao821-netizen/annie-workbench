@@ -4995,3 +4995,48 @@ previous: AnalyticsEfficiencyMetrics }`，指标字段对齐后端
 1. 统计页整页打开不崩：overview 6 卡 / pipeline 表（空态"暂无数据"）/ efficiency 5 卡 / lenders（空态）；
 2. 首页 4 KPI 正常；全局右栏正常；切天/周/月不崩。
 
+---
+
+# F-46 补丁二（2026-08-17）：工具菜单移除重复"快捷提问"分区（输入框上方 chips 已覆盖）
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (76)`（本批在 (76) 基础上改）。
+> 背景（Vera 反馈）：中栏输入框上方**已有快捷提问 chips**（QUICK_ASKS：到期/计算器/
+> 申报一致性/文件夹/缺口/建案/查政策/写邮件），但"⚡ 工具"弹出菜单里还重复放了一份
+> "快捷提问"分区（材料缺口/申报一致性/到期逾期/查政策 4 个按钮）——藏在菜单里基本
+> 不会被点到，且与 chips 重复。**删除工具菜单内的"快捷提问"分区，工具菜单只保留
+> "工具动作"（计算器/写邮件/建案/文件夹）。**
+
+## 一、删除（src/components/brain/BrainChat.tsx）
+
+删除工具弹出菜单内 `{/* Quick Questions Section */}` 整块（含 `border-t pt-1` 容器、
+"快捷提问"标题、4 个按钮：tool-opt-gap / tool-opt-decl / tool-opt-overdue / tool-opt-policy）。
+
+**保留不动**：
+
+- 工具菜单"工具动作"分区（tool-opt-calculator / tool-opt-email / tool-opt-newcase / tool-opt-folder）；
+- 输入框上方快捷提问 chips 区（QUICK_ASKS 渲染，L816 起）；
+- 工具按钮（⚡ 工具）与弹层骨架。
+
+## 二、清理 unused import（tsc 门禁）
+
+删除后若 `Search / FileCheck / Clock` 图标在文件内无其他引用（QUICK_ASKS chips 用的是
+emoji 标签），从 lucide-react import 中移除（避免 `npx tsc --noEmit` 未使用告警/报错）。
+逐一确认：若文件其他地方仍用这些图标则保留。
+
+## 三、红线
+
+1. 只删工具菜单"快捷提问"分区 + 清理 unused import；不改结构/逻辑/其他样式；不新增依赖；
+2. 输入框上方 chips、工具动作、弹层行为均不变。
+
+## 四、验收（AI Studio 侧）
+
+1. `npx tsc --noEmit` 零错误；构建通过；
+2. `rg -n "tool-opt-gap|tool-opt-decl|tool-opt-overdue|tool-opt-policy" src` → 无残留；
+3. 工具菜单打开只剩"工具动作"4 项；输入框上方 chips 完整。
+
+## 五、本地联调验收（Vera / Codex 执行，Electron）
+
+1. 中栏"⚡ 工具"菜单：只剩计算器/写邮件/建案/文件夹 4 项，无"快捷提问"；
+2. 输入框上方快捷提问 chips 正常可用（到期/计算器/申报/文件夹/缺口/建案/政策/邮件）；
+3. 无报错、无回归。
+
