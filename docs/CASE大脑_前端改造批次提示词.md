@@ -4073,3 +4073,180 @@ ManualNoteModal、TaskDetailOverlay 及所有 dropdown/popover 容器。
 1. `npx tsc --noEmit` 零错误；
 2. rg 自查：全站无"Wang Li"、无"PERSON_1"（除 VITE_USE_MOCK 门控内与 placeholder）；
 3. FloatingAI 悬浮面板无假客户名/银行名/假金额。
+
+---
+
+# F-43（2026-08-17）：六主题色值重构（背景≠按钮色系）+ 按钮文字色令牌 + FloatingAI mock 中性化
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (69)`（本批在 (69) 基础上改）。
+> 背景（Vera 拍板）：**主题背景与按钮主色必须不同色系但协调**（现六套大多"底什么色、钮什么色"）。
+> 方案经 apple-design + WCAG 对比度实测验证（详见 docs/F-42_前端品味审查报告.md §十四）。
+> 关键工程点：**金色按钮配白字不达标（3.19），需引入 `--on-accent` / `--on-accent-strong`
+> 按钮文字色令牌**（暗色主题=深棕字，亮色主题=白字），并替换全站 39 处 accent 底 text-white。
+
+## 一、tokens.css 六主题色值重构（只改 tokens.css 的色值，结构/令牌名不删）
+
+### 1. dark → Midnight 深夜钴蓝
+
+| 令牌 | 现值 | 改为 |
+|---|---|---|
+| --bg-app | #0b0d12 | **#0e1420** |
+| --bg-panel | #12151e | **#141b2a** |
+| --bg-card | #181c28 | **#1a2233** |
+| --bg-card-hover | #202536 | **#222c40** |
+| --bg-input | #11141f | **#101722** |
+| --surface-translucent | rgba(18,21,30,0.78) | rgba(20,27,42,0.78) |
+| --surface-translucent-card | rgba(24,28,40,0.88) | rgba(26,34,51,0.88) |
+| --border | #23283b | **#263047** |
+| --border-active | #3b82f6 | **#e0a458** |
+| --text-primary | #f1f5f9 | **#e2e8f0** |
+| --text-secondary | #94a3b8 | **#8fa3bf** |
+| --text-muted | #94a3b8 | **#6d7f9c** |
+| --accent | #3b82f6 | **#e0a458**（浅金：链接/图标/边框/焦点） |
+| --accent-strong | #2563eb | **#d97706**（琥珀金：实心主按钮） |
+| --accent-soft | rgba(59,130,246,0.12) | rgba(224,164,88,0.14) |
+| --blue | #3b82f6 | **#e0a458** |
+| --green | #10b981 | **#059669** |
+| --green-soft | rgba(16,185,129,0.12) | rgba(5,150,105,0.14) |
+| --yellow | #f59e0b | **#d97706** |
+| --yellow-soft | rgba(245,158,11,0.12) | rgba(217,119,6,0.14) |
+| --red | #ef4444 | **#dc2626** |
+| --red-soft | rgba(239,68,68,0.12) | rgba(220,38,38,0.14) |
+| --orange | #f97316 | **#ea580c** |
+| --orange-soft | rgba(249,115,22,0.12) | rgba(234,88,12,0.14) |
+| --purple | #8b5cf6 | **#c084fc** |
+| --purple-soft | rgba(139,92,246,0.10) | rgba(192,132,252,0.14) |
+| --ring | #3b82f6 | **#e0a458** |
+| --shadow-card | 0 4px 16px rgba(0,0,0,0.40) | **0 4px 16px rgba(37,99,235,0.16)**（蓝色 tint） |
+| --shadow-overlay | 0 16px 40px rgba(0,0,0,0.65) | **0 16px 40px rgba(7,11,24,0.70)** |
+| **新增 --on-accent** | — | **#1a1206**（浅金底上的深棕字） |
+| **新增 --on-accent-strong** | — | **#1a1206**（琥珀金底上的深棕字） |
+
+### 2. light → Paper 纸感日光
+
+| 令牌 | 现值 | 改为 |
+|---|---|---|
+| --bg-app | #f1f5f9 | **#fafaf7** |
+| --bg-panel | #f8fafc | **#f4f3ee** |
+| --bg-card-hover | #f8fafc | **#f4f3ee** |
+| --bg-input | #f1f5f9 | **#f2f1ec** |
+| --surface-translucent | rgba(248,250,252,0.82) | rgba(244,243,238,0.84) |
+| --border | #e2e8f0 | **#e6e3da** |
+| --border-active | #2563eb | **#1e4f8a** |
+| --text-primary | #0f172a | **#1a2233** |
+| --text-secondary | #475569 | **#5a6472** |
+| --text-muted | #5b6b82 | **#7a8494** |
+| --accent | #2563eb | **#1e4f8a**（墨蓝） |
+| --accent-strong | #1d4ed8 | **#163e6e** |
+| --accent-soft | rgba(37,99,235,0.08) | rgba(30,79,138,0.08) |
+| --blue | #2563eb | **#1e4f8a** |
+| --ring | #2563eb | **#1e4f8a** |
+| --shadow-sm/card/overlay | 灰黑 | **暖灰 tint**（如 rgba(90,80,60,0.06)/0.07/0.12） |
+| **新增 --on-accent** | — | **#ffffff** |
+| **新增 --on-accent-strong** | — | **#ffffff** |
+
+### 3. ivory 象牙米（微调，保留主色）
+
+- `--blue: #2563eb` → **`#d97757`**（清残留，与 accent 同步）；
+- 新增 `--on-accent: #ffffff`、`--on-accent-strong: #ffffff`；
+- 其余不动。
+
+### 4. eyecare → Warm Paper 暖米护眼
+
+| 令牌 | 现值 | 改为 |
+|---|---|---|
+| --bg-app | #edf3e8 | **#f5f1e8** |
+| --bg-panel | #f5f9f2 | **#efe9dc** |
+| --bg-card | #ffffff | **#fdfbf7**（关键：非纯白，护眼核心） |
+| --bg-card-hover | #e1ebe0 | **#efe9dc** |
+| --bg-input | #edf3e8 | **#efe9dc** |
+| --surface-translucent | rgba(245,249,242,0.85) | rgba(239,233,220,0.86) |
+| --surface-translucent-card | rgba(255,255,255,0.9) | rgba(253,251,247,0.92) |
+| --border | #cad8c8 | **#e0dac8** |
+| --border-active | #2e7d32 | **#4a6b2e** |
+| --text-primary | #1b331e | **#2d2a24** |
+| --text-secondary | #426346 | **#5f5949** |
+| --text-muted | #537557 | **#6b6557** |
+| --accent | #2e7d32 | **#4a6b2e**（深橄榄绿） |
+| --accent-strong | #1b5e20 | **#3f5c26** |
+| --accent-soft | rgba(46,125,50,0.12) | rgba(74,107,46,0.12) |
+| --blue | #2563eb | **#4a6b2e** |
+| --ring | #2e7d32 | **#4a6b2e** |
+| **新增 --on-accent / --on-accent-strong** | — | **#ffffff / #ffffff** |
+
+### 5. blush → Sakura 樱花粉（给女生）
+
+| 令牌 | 现值 | 改为 |
+|---|---|---|
+| --bg-app | #f9f0f2 | **#fdf2f4** |
+| --bg-panel | #fcf6f7 | **#f9e9ec** |
+| --bg-card-hover | #f2e2e6 | **#f9e9ec** |
+| --bg-input | #f9f0f2 | **#f9e9ec** |
+| --surface-translucent | rgba(252,246,247,0.85) | rgba(249,233,236,0.86) |
+| --border | #e0c8ce | **#ecd9dd** |
+| --border-active | #be5170 | **#2f6b50** |
+| --text-primary | #381a22 | **#3a2b2e** |
+| --text-secondary | #6e4450 | **#6d5459** |
+| --text-muted | #825462 | **#8b7278** |
+| --accent | #be5170 | **#2f6b50**（墨绿，粉×绿经典搭配） |
+| --accent-strong | #9e3955 | **#265743** |
+| --accent-soft | rgba(190,81,112,0.12) | rgba(47,107,80,0.12) |
+| --blue | #3b82f6 | **#2f6b50** |
+| --ring | #be5170 | **#2f6b50** |
+| **新增 --on-accent / --on-accent-strong** | — | **#ffffff / #ffffff** |
+
+### 6. sand 暖沙（保留微调）
+
+- 主色保留（暖棕黑底 `#1c1812` + 琥珀 `#d97706`）；
+- **新增 `--on-accent: #1a1206`、`--on-accent-strong: #1a1206`**（金系按钮深字，与 Midnight 一致）；
+- 其余不动。
+
+## 二、按钮文字色机制（.btn-primary 与组件）
+
+1. `tokens.css` 末尾 `.btn-primary { color: #ffffff; }` → **`color: var(--on-accent-strong);`**；
+2. 全站 **39 处 "accent 底 + text-white"** 替换：
+   - `bg-[var(--accent-strong)] text-white` → `bg-[var(--accent-strong)] text-[var(--on-accent-strong)]`；
+   - `backgroundColor: 'var(--accent-strong)'`（style 写法）→ 同一元素加
+     `color: 'var(--on-accent-strong)'`；
+   - `backgroundColor: 'var(--accent)'` 的**实心按钮/气泡/图标块**（如 ChatPanel 用户气泡、
+     CaseBoard 按钮、FloatingAI 发送、Archive/DraftsBox/ImportHistory 图标块）→ 加
+     `color: 'var(--on-accent)'`；
+   - **图标/链接/边框用 var(--accent) 的前景色不用改**（不是实心底，无文字色问题）；
+3. **语义色按钮（bg-[var(--red)] text-white 等 37 处）保持白字，本次不动**；
+4. 头像/渐变/非令牌背景的 text-white（61 处）不动。
+
+重点文件（39 处分布）：CalculatorPanel、CoCreateDialog、ChatPanel、FloatingAI、CaseBoard、
+Archive、DraftsBox、ImportHistory、CaseDetail、HomePage、BrainChat 等，逐文件扫
+`text-white` + `accent` 组合替换。
+
+## 三、FloatingAI.tsx mock 回复中性化
+
+`src/components/ai/FloatingAI.tsx` L125-136（VITE_USE_MOCK 门控内）：
+
+1. 默认回复（L127）：
+   `收到关于「...」的问询。全量 28 个案件数据已完成交叉分析，涉及 CBA/ANZ/NAB 的贷款进度正常，建议关注 Wang Li 案件的补件与 Finance Due 倒计时。`
+   → `收到关于「${currentInput}」的问询。已基于当前案件库与银行政策完成初步分析，可继续询问具体案件或补件状态。`；
+2. "周报"分支（L130-133）：`本周新接入案件: 4 件 ($3.4M) / Unconditional 获批: 2 件 ($1.8M) / 结佣预估: $12,350 / ANZ 自雇 ABN 转 CBA 案件` → 中性：
+   `📊 **Vera 贷款周报（智能生成预览）**\n- 本周案件新增、获批与结佣数据请以今日工作台统计为准\n- 需重点跟进案件已在首页待办中列出`；
+3. "分析"分支（L135-137）：`平均批复周期 12.4 天 / CBA 8 天 / ANZ 45%` → 中性：
+   `📈 案件批复周期与银行时效分析将在联调后接入真实数据，当前为演示回复。`
+
+## 四、红线
+
+1. 只改 tokens.css 色值与上述组件文字色/FloatingAI 文案；**不改任何组件结构、逻辑、字号、动效**；
+2. 不新增 npm 依赖；tokens.css 令牌名不删不改（只改值、新增 --on-accent/--on-accent-strong）；
+3. 交付报告附：六主题替换清单 + 39 处 text-white 替换明细 + FloatingAI 文案前后对照。
+
+## 五、验收（AI Studio 侧）
+
+1. `npx tsc --noEmit` 零错误；构建通过；
+2. `rg -n "text-white" src --glob "*.tsx"` 中 accent 底组合为 0（仅剩语义色/头像/渐变）；
+3. `rg -n "on-accent" src/themes/tokens.css` 六主题各 2 个令牌齐全；
+4. 切 6 套主题：主按钮文字可读（Midnight/sand 金钮深棕字、其余白字），背景与按钮色系不同；
+5. FloatingAI 演示回复无假客户名/假金额。
+
+## 六、本地联调验收（Vera / Codex 执行）
+
+1. 切 6 套主题逐套走查：主按钮文字对比清晰、无"绿底绿钮/粉底粉钮"同色系现象；
+2. 首页/中栏/右栏/设置/计算器/通知/草稿箱/AU 面板配色协调，语义色仍可辨识；
+3. 悬浮 AI 演示回复中性；无回归（色类 0、bg-black 0、spring 两档、字号、reduced-motion）。
