@@ -5736,6 +5736,106 @@ const handleSuggestedAction = (act: string) => {
 
 ---
 
+
+# F-46 补丁九（2026-08-17）：进入邮件共创改为"聊天流卡片确认"（替代模态确认框）
+
+> 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (79)`（本批在 (79) 基础上改）。
+> 背景（Vera 拍板）：F-47 的"模态确认框"不符合预期——**应恢复聊天流卡片确认**：
+> 点邮件入口 → 主对话先出 AI 回复 + 卡片（进入共创 / 取消）→ 点卡片才进共创弹窗。
+
+## 一、openEmailCoCreate 改为插聊天卡（src/components/brain/BrainChat.tsx）
+
+1. 移除/停用 `emailConfirmOpen` 模态确认框（F-47 的模态 + L1528 渲染块删除）；
+2. `openEmailCoCreate` 改为**向主对话流插入 AI 消息 + co_create_confirm 卡**：
+
+```ts
+const openEmailCoCreate = () => {
+  if (!activeCaseInfo) {
+    useToastStore.getState().showToast('info', '请先选择案件，再写补件邮件');
+    return;
+  }
+  const sessionId = 'session-' + Date.now();
+  setMessages((prev) => [...prev, {
+    id: `co-confirm-${Date.now()}`,
+    role: 'assistant',
+    content: `已准备补件跟进邮件共创（${activeCaseInfo.clientName} · ${activeCaseInfo.lender}）。进入后可在弹窗中澄清意图、生成 V1-V3 多版本并确认。`,
+    created_at: '刚刚',
+    tool_cards: [{
+      type: 'co_create_confirm',
+      title: '进入补件跟进邮件共创',
+      payload: { flow_key: 'followup', session_id: sessionId },
+    }],
+  }]);
+};
+```
+
+3. 移除 `confirmEnterEmailCoCreate` 及其调用（模态逻辑不再使用）。
+
+## 二、渲染 co_create_confirm 卡（src/components/brain/BrainChat.tsx）
+
+在 tool_cards 渲染分支新增：
+
+```jsx
+if (card.type === 'co_create_confirm') {
+  const p = card.payload as any;
+  return (
+    <div key={idx} className="p-3.5 rounded-2xl border bg-[var(--purple-soft)] border-[var(--purple-soft)] space-y-2 text-xs my-2"
+         id={`co-create-confirm-${idx}`}>
+      <div className="flex items-center space-x-2 font-bold text-[var(--purple)]">
+        <Sparkles className="w-4 h-4 text-[var(--purple)] flex-shrink-0" />
+        <span>{card.title || '进入补件跟进邮件共创'}</span>
+      </div>
+      <p className="text-[11px] text-muted leading-relaxed">
+        进入后将拉起案件全景，支持澄清意图、V1-V3 版本链与 A/B 分支对比；确认后存入草稿箱（绝不自动发送）。
+      </p>
+      <div className="flex items-center justify-end space-x-2 pt-1">
+        <button type="button" onClick={() => dismissCard(messageIdx, idx)}
+          className="px-3 py-1.5 rounded-xl font-bold text-[11px] border cursor-pointer"
+          style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
+          取消
+        </button>
+        <button type="button" onClick={() => {
+          setCoCreateFlowKey((p?.flow_key || 'followup') as any);
+          setCoCreateSessionId(p?.session_id || null);
+          setCoCreateOpen(true);
+          dismissCard(messageIdx, idx);
+        }}
+          className="px-3.5 py-1.5 rounded-xl font-bold text-[11px] text-white cursor-pointer shadow-xs btn-primary">
+          进入共创
+        </button>
+      </div>
+    </div>
+  );
+}
+```
+
+## 三、三入口共用（工具菜单 / 建议动作 / 首页）
+
+工具菜单 `tool-opt-email`、`handleSuggestedAction` 邮件分支、首页 `open-email-co-create`
+事件监听——全部已调 `openEmailCoCreate()`，改完即统一为聊天卡确认（无需再改入口）。
+
+## 四、红线
+
+1. 只改 BrainChat.tsx（openEmailCoCreate + co_create_confirm 卡渲染 + 删模态）；不改后端；
+   不新增依赖；
+2. 点"进入共创"才打开 CoCreateDialog；"取消"只移除卡片不弹窗；
+3. 无案件仍提示先选案；确认后邮件记录卡（co_create_record，F-47）逻辑不变。
+
+## 五、验收（AI Studio 侧）
+
+1. `npx tsc --noEmit` 零错误；
+2. `rg -n "emailConfirmOpen|confirmEnterEmailCoCreate" src/components/brain/BrainChat.tsx` → 无残留；
+3. `rg -n "co_create_confirm" src/components/brain/BrainChat.tsx` → 插入与渲染齐全；
+4. 工具菜单/建议动作/首页三入口均走 openEmailCoCreate（聊天卡）。
+
+## 六、本地联调验收（Vera / Codex 执行，Electron）
+
+1. 点"写补件邮件"（工具菜单/建议动作/首页）→ **主对话出现 AI 回复 + 卡片**（进入共创/取消）；
+2. 点"进入共创"→ 打开共创弹窗；点"取消"→ 卡片消失（无模态弹窗）；
+3. 无案件 → 提示"请先选择案件"；确认完成后邮件记录卡照常进主对话；无回归。
+
+
+
 # F-46 补丁十（2026-08-17 终版）：进入共创按意图分流——A 类直接弹窗 / B 类聊天卡
 
 > 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (79)`（本批在 (79) 基础上改）。
@@ -5856,102 +5956,75 @@ if (card.type === 'co_create_confirm') {
 4. 无案件 → 提示先选案；邮件确认后记录卡照常；无回归。
 
 ---
-
-# F-46 补丁九（2026-08-17）：进入邮件共创改为"聊天流卡片确认"（替代模态确认框）
+# F-48（2026-08-18）：设置页"AI 模型配置"区块（DeepSeek/Gemini key + 中转地址 + 测试连接）
 
 > 前端目录：`C:\Users\Yaruo\Downloads\vera-工作台 (79)`（本批在 (79) 基础上改）。
-> 背景（Vera 拍板）：F-47 的"模态确认框"不符合预期——**应恢复聊天流卡片确认**：
-> 点邮件入口 → 主对话先出 AI 回复 + 卡片（进入共创 / 取消）→ 点卡片才进共创弹窗。
+> 背景（Vera 拍板）：大模型 API（DeepSeek/Gemini key + 免 VPN 中转地址）目前只能手改
+> .env，不友好。后端已交付 `GET/PATCH /api/settings/ai` + `POST /api/settings/ai/test`
+> （1f45b4f，热重载即时生效）。本批做设置页 UI。
 
-## 一、openEmailCoCreate 改为插聊天卡（src/components/brain/BrainChat.tsx）
+## 一、后端契约（勿偏离）
 
-1. 移除/停用 `emailConfirmOpen` 模态确认框（F-47 的模态 + L1528 渲染块删除）；
-2. `openEmailCoCreate` 改为**向主对话流插入 AI 消息 + co_create_confirm 卡**：
-
-```ts
-const openEmailCoCreate = () => {
-  if (!activeCaseInfo) {
-    useToastStore.getState().showToast('info', '请先选择案件，再写补件邮件');
-    return;
-  }
-  const sessionId = 'session-' + Date.now();
-  setMessages((prev) => [...prev, {
-    id: `co-confirm-${Date.now()}`,
-    role: 'assistant',
-    content: `已准备补件跟进邮件共创（${activeCaseInfo.clientName} · ${activeCaseInfo.lender}）。进入后可在弹窗中澄清意图、生成 V1-V3 多版本并确认。`,
-    created_at: '刚刚',
-    tool_cards: [{
-      type: 'co_create_confirm',
-      title: '进入补件跟进邮件共创',
-      payload: { flow_key: 'followup', session_id: sessionId },
-    }],
-  }]);
-};
+```json
+GET /api/settings/ai
+→ { "deepseek": { "key_configured": true, "base_url": null },
+    "gemini":   { "key_configured": false, "base_url": "https://..." } }
 ```
 
-3. 移除 `confirmEnterEmailCoCreate` 及其调用（模态逻辑不再使用）。
-
-## 二、渲染 co_create_confirm 卡（src/components/brain/BrainChat.tsx）
-
-在 tool_cards 渲染分支新增：
-
-```jsx
-if (card.type === 'co_create_confirm') {
-  const p = card.payload as any;
-  return (
-    <div key={idx} className="p-3.5 rounded-2xl border bg-[var(--purple-soft)] border-[var(--purple-soft)] space-y-2 text-xs my-2"
-         id={`co-create-confirm-${idx}`}>
-      <div className="flex items-center space-x-2 font-bold text-[var(--purple)]">
-        <Sparkles className="w-4 h-4 text-[var(--purple)] flex-shrink-0" />
-        <span>{card.title || '进入补件跟进邮件共创'}</span>
-      </div>
-      <p className="text-[11px] text-muted leading-relaxed">
-        进入后将拉起案件全景，支持澄清意图、V1-V3 版本链与 A/B 分支对比；确认后存入草稿箱（绝不自动发送）。
-      </p>
-      <div className="flex items-center justify-end space-x-2 pt-1">
-        <button type="button" onClick={() => dismissCard(messageIdx, idx)}
-          className="px-3 py-1.5 rounded-xl font-bold text-[11px] border cursor-pointer"
-          style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
-          取消
-        </button>
-        <button type="button" onClick={() => {
-          setCoCreateFlowKey((p?.flow_key || 'followup') as any);
-          setCoCreateSessionId(p?.session_id || null);
-          setCoCreateOpen(true);
-          dismissCard(messageIdx, idx);
-        }}
-          className="px-3.5 py-1.5 rounded-xl font-bold text-[11px] text-white cursor-pointer shadow-xs btn-primary">
-          进入共创
-        </button>
-      </div>
-    </div>
-  );
-}
+```json
+PATCH /api/settings/ai
+请求：{ "deepseek_api_key"?, "deepseek_base_url"?, "gemini_api_key"?, "gemini_base_url"? }
+（省略=不改；空字符串=清除；保存即热重载生效）
+→ 同 GET 结构
 ```
 
-## 三、三入口共用（工具菜单 / 建议动作 / 首页）
+```json
+POST /api/settings/ai/test
+请求：{ "provider": "deepseek"|"gemini", "api_key"?, "base_url"? }
+→ { "ok": true|false, "message": "连接成功" | "错误信息" }
+```
 
-工具菜单 `tool-opt-email`、`handleSuggestedAction` 邮件分支、首页 `open-email-co-create`
-事件监听——全部已调 `openEmailCoCreate()`，改完即统一为聊天卡确认（无需再改入口）。
+## 二、设置页新增"AI 模型配置"区块
 
-## 四、红线
+建议 `src/components/settings/AiConfigCard.tsx`（与 AssistantSettingsCard 同级，挂到
+Settings.tsx 的"模型与 API"或类似 Tab 下）。
 
-1. 只改 BrainChat.tsx（openEmailCoCreate + co_create_confirm 卡渲染 + 删模态）；不改后端；
-   不新增依赖；
-2. 点"进入共创"才打开 CoCreateDialog；"取消"只移除卡片不弹窗；
-3. 无案件仍提示先选案；确认后邮件记录卡（co_create_record，F-47）逻辑不变。
+**UI 结构（两 provider 卡片 + 底部操作）：**
 
-## 五、验收（AI Studio 侧）
+1. **DeepSeek（主力）**：
+   - Key 状态行：`已配置 ****`（key_configured=true）或 `未配置`；
+   - API Key 输入框：`type="password"`，placeholder=`已配置则留空不修改 / 输入新 Key 覆盖`；
+   - Base URL 输入框：placeholder=`https://api.deepseek.com/v1`（可填中转地址）；
+2. **Gemini（英文兜底）**：
+   - 同上（key 状态 + password 输入 + Base URL）；
+3. **[测试连接] 按钮**（每个 provider 卡各一个）：
+   - 用**当前输入框的值**（未填则用已存配置）调 `POST /api/settings/ai/test`；
+   - 结果内联显示：成功绿色"连接成功" / 失败红色错误信息（message 截断显示）；
+4. **[保存配置] 按钮**（区块底部，主按钮）：
+   - 组装 PATCH：只有用户填了 key/base_url 的字段才传；空字符串表示清除；
+   - 成功后 toast `已保存并生效` + 重新 GET 刷新状态；失败 toast 错误。
 
-1. `npx tsc --noEmit` 零错误；
-2. `rg -n "emailConfirmOpen|confirmEnterEmailCoCreate" src/components/brain/BrainChat.tsx` → 无残留；
-3. `rg -n "co_create_confirm" src/components/brain/BrainChat.tsx` → 插入与渲染齐全；
-4. 工具菜单/建议动作/首页三入口均走 openEmailCoCreate（聊天卡）。
+## 三、安全红线
 
-## 六、本地联调验收（Vera / Codex 执行，Electron）
+1. **key 只写不读**：界面绝不显示已存 key 原文（GET 只回 key_configured 布尔）；
+   password 输入框不回显；`rg` 校验无 key 泄漏到页面；
+2. 不硬编码任何 key 到前端；不新增 npm 依赖；
+3. 测试连接消息为最小内容（后端用 "ping"），无 PII。
 
-1. 点"写补件邮件"（工具菜单/建议动作/首页）→ **主对话出现 AI 回复 + 卡片**（进入共创/取消）；
-2. 点"进入共创"→ 打开共创弹窗；点"取消"→ 卡片消失（无模态弹窗）；
-3. 无案件 → 提示"请先选择案件"；确认完成后邮件记录卡照常进主对话；无回归。
+## 四、验收（AI Studio 侧）
 
+1. `npx tsc --noEmit` 零错误；构建通过；
+2. `rg -n "settings/ai" src`：GET/PATCH/test 三调用齐全；
+3. 设置页可见"AI 模型配置"区块：DeepSeek/Gemini 各含 key 状态 + password 输入 + Base URL +
+   测试连接；保存按钮走 PATCH；
+4. 已配置 key 只显示"已配置"，不出现原文。
+
+## 五、本地联调验收（Vera / Codex 执行，Electron）
+
+1. 设置页打开 AI 模型配置：DeepSeek/Gemini 状态正确（当前 .env 已配则"已配置"）；
+2. 填 fake key 点"测试连接"→ 失败红色提示（认证错误信息可见）；
+3. 保存（填真实 key 或清空）→ "已保存并生效"；刷新后状态正确；
+4. 保存后对话/共创可用新 key（热重载，无需重启）；无回归。
+
+---
 
