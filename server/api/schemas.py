@@ -1001,6 +1001,38 @@ class AssistantSettingsUpdate(BaseModel):
     persona_key: str | None = Field(default=None, max_length=20)
 
 
+# ── AI 模型 API 配置（设置页，2026-08-18） ────────────────────────────────
+
+class AiProviderStatus(BaseModel):
+    """单个 provider 的 key/base_url 状态（key 只回显是否配置，不返回原文）。"""
+
+    key_configured: bool
+    base_url: str | None = None
+
+
+class AiSettingsResponse(BaseModel):
+    deepseek: AiProviderStatus
+    gemini: AiProviderStatus
+
+
+class AiSettingsUpdate(BaseModel):
+    deepseek_api_key: str | None = None
+    deepseek_base_url: str | None = None
+    gemini_api_key: str | None = None
+    gemini_base_url: str | None = None
+
+
+class AiTestRequest(BaseModel):
+    provider: Literal["deepseek", "gemini"]
+    api_key: str | None = None
+    base_url: str | None = None
+
+
+class AiTestResponse(BaseModel):
+    ok: bool
+    message: str
+
+
 class FactAmendRequest(BaseModel):
     """人工修正事实请求（WO-42）。"""
 
