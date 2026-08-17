@@ -4736,16 +4736,52 @@ declare global {
 3. `src/components/cases/KanbanCard.tsx`：清单进度条
    `className="w-full h-1.5 rounded-full overflow-hidden"` → **`w-full h-2 rounded-full overflow-hidden`**。
 
-## 二、侧栏阶段/进度挤压修复（一处）
+## 二、truncate + flex 子项补 min-w-0（flex 容器内才会挤压，独立行 truncate 不动）
 
-`src/components/brain/CaseListSidebar.tsx` 节点条下方那行：
+**规则**：`truncate` 在 flex 子项上需 `min-w-0` 才生效。以下均在 flex 容器内、旁边有
+flex-shrink-0 兄弟（长文字会挤压兄弟元素），**必改**：
+
+1. `src/components/brain/CaseListSidebar.tsx` 客户名 + 银行徽章行（约 L284）：
+
+```jsx
+<span className="font-bold text-xs truncate" style={{...}}>
+```
+→ **`<span className="font-bold text-xs truncate min-w-0 flex-1" style={{...}}>`**
+（银行徽章保持 flex-shrink-0 固定右侧，客户名超长省略）；
+
+2. `src/components/brain/CaseListSidebar.tsx` 节点条下方阶段/进度行（约 L321）：
 
 ```jsx
 <span className="truncate font-medium text-secondary">{c.stage}</span>
 ```
 
 → **`<span className="truncate font-medium text-secondary min-w-0 flex-1">{c.stage}</span>`**
-（truncate 在 flex 子项需 min-w-0 才生效；flex-1 保证省略后 % 固定右侧不挤压）。
+（省略后 % 固定右侧不挤压）；
+
+3. `src/components/brain/CasePanorama.tsx` 右栏标题行（约 L188）：
+   `truncate` 标题 span → 加 `min-w-0 flex-1`（标题超长省略，折叠按钮固定右侧）；
+4. `src/components/brain/BrainChat.tsx` 中栏标题行（约 L674）：同上加 `min-w-0 flex-1`。
+
+**不动**：非 flex 子项/独立行的 truncate（块级 p/h/独立 span，truncate 本身生效）
+——TaskCard 摘要、AuTimePanel 假期名、DraftsBox subject 等，如不在 flex 挤压场景保持原样。
+
+## 三、红线
+
+1. 只改上述 class；不改结构/逻辑/文案/其他样式；不新增依赖；
+2. 交付报告附改动说明。
+
+## 四、验收（AI Studio 侧）
+
+1. `npx tsc --noEmit` 零错误；
+2. `rg -n "h-1\\.5" src/components/cases src/components/brain/CaseListSidebar.tsx`
+   中进度条相关为 0（保留非进度条 h-1.5，如状态圆点）；
+3. CaseListSidebar 客户名/stage、CasePanorama/BrainChat 标题 span 均含 min-w-0。
+
+## 五、本地联调验收（Vera / Codex 执行，Electron 真后端）
+
+1. 左侧案件列表：长客户名省略、银行徽章固定右侧；长阶段省略、% 固定右侧；
+2. 右栏标题/中栏标题超长省略，按钮不被挤压；
+3. 案件卡片/看板卡片进度条明显（h-2）；六套主题正常。
 
 ## 三、红线
 
