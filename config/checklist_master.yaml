@@ -21,7 +21,7 @@ items:
     name_zh: 驾照
     name_en: Driver Licence
     category: identity
-    aliases: [driver_license, driverlicence, licence, drivers_licence]
+    aliases: [driver_license, driverlicence, licence, drivers_licence, dl, iddl]
     applicable_when: { all: true }
 
   - id: visa_grant
@@ -49,7 +49,7 @@ items:
     name_zh: 永居批准信
     name_en: PR Grant Notice
     category: identity
-    aliases: [pr_grant, pr_letter, permanent_residency]
+    aliases: [pr_grant, pr_letter, permanent_residency, visa155]
     applicable_when: { residency: [PR] }
 
   - id: name_change_certificate
@@ -116,7 +116,7 @@ items:
     name_zh: 会计师信
     name_en: Accountant Letter
     category: income_self_employed
-    aliases: [accountantletter, accountant_confirmation, accountant_letter]
+    aliases: [accountantletter, accountant_confirmation, accountant_letter, accountantsdeclaration, accountant]
     applicable_when: { employment_type: [SelfEmployed, Company] }
 
   - id: tax_return_2yr
@@ -335,7 +335,7 @@ items:
     name_zh: 现有贷款对账单
     name_en: Existing Loan Statement
     category: special
-    aliases: [homeloanstatement, existing_loan, mortgage_statement]
+    aliases: [homeloanstatement, existing_loan, mortgage_statement, liability, liabilityhl, homeloan]
     applicable_when: { all: true }
 
   - id: personal_bank_statement
@@ -386,7 +386,7 @@ items:
     name_zh: 市政费通知
     name_en: Council Rates Notice
     category: property
-    aliases: [councilrates, rates_notice, council_rates]
+    aliases: [councilrates, rates_notice, council_rates, ratenotice]
     applicable_when: { all: true }
 
   - id: valuation_report

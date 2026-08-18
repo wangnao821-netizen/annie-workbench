@@ -26,6 +26,15 @@ logger = get_logger(__name__)
 _IGNORED_NAMES = frozenset({".DS_Store", "Thumbs.db", "desktop.ini", "processed_ids.txt"})
 
 
+def _platform_dirs(folder: Path) -> list[Path]:
+    """案件文件夹下所有顶层 "Send to *" 目录（Send to Lender / Send to Infynity / ...）。"""
+    try:
+        return [p for p in folder.iterdir()
+                if p.is_dir() and p.name.lower().startswith("send to ")]
+    except OSError:
+        return []
+
+
 def _aliases() -> dict[str, list[str]]:
     """主清单别名表：master id → aliases（惰性加载，分类用）。"""
     return {str(it.get("id")): list(it.get("aliases") or []) for it in _load_master()}
@@ -36,15 +45,23 @@ def _normalize(name: str) -> str:
 
 
 def classify_file(filename: str) -> tuple[str | None, float]:
-    """文件名关键词分类（V1 不 OCR）。返回 (doc_type=master id, confidence)。"""
+    """文件名关键词分类（V1 不 OCR）。返回 (doc_type=master id, confidence)。
+
+    最长别名优先：多个别名命中时取最长（如 visa155 优先于 visa），避免短别名抢先误配。
+    """
     plain = _normalize(filename)
+    best: tuple[str, str, float] | None = None
     for key, aliases in _aliases().items():
         for alias in aliases:
             a = _normalize(alias)
-            if a and a in plain:
-                confidence = 0.95 if plain == a or plain.startswith(a) or plain.endswith(a) else 0.85
-                return key, confidence
-    return None, 0.0
+            if not a or a not in plain:
+                continue
+            confidence = 0.95 if plain == a or plain.startswith(a) or plain.endswith(a) else 0.85
+            if best is None or len(a) > len(best[1]):
+                best = (key, a, confidence)
+    if best is None:
+        return None, 0.0
+    return best[0], best[2]
 
 
 def _log_event(db: Session, case_id: str, file_id: str, event_type: str, details: dict) -> None:
@@ -96,33 +113,34 @@ def scan_case_folders(db: Session) -> list[dict]:
         folder = Path(str(case.folder_path))
         if not folder.is_dir():
             continue
-        for f in sorted(folder.rglob("*")):
-            if not f.is_file() or f.name in _IGNORED_NAMES:
-                continue
-            dup = db.query(CaseFile).filter(CaseFile.case_id == case.id, CaseFile.nas_path == str(f)).first()
-            if dup is not None:
-                continue
-            doc_type, confidence = classify_file(f.name)
-            file_id = f"file_{uuid4().hex[:12]}"
-            record = CaseFile(
-                id=file_id, case_id=case.id, original_name=f.name, assigned_type=doc_type,
-                confidence=confidence or None, nas_path=str(f), status="discovered",
-                file_extension=f.suffix.lower() or None, file_size=f.stat().st_size,
-            )
-            db.add(record)
-            db.flush()
-            _log_event(db, case.id, file_id, "folder_discovered",
-                       {"path": f.relative_to(folder).as_posix(), "doc_type": doc_type, "confidence": confidence})
-            matched: list[int] = []
-            if doc_type and confidence >= cfg.confidence_threshold:
-                matched = _auto_match(db, case, record)
-            db.commit()
-            events.append({"case_id": case.id, "file_id": file_id, "original_name": f.name,
-                           "doc_type": doc_type, "confidence": confidence, "matched": matched})
-            sse_manager.publish("file_discovered", {
-                "case_id": case.id, "file_id": file_id, "original_name": f.name,
-                "doc_type": doc_type, "matched": matched,
-            })
+        for root in (_platform_dirs(folder) or [folder]):
+            for f in sorted(root.rglob("*")):
+                if not f.is_file() or f.name in _IGNORED_NAMES:
+                    continue
+                dup = db.query(CaseFile).filter(CaseFile.case_id == case.id, CaseFile.nas_path == str(f)).first()
+                if dup is not None:
+                    continue
+                doc_type, confidence = classify_file(f.name)
+                file_id = f"file_{uuid4().hex[:12]}"
+                record = CaseFile(
+                    id=file_id, case_id=case.id, original_name=f.name, assigned_type=doc_type,
+                    confidence=confidence or None, nas_path=str(f), status="discovered",
+                    file_extension=f.suffix.lower() or None, file_size=f.stat().st_size,
+                )
+                db.add(record)
+                db.flush()
+                _log_event(db, case.id, file_id, "folder_discovered",
+                           {"path": f.relative_to(folder).as_posix(), "doc_type": doc_type, "confidence": confidence})
+                matched: list[int] = []
+                if doc_type and confidence >= cfg.confidence_threshold:
+                    matched = _auto_match(db, case, record)
+                db.commit()
+                events.append({"case_id": case.id, "file_id": file_id, "original_name": f.name,
+                               "doc_type": doc_type, "confidence": confidence, "matched": matched})
+                sse_manager.publish("file_discovered", {
+                    "case_id": case.id, "file_id": file_id, "original_name": f.name,
+                    "doc_type": doc_type, "matched": matched,
+                })
     return events
 
 

@@ -1147,3 +1147,26 @@ class NamingSuggestResponse(BaseModel):
     template_key: str | None = None
     matched: bool
     reasons: list[str]
+
+
+# ── WO-50 存量导入预览 Schemas ─────────────────────────────────────────
+
+class LegacyImportPreviewRequest(BaseModel):
+    folder_path: str
+
+
+class LegacyImportSubmission(BaseModel):
+    platform: str
+    dir_name: str
+    file_count: int
+    is_lender: bool = False
+
+
+class LegacyImportPreviewResponse(BaseModel):
+    ok: bool
+    message: str | None = None
+    broker_notes_found: bool = False
+    broker_notes_name: str | None = None
+    prefilled: dict = Field(default_factory=dict)
+    submissions: list[LegacyImportSubmission] = Field(default_factory=list)
+    submitted_platforms: list[str] = Field(default_factory=list)

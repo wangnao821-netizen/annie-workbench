@@ -22,6 +22,7 @@ from core.case_creation import create_case_from_source
 from core.case_engine.folder import auto_create, link_existing
 from core.case_engine.progression import evaluate_stage_signal
 from core.case_engine.snapshot import build_case_snapshot
+from core.case_folder.legacy_import import build_legacy_import_preview
 from core.checklist.matcher import CaseNotFoundError, check_completeness
 from core.config import get_config
 from core.constants import TERMINAL_STAGES
@@ -43,9 +44,9 @@ from core.policy.prompts import polish_policy_text
 from server.api.schemas import (
     ArchivedCaseResponse,
     BrainFactResponse,
+    CaseCloseRequest,
     CaseContextResponse,
     CaseCreateRequest,
-    CaseCloseRequest,
     CaseDetailResponse,
     CaseFolderRequest,
     CaseFolderResponse,
@@ -59,6 +60,8 @@ from server.api.schemas import (
     DeclarationCheckResponse,
     FactAmendRequest,
     FactDisclosureRequest,
+    LegacyImportPreviewRequest,
+    LegacyImportPreviewResponse,
     ParseFileResponse,
     ParseTextRequest,
     PolicyCheckResponse,
@@ -698,7 +701,7 @@ def delete_case(
     for fid in fact_ids:
         try:
             db.execute(text("DELETE FROM fact_embeddings WHERE fact_id = :fid"), {"fid": fid})
-        except Exception:  # noqa: BLE001 — vec0 不可用时降级，不阻断删除
+        except Exception:  # noqa: BLE001, S110 — vec0 不可用时降级，不阻断删除
             pass
 
     # 2. email_drafts 关联的回复行（email_draft_replies 无 case_id 列，按 draft_id 清）
@@ -949,3 +952,13 @@ def case_snapshot(
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return CaseSnapshotResponse(**data)
+
+
+@router.post("/legacy-import/preview", response_model=LegacyImportPreviewResponse)
+def legacy_import_preview(
+    req: LegacyImportPreviewRequest,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> LegacyImportPreviewResponse:
+    """存量导入预览：Broker Notes 画像 + 平台递交状态（只读）。"""
+    data = build_legacy_import_preview(req.folder_path, db)
+    return LegacyImportPreviewResponse(**data)

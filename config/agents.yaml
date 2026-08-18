@@ -2,7 +2,7 @@ version: 1
 items:
   - key: agent-intake
     name: "建档 Agent (Case Intake)"
-    description: "一键完成新客户或存量壳立项、支持文件/文本识别自动提取与预填"
+    description: "一键完成新客户或存量客户建档、支持文件/文本识别自动提取与预填"
     category: agent
     status: available
     triggers: ["帮我建个案件", "新建贷款案件"]
