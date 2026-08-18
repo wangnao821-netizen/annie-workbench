@@ -73,6 +73,17 @@ Write-Host "[prepare] copying base python..."
 $basePy = "C:\Users\Yaruo\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none"
 Copy-Item -LiteralPath $basePy -Destination (Join-Path $staging "runtime\python") -Recurse -Force
 
+# ---- 4b. OCR tessdata（eng + chi_sim；缺失时自动下载） ---------------------
+$tessSrc = Join-Path $PSScriptRoot "tessdata"
+$tessDst = Join-Path $staging "runtime\tessdata"
+if (-not (Test-Path (Join-Path $tessSrc "eng.traineddata"))) {
+    Write-Host "[prepare] tessdata missing, downloading..."
+    New-Item -ItemType Directory -Path $tessSrc -Force | Out-Null
+    Invoke-WebRequest -Uri "https://github.com/tesseract-ocr/tessdata/raw/main/eng.traineddata" -OutFile (Join-Path $tessSrc "eng.traineddata") -TimeoutSec 180
+    Invoke-WebRequest -Uri "https://github.com/tesseract-ocr/tessdata/raw/main/chi_sim.traineddata" -OutFile (Join-Path $tessSrc "chi_sim.traineddata") -TimeoutSec 180
+}
+Copy-Item -LiteralPath $tessSrc -Destination $tessDst -Recurse -Force
+
 Write-Host "[prepare] copying site-packages (may take a minute)..."
 $spSrc = Join-Path $root ".venv\Lib\site-packages"
 $spDst = Join-Path $staging "runtime\site-packages"

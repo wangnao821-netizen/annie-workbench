@@ -133,6 +133,10 @@ async function ensureBackend() {
     spawnEnv.PYTHONPATH = RUNTIME_SITE;
     spawnEnv.PYTHONDONTWRITEBYTECODE = '1';
   }
+  if (IS_PACKAGED) {
+    // OCR 语言包（liteparse 静态内嵌 tesseract，仅需 tessdata 目录）
+    spawnEnv.TESSDATA_PREFIX = path.join(process.resourcesPath, 'runtime', 'tessdata');
+  }
   backendProc = spawn(python, [BACKEND_SCRIPT, '--port', String(port)], {
     cwd: APP_BACKEND,
     env: spawnEnv,

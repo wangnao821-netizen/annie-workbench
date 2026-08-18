@@ -23,6 +23,7 @@
 - recall.py F821 / generator.py F821（Mem0 兜底接线）
 - DB 唯一真源收敛为 core/data/assistant.db（#20 收口）
 - 自包含便携打包（2026-08-18）：electron 打包态路径解析（backend/runtime/web 布局）、内置便携 Python + 精简 site-packages、首启迁移前置（消除 no such table 竞态）、空数据交付（不打包任何 db）；/api/health 不再把可选的 CLIENT_FILES_ROOT 视为缺失
+- OCR 语言包内置（2026-08-18）：eng + chi_sim tessdata 打进 runtime（liteparse 静态内嵌 tesseract，仅需 tessdata），打包版图片/扫描 PDF 识别开箱可用；prepare-package.ps1 自动下载兜底
 
 ## 2.0.0（2026-08-12 基线）
 - CASE 大脑 V1 基线：BrainFact / 确认闸门 / 对话协议 / 上下文注入 / 统一建案 / 统计 / 双线内外轨
