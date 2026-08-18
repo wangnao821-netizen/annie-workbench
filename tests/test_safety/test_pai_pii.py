@@ -26,7 +26,7 @@ def _pai_pii_env(monkeypatch, tmp_path):
 
 
 def _capture_fake(captured: dict):
-    def fake_run(agent, prompt, timeout):
+    def fake_run(agent, prompt, timeout, deps=None):
         captured["prompt"] = prompt
         return SimpleNamespace(output="ok", usage=lambda: None, all_messages=list)
     return fake_run
@@ -51,7 +51,7 @@ def test_output_rehydrated(test_db, monkeypatch):
     captured: dict = {}
     monkeypatch.setattr(pai, "_run_agent", _capture_fake(captured))
     fake = SimpleNamespace(output=f"客户电话 {token} 已确认", usage=lambda: None, all_messages=list)
-    monkeypatch.setattr(pai, "_run_agent", lambda a, p, t: fake)
+    monkeypatch.setattr(pai, "_run_agent", lambda a, p, t, d: fake)
     res = pai.run_flow_with_pai(load_flows()["calculator"], "c_pii2", {}, test_db)
     assert res is not None
     assert "0412 345 678" in res["reply"]
@@ -75,7 +75,7 @@ def test_desensitization_chain_survives_provider_switch(test_db, monkeypatch):
     prompts: list[str] = []
     calls = {"n": 0}
 
-    def fake_run(agent, prompt, timeout):
+    def fake_run(agent, prompt, timeout, deps=None):
         prompts.append(prompt)
         calls["n"] += 1
         if calls["n"] == 1:
