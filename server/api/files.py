@@ -156,14 +156,14 @@ def _get_checklist_item_or_404(item_id: int, case_id: str, db: Session) -> CaseC
 def confirm_checklist_item(
     case_id: str,
     item_id: int,
-    req: ChecklistConfirmRequest,
+    req: ChecklistConfirmRequest | None = None,
     db: Session = Depends(get_db),  # noqa: B008
 ):
     """确认清单项为已收到。"""
     _get_case_or_404(case_id, db)
     item = _get_checklist_item_or_404(item_id, case_id, db)
     item.status = "received"
-    item.received_file_id = req.received_file_id
+    item.received_file_id = req.received_file_id if req else None
     db.commit()
     db.refresh(item)
     mark_case_summary_dirty(case_id, db)

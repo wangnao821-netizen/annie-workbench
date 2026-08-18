@@ -80,6 +80,36 @@ class TestAddChecklistEndpoint:
         assert "信托文件" in names
 
 
+class TestConfirmWithoutBody:
+    """确认清单项允许无 body：前端勾选只传 case_id + item_id（received_file_id 可选）。"""
+
+    def test_confirm_without_body(self, client, test_db):
+        _case(test_db, "CL-CF")
+        add = client.post(
+            "/api/cases/CL-CF/checklist",
+            json={"name_zh": "测试材料", "category": "property", "is_required": True},
+        )
+        assert add.status_code == 201
+        item_id = add.json()["id"]
+        r = client.post(f"/api/cases/CL-CF/checklist/{item_id}/confirm")
+        assert r.status_code == 200
+        assert r.json()["status"] == "received"
+
+    def test_confirm_with_body_still_works(self, client, test_db):
+        _case(test_db, "CL-CF2")
+        add = client.post(
+            "/api/cases/CL-CF2/checklist",
+            json={"name_zh": "测试材料2", "category": "identity", "is_required": False},
+        )
+        item_id = add.json()["id"]
+        r = client.post(
+            f"/api/cases/CL-CF2/checklist/{item_id}/confirm",
+            json={"received_file_id": "file-9"},
+        )
+        assert r.status_code == 200
+        assert r.json()["status"] == "received"
+
+
 class TestChatToolQuery:
     """chat 工具 checklist_query（验收 9/10/13）。"""
 
