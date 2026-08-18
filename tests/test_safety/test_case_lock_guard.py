@@ -42,7 +42,7 @@ class TestIsTerminal:
     """Test is_terminal() function."""
 
     @pytest.mark.parametrize("stage", [
-        "已结算", "settled", "withdrawn", "declined",
+        "已结算", "settled", "withdrawn", "declined", "resubmitted",
         "Settled", "WITHDRAWN", "Declined",  # mixed case
     ])
     def test_terminal_stages_return_true(self, stage: str) -> None:
@@ -51,7 +51,7 @@ class TestIsTerminal:
     @pytest.mark.parametrize("stage", [
         "收集资料", "审核中", "待递交", "已递交(等银行)",
         "银行补件", "估值中", "已批准", "结算中",
-        "gathering", "submitted", "on_hold", "resubmitted",
+        "gathering", "submitted", "on_hold",
     ])
     def test_non_terminal_stages_return_false(self, stage: str) -> None:
         assert is_terminal(stage) is False

@@ -45,10 +45,13 @@ from server.api.schemas import (
     BrainFactResponse,
     CaseContextResponse,
     CaseCreateRequest,
+    CaseCloseRequest,
     CaseDetailResponse,
     CaseFolderRequest,
     CaseFolderResponse,
+    CaseHoldRequest,
     CaseResponse,
+    CaseResubmitRequest,
     CaseSnapshotResponse,
     ContextEventRequest,
     ContextEventResponse,
@@ -722,6 +725,180 @@ def delete_case(
     db.execute(text("DELETE FROM cases WHERE case_id = :cid"), {"cid": case_id})
     db.commit()
     return {"deleted": True, "case_id": case_id, "affected": affected}
+
+
+def _write_lifecycle_event(case_id: str, content: str, db: Session) -> None:
+    """闭环操作落一条已确认上下文事件（时间线/全景可见）。"""
+    append_context_event(
+        case_id=case_id,
+        content=content,
+        db=db,
+        source_type="stage_advanced",
+    )
+
+
+def _apply_terminal(
+    case_id: str,
+    zh_stage: str,
+    en_stage: str,
+    reason: str,
+    note: str | None,
+    db: Session,
+) -> dict:
+    """终态流转通用（撤回/终止/重递）：改阶段 + 关闭原因 + 事件。"""
+    case = _get_case_or_404(case_id, db)
+    case.stage = zh_stage
+    case.close_reason = reason
+    case.close_note = note
+    case.closed_at = datetime.now(UTC)
+    case.previous_stage = case.previous_stage or "收集资料"
+    _write_lifecycle_event(
+        case_id,
+        f"案件流转为「{zh_stage}」（{en_stage}）：{reason}{'；' + note if note else ''}",
+        db,
+    )
+    mark_case_summary_dirty(case_id, db)
+    db.commit()
+    return {"status": en_stage, "stage": zh_stage, "message": f"案件已{zh_stage}"}
+
+
+@router.post("/{case_id}/withdraw", response_model=dict)
+def withdraw_case(
+    case_id: str,
+    req: CaseCloseRequest,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> dict:
+    """客户撤回：案件进入终态「已撤回」（档案库只读）。"""
+    return _apply_terminal(case_id, "已撤回", "withdrawn", req.reason, req.note, db)
+
+
+@router.post("/{case_id}/decline", response_model=dict)
+def decline_case(
+    case_id: str,
+    req: CaseCloseRequest,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> dict:
+    """终止案件：案件进入终态「已拒绝」（档案库只读）。"""
+    return _apply_terminal(case_id, "已拒绝", "declined", req.reason, req.note, db)
+
+
+@router.post("/{case_id}/hold", response_model=dict)
+def hold_case(
+    case_id: str,
+    req: CaseHoldRequest,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> dict:
+    """暂停案件：保留原阶段到 previous_stage，可恢复。"""
+    case = _get_case_or_404(case_id, db)
+    if case.stage == "暂停中":
+        raise HTTPException(status_code=409, detail="案件已在暂停状态")
+    case.previous_stage = case.stage
+    case.stage = "暂停中"
+    case.hold_reminder_date = (
+        datetime.fromisoformat(req.reminder_date) if req.reminder_date else None
+    )
+    _write_lifecycle_event(
+        case_id,
+        f"案件暂停：{req.reason}{'；' + req.note if req.note else ''}"
+        f"{'；提醒日期 ' + req.reminder_date if req.reminder_date else ''}",
+        db,
+    )
+    mark_case_summary_dirty(case_id, db)
+    db.commit()
+    return {
+        "status": "on_hold",
+        "stage": "暂停中",
+        "reminder_date": req.reminder_date,
+        "message": "案件已暂停",
+    }
+
+
+@router.post("/{case_id}/resume", response_model=dict)
+def resume_case(
+    case_id: str,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> dict:
+    """恢复暂停案件：回到暂停前阶段。"""
+    case = _get_case_or_404(case_id, db)
+    if case.stage != "暂停中":
+        raise HTTPException(status_code=409, detail="案件不在暂停状态")
+    restored = case.previous_stage or "收集资料"
+    case.stage = restored
+    case.hold_reminder_date = None
+    _write_lifecycle_event(case_id, f"案件恢复推进（回到 {restored}）", db)
+    mark_case_summary_dirty(case_id, db)
+    db.commit()
+    return {"status": "active", "stage": restored, "message": "案件已恢复"}
+
+
+@router.post("/{case_id}/resubmit", response_model=dict)
+def resubmit_case(
+    case_id: str,
+    req: CaseResubmitRequest,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> dict:
+    """换行重递：原案件终态「已重递」+ 创建新案件（继承知识/文件夹引用）。"""
+    case = _get_case_or_404(case_id, db)
+    new_case = create_case_from_source(
+        client_name=case.client_name,
+        source="resubmit",
+        db=db,
+        loan_amount=req.new_loan_amount if req.new_loan_amount is not None else case.loan_amount,
+        purpose=case.purpose,
+        lender=req.new_lender,
+        client_email=case.client_email or "",
+        client_phone=case.client_phone or "",
+        property_value=case.property_value,
+        employment_type=case.employment_type,
+        residency=case.residency,
+        interest_rate=case.interest_rate,
+        is_imported=case.is_imported,
+        auto_folder=False,
+    )
+    if req.new_case_type:
+        new_case.case_type = req.new_case_type
+    if req.inherit_knowledge:
+        for row in db.query(CaseKnowledge).filter(CaseKnowledge.case_id == case_id).all():
+            db.add(
+                CaseKnowledge(
+                    case_id=new_case.id,
+                    content=row.content,
+                    source=row.source,
+                )
+            )
+    if req.inherit_files and case.folder_path:
+        new_case.folder_path = case.folder_path  # 引用同一物理文件夹，不做任何物理操作
+    db.flush()
+    case.resub_to = new_case.id
+    result = _apply_terminal(
+        case_id,
+        "已重递",
+        "resubmitted",
+        req.reason,
+        req.note,
+        db,
+    )
+    result["new_case_id"] = new_case.id
+    return result
+
+
+@router.post("/{case_id}/reopen", response_model=dict)
+def reopen_case(
+    case_id: str,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> dict:
+    """解封终态案件：回到暂停前阶段/收集资料，清除关闭标记。"""
+    case = _get_case_or_404(case_id, db)
+    if case.stage not in TERMINAL_STAGES:
+        raise HTTPException(status_code=409, detail="案件不在终态，无需解封")
+    case.stage = case.previous_stage or "收集资料"
+    case.closed_at = None
+    case.close_reason = None
+    case.close_note = None
+    _write_lifecycle_event(case_id, f"案件解封，回到 {case.stage}", db)
+    mark_case_summary_dirty(case_id, db)
+    db.commit()
+    return {"status": "active", "stage": case.stage, "message": "案件已解封"}
 
 
 @router.get("/{case_id}/timeline", response_model=list[TimelineEventResponse])

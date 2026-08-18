@@ -832,6 +832,33 @@ class CaseFolderResponse(BaseModel):
     mode: str
 
 
+# ── 案件生命周期闭环（撤回/终止/暂停/换行重递）─────────────────────────
+
+class CaseCloseRequest(BaseModel):
+    """撤回/终止通用：原因（老项目原因列表之一）+ 补充说明。"""
+
+    reason: str
+    note: str | None = None
+
+
+class CaseHoldRequest(BaseModel):
+    """暂停案件：原因 + 补充说明 + 提醒日期。"""
+
+    reason: str
+    note: str | None = None
+    reminder_date: str | None = None
+
+
+class CaseResubmitRequest(BaseModel):
+    """换行重递：原因 + 新银行 + 新金额 + 继承选项。"""
+
+    reason: str
+    note: str | None = None
+    new_lender: str
+    new_loan_amount: float | None = None
+    new_case_type: str | None = None
+    inherit_files: bool = True
+    inherit_knowledge: bool = True
 
 
 class FolderParseResponse(BaseModel):
