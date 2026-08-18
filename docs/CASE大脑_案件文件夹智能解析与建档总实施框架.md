@@ -1,12 +1,17 @@
-# Vera 工作台 — 案件文件夹智能解析与建档总实施框架
+# Vera 工作台 — 案件文件夹智能解析与建档总实施框架（在途作战系统）
 
-本文档结合 **Vera 工作台前后端现有架构** 与真实客户案卷（如 `Yingkun CHEN`）的业务实践，将**「一客户多案件识别 + 核心文档深度解析 + 标题快速匹配打勾 + 邮件时序与卡点定性」**提炼为完整落地的工程化实施框架。
+本文档结合 **Vera 工作台前后端现有架构** 与真实客户案卷（如 `Yingkun CHEN`）的业务实践，聚焦于 **“日常全新建档 + 存量在途案件极速导入”**，将**「一客户多案件识别 + 核心文档深度解析 + 标题快速匹配打勾 + 邮件时序与卡点定性 + 新建建档交互重构」**提炼为完整落地的工程化实施框架。
+
+> 📌 **战略分工说明**：
+> - **第一部分（本框架文档）**：在途作战系统 ➔ 聚焦于 Vera 日常高频全新建档、在途案件快速导入与材料自动打勾；
+> - **第二部分（独立框架文档）**：历史档案与二次经营系统 ➔ 详见 [`docs/CASE大脑_历史完结案卷导入与档案中心二次经营总实施框架.md`](file:///d:/vera-workbench/docs/CASE大脑_历史完结案卷导入与档案中心二次经营总实施框架.md)。
 
 ---
 
-## 🏗️ 一、 核心领域模型（Domain & Hierarchy）
+## 🏗️ 一、 核心领域模型与建档入口权重（Domain & Priority）
 
-在澳洲贷款业务实践中，客户与案卷的关系是**“一对多”的拓扑层级**：
+### 1. 客户与案卷的“一对多”拓扑层级
+在澳洲信贷业务中，客户根目录与各案卷子目录具有天然的层级从属关系：
 
 ```
 📁 客户主体 (Client Level: D:\...\Yingkun CHEN)
@@ -24,7 +29,44 @@
 ```
 
 - **客户主体（Client）**：姓名 `Yingkun CHEN`，持有全局身份（护照/PR/ABN）及基本面。
-- **案件（Case）**：每个带序号的子文件夹对应数据库中的一个独立 `Case` 实例（独立 `case_id`、独立的材料清单 `Checklist`、独立的文件夹路径 `folder_path`、独立的审批阶段与状态）。
+- **案件（Case）**：每个带序号的子文件夹对应数据库中的一个独立 `Case` 实例（独立 `case_id`、独立材料清单 `Checklist`、独立路径 `folder_path`、独立审批阶段与状态）。
+
+---
+
+### 2. 界面建档入口的双通道权重（Dual-Track Hierarchy）
+
+根据 Vera 的日常实际业务节奏，明确区分高频日常操作与过渡性操作：
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  新建贷款案件 (New Loan Case)                              │
+├──────────────────────────────────────────────────────────┤
+│                                                          │
+│  [ ★ 全新客户 / 案件录入 (默认第一主入口) ]  [ 📂 存量案卷批量迁移 ] │
+│                                                          │
+│  ┌─ 通道 A: 全新空白录入 (日常高频 365 天主场景) ───────┐  │
+│  │ 1. 借款人画像: 姓名、身份状态 (PR/Citizen)、雇佣类型   │  │
+│  │ 2. 意向贷款方案: 目标银行、贷款类型、预估借款金额     │  │
+│  │ 3. 抵押物业信息: 房产地址、预估价值                  │  │
+│  │                                                    │  │
+│  │ 📁 自动创建本地标准工作目录:                         │  │
+│  │    存放父目录: [ D:\EverStones_Clients\ ] [更改...] │  │
+│  │    自动生成: D:\...\Yingkun CHEN\1. Refi-ORDE-84... │  │
+│  │    (内置 Send to Lender / Approval / Valuation 等)  │  │
+│  └────────────────────────────────────────────────────┘  │
+│                                                          │
+│  ┌─ 通道 B: 存量案卷自适应导入 (上线初期快速迁入在途案) ─┐  │
+│  │ 选择客户根目录 ➔ 毫秒级拓扑扫描 ➔ 展示多房产案卷卡片   │  │
+│  │ 自动勾选活跃案 ➔ 自动回填画像 ➔ 一键批量导入建档      │  │
+│  └────────────────────────────────────────────────────┘  │
+│                                                          │
+│                          [ 取消 ]  [ 立即创建并打开案件 ➔ ]│
+└──────────────────────────────────────────────────────────┘
+```
+
+- **通道 A（全新建档 - 默认首选）**：Vera 每天接待新咨询时使用。几秒录完核心 10 个字段，系统自动在本地硬盘脚手架生成标准 11 个子目录。
+- **通道 B（存量导入 - 过渡通道）**：用于上线初期一次性把在办在审的案子整齐搬进系统。
+- **彻底废除“三种录入粒度”旧设计**：不再让用户手动选择“建壳/预填/全量”，系统全部采用自适应最高完整度管道（有 Notes 抽画像，有材料自打勾，有邮件建时序）。
 
 ---
 
@@ -60,7 +102,7 @@ flowchart TD
    - 提取序号：`^(\d+)\.\s*`
    - 提取重递标记：`Resub\s*-\s*`
    - 提取业务类型：`Refinance & cash out` / `Purchase` / `Commercial`
-   - 提取目标机构（Lender）：`ORDE` / `Zank Financial` / `Brighten` / `Latrobe`
+   - 提取目标机构（Lender）：`ORDE` / `Zank Financial` / `Brighten` / `Latrobe` 等
    - 提取房产地址：`84 Louis Street, Granville NSW 2142`
    - 提取方案类型：`(Alt Doc)` / `(Lite Doc)` / `(Full Doc)`
    - 提取显式状态与卡点：`Withdrawn`（撤回）、`onhold due to poor val`（估值低暂停）、`Val Fees Not Paid`（欠费暂停）、`onhold due to conflict`（冲突暂停）。
@@ -135,82 +177,25 @@ CHECKLIST_ALIAS_MAP = {
 
 ### 1. `POST /api/cases/folder-topology/scan`
 - **入参**：`{"folder_path": "D:\\EverStones_Test_Clients\\Yingkun CHEN"}`
-- **返回**：
-```json
-{
-  "ok": true,
-  "client_name": "Yingkun CHEN",
-  "client_root": "D:\\EverStones_Test_Clients\\Yingkun CHEN",
-  "cases": [
-    {
-      "dir_name": "8. Refi & cash - ORDE小号 - 84 Louis St (Alt doc) - onhold due to poor val",
-      "folder_path": "D:\\...\\8. Refi & cash - ORDE小号...",
-      "sequence": 8,
-      "is_resub": true,
-      "property_address": "84 Louis Street, Granville NSW 2142",
-      "lender": "ORDE",
-      "loan_type": "Refinance & cash out",
-      "doc_type": "Alt Doc",
-      "status": "onhold",
-      "onhold_reason": "估价过低阻断 ($1.9M vs 期望 $2.3M)，复议中",
-      "is_recommended_active": true,
-      "has_broker_notes": true,
-      "file_count": 28
-    },
-    {
-      "dir_name": "2. Resub ... - Zank Financial - ... - Withdrawn",
-      "folder_path": "D:\\...\\2. Resub...",
-      "sequence": 2,
-      "is_resub": true,
-      "property_address": "84 Louis Street, Granville NSW 2142",
-      "lender": "Zank Financial",
-      "loan_type": "Refinance & cash out",
-      "doc_type": "Full Doc",
-      "status": "withdrawn",
-      "onhold_reason": null,
-      "is_recommended_active": false,
-      "has_broker_notes": false,
-      "file_count": 12
-    }
-  ]
-}
-```
+- **返回**：包含客户名、房产分组、各案卷解析元数据及活跃推荐标记。
 
 ### 2. `POST /api/cases/topology-import/batch`
-- **入参**：选择要建档的案卷列表（含推荐的画像预填数据与指定关联路径）。
+- **入参**：选择要建档的案卷列表。
 - **执行**：批量创建 `Case` ➜ 触发 Layer 1 事实落库 ➜ 触发 Layer 2 标题打勾 ➜ 触发 Layer 3 邮件时序落库。
-- **返回**：创建成功的 `case_id` 列表及各案卷初始化状态。
 
-### 3. `GET /api/cases/{case_id}/timeline`
+### 3. `POST /api/cases/{case_id}/checklist/match-files`
+- **执行**：重新扫描该案件关联目录，执行标题快速匹配并自动打勾，刷新收集进度。
+
+### 4. `GET /api/cases/{case_id}/timeline`
 - **返回**：该案卷从创建、递交、补件、审批官指派、估价报告下发、到申诉复议的完整时序事件列表。
 
 ---
 
-## 🖥️ 四、 前端交互与视觉改造规划（AI Studio）
+## 🚦 四、 施工批次划分与推进路线（在途作战系统）
 
-1. **存量客户导入弹窗（`ImportLegacyModal.tsx`）升级**：
-   - 顶部展示识别出的 **客户主体（Client: Yingkun CHEN）**。
-   - 中间以卡片组展示该客户名下的 **所有案卷列表（按房产分组）**，带上序号、银行徽标、房产地址、状态标签（🟢 活跃推荐 / 🟡 暂停中 / ⚪ 已撤回）。
-   - 默认选中最新活跃案卷，支持勾选多个案卷**一键批量建档**。
-
-2. **案件详情页概览头部（`CaseOverview`）增强**：
-   - 展示机构与案号：`ORDE Financial · 案号: 23174 (EX 11199)`。
-   - 展示当前审批官：`信贷审批官: Rachel Fonseka`。
-   - 突出卡点报警横幅：`⚠️ 案件暂停中：估价过低 ($1.90M vs 期望 $2.30M)，复议中`。
-
-3. **材料清单面板（`CaseChecklist`）增强**：
-   - 打勾项旁边展示绿色小徽标：`[已自动匹配: ID DL.pdf]`。
-   - 点击可直接调用 Electron 原生接口在本地资源管理器定位或打开该文件。
-
-4. **新增「案件动态时间线」面板（`CaseTimelinePanel.tsx`）**：
-   - 垂直时间轴展示 `.msg` 邮件往来历史与里程碑流转。
-
----
-
-## 🚦 五、 施工批次划分与推进路线
-
-| 批次 | 核心任务 | 后端施工单（`docs/flash_specs/`） | 前端提示词（AI Studio） |
-| :--- | :--- | :--- | :--- |
-| **批次一 (WO-53)** | **目录拓扑 + 多案卷识别 + 状态定性** | `wo-53-folder-topology-scanner.md` | **提示词 P1**：存量导入弹窗多案卷卡片与批量建案 |
-| **批次二 (WO-54)** | **标题快速匹配 + 清单秒级自动打勾** | `wo-54-checklist-title-matcher.md` | **提示词 P2**：清单面板已匹配文件徽标与一键打开 |
-| **批次三 (WO-55)** | **邮件时序提取 + 审批官/案号/卡点落库 + 时间线** | `wo-55-msg-timeline-extractor.md` | **提示词 P3**：案件概览卡点展示与动态时间线面板 |
+| 批次 | 核心任务 | 后端施工单（`docs/flash_specs/`） | 前端提示词（AI Studio） | 状态 |
+| :--- | :--- | :--- | :--- | :--- |
+| **批次一 (WO-53)** | **目录拓扑 + 多案卷识别 + 状态定性** | `wo-53-folder-topology-scanner.md` | **提示词 P1**：存量导入弹窗多案卷卡片与批量建案 | **已完工验收 ✅** |
+| **批次二 (WO-54)** | **标题快速匹配 + 清单秒级自动打勾** | `wo-54-checklist-title-matcher.md` | **提示词 P2**：清单面板已匹配文件徽标与一键打开 | **实施中 ⚙️** |
+| **批次三 (WO-55)** | **邮件时序提取 + 审批官/案号/卡点落库 + 时间线** | `wo-55-msg-timeline-extractor.md` | **提示词 P3**：案件概览卡点展示与动态时间线面板 | **待实施** |
+| **批次四 (WO-56)** | **新建建档交互全景重构 (全新建档为主 + 存量自适应)** | `wo-56-new-case-flow-refactor.md` | **提示词 P4**：NewCaseSheet 极简双通道与脚手架建目录重构 | **待实施** |
