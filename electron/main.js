@@ -25,7 +25,7 @@ const ENV_EXAMPLE = path.join(APP_BACKEND, '.env.example');
 const BACKEND_SCRIPT = path.join(APP_BACKEND, 'run_backend.py');
 const DIST_DIR = IS_PACKAGED
   ? path.join(process.resourcesPath, 'web')
-  : path.join(DEV_ROOT, 'ui', 'vera-工作台 (83)', 'dist');
+  : path.join(DEV_ROOT, 'ui', 'vera-工作台 (87)', 'dist');
 const RUNTIME_PY = IS_PACKAGED
   ? path.join(process.resourcesPath, 'runtime', 'python', 'python.exe')
   : null;
@@ -185,9 +185,22 @@ function createWindow() {
   });
 
   const loadTarget = IS_DEV ? DEV_URL : path.join(DIST_DIR, 'index.html');
-  mainWindow.loadURL(IS_DEV ? DEV_URL : `file://${loadTarget.replace(/\\/g, '/')}`);
+  if (IS_DEV) {
+    mainWindow.loadURL(DEV_URL);
+  } else {
+    mainWindow.loadFile(loadTarget);
+  }
 
-  mainWindow.once('ready-to-show', () => mainWindow.show());
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show();
+    mainWindow.focus();
+  });
+  setTimeout(() => {
+    if (mainWindow && !mainWindow.isVisible()) {
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  }, 1500);
   mainWindow.on('maximize', () => {
     mainWindow.webContents.send('window-maximized-changed', true);
   });
@@ -205,25 +218,29 @@ function createWindow() {
 
 /* ── 托盘 ──────────────────────────────────────────────── */
 function createTray() {
-  // 图标：先用 16x16 纯色占位（正式图标后续替换 build/app.ico 与 tray 用 png）
-  const icon = nativeImage.createEmpty();
-  tray = new Tray(icon);
-  tray.setToolTip('Vera 工作台');
-  tray.setContextMenu(Menu.buildFromTemplate([
-    { label: '显示主窗口', click: () => { mainWindow?.show(); mainWindow?.focus(); } },
-    { type: 'separator' },
-    {
-      label: '退出',
-      click: () => {
-        isQuitting = true;
-        app.quit();
+  try {
+    const pngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAcSURBVDhPY/z//z8DJYCJgUJACkAaGhoGGRgAG28fAfc5+T0AAAAASUVORK5CYII=';
+    const icon = nativeImage.createFromBuffer(Buffer.from(pngBase64, 'base64'));
+    tray = new Tray(icon);
+    tray.setToolTip('Vera 工作台');
+    tray.setContextMenu(Menu.buildFromTemplate([
+      { label: '显示主窗口', click: () => { mainWindow?.show(); mainWindow?.focus(); } },
+      { type: 'separator' },
+      {
+        label: '退出',
+        click: () => {
+          isQuitting = true;
+          app.quit();
+        },
       },
-    },
-  ]));
-  tray.on('click', () => {
-    if (mainWindow?.isVisible()) mainWindow.hide();
-    else { mainWindow?.show(); mainWindow?.focus(); }
-  });
+    ]));
+    tray.on('click', () => {
+      if (mainWindow?.isVisible()) mainWindow.hide();
+      else { mainWindow?.show(); mainWindow?.focus(); }
+    });
+  } catch (err) {
+    console.warn('[tray] createTray warning:', err);
+  }
 }
 
 /* 首次引导（2026-08-17 无总根）：不再强制选择 CLIENT_FILES_ROOT。

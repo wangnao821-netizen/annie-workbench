@@ -289,3 +289,42 @@ def save_confirmed_checklist(
         db.rollback()
         logger.error("Failed to save checklist to database: %s", exc)
         raise
+
+
+def classify_generated_by(items: list[dict[str, Any]]) -> str:
+    """判定清单生成方式：规则回退特征 → "rule_fallback"，否则 "ai"。
+
+    规则回退特征：全部 is_required=True 且 ai_suggestion 为规则预选默认文案。
+    """
+    if items and all(
+        it.get("is_required") is True
+        and it.get("ai_suggestion") == "根据案件画像与银行政策为必选材料"
+        for it in items
+    ):
+        return "rule_fallback"
+    return "ai"
+
+
+def regenerate_checklist(case_id: str, db: Session) -> list[dict]:
+    """删除该案件现有清单并重新生成（AI 推荐，失败回退规则）。
+
+    返回与 generate_checklist_draft 相同的 rehydrated_items（含 master_id）；
+    生成后调用 save_confirmed_checklist 落库。案件不存在 → ValueError。
+    """
+    logger.info("Regenerating checklist for case %s", case_id)
+
+    case = db.query(Case).filter(Case.id == case_id).first()
+    if not case:
+        raise ValueError(f"Case not found: {case_id}")
+
+    # 删除该案件现有清单（修复前生成的存量清单 master_id 为空，需重建）
+    db.query(CaseChecklist).filter(CaseChecklist.case_id == case_id).delete()
+    db.commit()
+
+    # 重新生成（LLM 失败内部已回退规则/默认清单）
+    items = generate_checklist_draft(case_id, db)
+
+    # 落库（内部再次清理后写入，防重复）
+    save_confirmed_checklist(case_id, items, db)
+
+    return items

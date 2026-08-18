@@ -208,6 +208,7 @@ def create_case_from_source(
     residency: str | None = None,
     interest_rate: float | None = None,
     is_imported: bool = False,
+    platform_submissions: list[str] = (),
 ) -> Case:
     """统一建案入口 — 所有建案流程汇入此处。"""
     # 1. Generate case_id
@@ -323,6 +324,21 @@ def create_case_from_source(
             save_confirmed_checklist(case_id, mapped, db)
     except Exception as exc:  # noqa: BLE001 — 清单预选失败不阻断建档
         logger.warning("Checklist pre-selection failed for %s: %s (non-fatal)", case_id, exc)
+
+    # 存量导入平台递交状态落库（#52）：清单预选之后写上下文事件，不触发蒸馏
+    try:
+        from core.context.accumulator import append_context_event
+
+        for p in platform_submissions:
+            append_context_event(
+                case_id=case_id,
+                source_type="stage_advanced",
+                content=f"存量导入：案件已递交 {p} 平台",
+                db=db,
+                trigger_distill=False,
+            )
+    except Exception as exc:  # noqa: BLE001 — 平台递交事件失败不阻断建档
+        logger.warning("Platform submission events failed for %s: %s (non-fatal)", case_id, exc)
 
     # 建档即政策提示（#14）：非阻塞，写 internal 事件 → 全景/AI 可见
     try:
