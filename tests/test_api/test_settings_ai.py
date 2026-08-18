@@ -6,6 +6,8 @@
 
 from __future__ import annotations
 
+import os
+
 from fastapi.testclient import TestClient
 
 import server.api.settings as settings_mod
@@ -34,7 +36,9 @@ def test_get_ai_settings_status(tmp_path):
     assert "sk-old" not in r.text
 
 
-def test_patch_updates_env_and_reloads(tmp_path):
+def test_patch_updates_env_and_reloads(tmp_path, monkeypatch):
+    for k in ("DEEPSEEK_API_KEY", "GEMINI_API_KEY", "GEMINI_API_BASE", "DEEPSEEK_API_BASE"):
+        monkeypatch.setenv(k, "")
     client, env_file = _make_client(tmp_path)
     r = client.patch(
         "/api/settings/ai",
@@ -60,7 +64,8 @@ def test_patch_updates_env_and_reloads(tmp_path):
     assert "sk-new" not in r.text
 
 
-def test_patch_empty_clears_key(tmp_path):
+def test_patch_empty_clears_key(tmp_path, monkeypatch):
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "")
     client, env_file = _make_client(tmp_path)
     r = client.patch("/api/settings/ai", json={"deepseek_api_key": ""})
     assert r.status_code == 200
@@ -69,7 +74,21 @@ def test_patch_empty_clears_key(tmp_path):
     assert "DEEPSEEK_API_KEY=sk-old" not in content
 
 
-def test_test_connection_missing_key(tmp_path):
+def test_patch_syncs_os_environ_for_runtime(tmp_path, monkeypatch):
+    """保存 key 必须同步当前进程 os.environ（网关按环境变量读取），否则热重载假生效。"""
+    for k in ("DEEPSEEK_API_KEY", "GEMINI_API_KEY", "DEEPSEEK_API_BASE", "GEMINI_API_BASE"):
+        monkeypatch.setenv(k, "")
+    client, _ = _make_client(tmp_path)
+    r = client.patch("/api/settings/ai", json={"deepseek_api_key": "sk-live"})
+    assert r.status_code == 200
+    assert os.environ.get("DEEPSEEK_API_KEY") == "sk-live"
+    r2 = client.patch("/api/settings/ai", json={"deepseek_api_key": ""})
+    assert r2.status_code == 200
+    assert os.environ.get("DEEPSEEK_API_KEY") is None
+
+
+def test_test_connection_missing_key(tmp_path, monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "")
     client, _ = _make_client(tmp_path)
     r = client.post(
         "/api/settings/ai/test",

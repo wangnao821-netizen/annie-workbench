@@ -180,6 +180,15 @@ def update_ai_settings(req: AiSettingsUpdate) -> AiSettingsResponse:
         return get_ai_settings()
     _write_dotenv(updates)
     _reload_ai_config()
+    # 写 .env 文件不会更新当前进程 os.environ，而网关按 os.environ 读 key——
+    # 必须同步环境变量，否则"保存后热重载"对运行中的后端不生效。
+    # 注意顺序：同步必须放在 _reload_ai_config() 之后——config 的 load_dotenv 会从 .env
+    # 复活已删除的键（override=False），最后同步才能保证以本次 PATCH 为准。
+    for env_key, value in updates.items():
+        if value is None:
+            os.environ.pop(env_key, None)
+        else:
+            os.environ[env_key] = value
     return get_ai_settings()
 
 

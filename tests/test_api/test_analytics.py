@@ -84,6 +84,16 @@ class TestParamsAndEmpty:
                    and eff[s]["checklist_confirm_rate"] == 0.0 and eff[s]["ai_adoption_count"] == 0
                    and eff[s]["avg_client_reply_days"] is None for s in ("current", "previous"))
 
+    def test_overview_active_cases_includes_today(self, client, test_db):
+        """活跃案件数对经纪人的语义是"当前在办"，今天新建案件必须计入 current。"""
+        from datetime import datetime
+
+        test_db.add(Case(id="TODAY-1", client_name="今日新案", lender="CBA",
+                         stage="收集资料", created_at=_n(datetime.now(UTC))))
+        test_db.commit()
+        ov = client.get("/api/analytics/overview", params={"granularity": "day"}).json()
+        assert ov["current"]["active_cases"] >= 1
+
 
 class TestCrossPeriod:
     def test_month_pipeline_and_overview(self, client, test_db):

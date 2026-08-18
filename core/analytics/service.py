@@ -9,7 +9,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
@@ -60,10 +60,17 @@ def _overview_period(db: Session, granularity: str, bucket: tuple[datetime, date
 def get_overview(db: Session, granularity: str) -> dict:
     """current = 最近完整周期；previous = 前一个周期。"""
     buckets = buckets_since(granularity, 2)
+    current = _overview_period(db, granularity, buckets[-1])
+    previous = _overview_period(db, granularity, buckets[-2])
+    # active_cases 对经纪人的语义是"当前在办案件数"：必须包含当前周期内新建的案件，
+    # 不能按"最近完整周期"截断（否则今天新建的案件统计为 0）。
+    # start=end=now：只保留"未关闭"案件（closed_at < now 排除），今天新建的自然计入
+    now = datetime.now(UTC)
+    current["active_cases"] = len(active_cases(db, now, now))
     return {
         "granularity": granularity,
-        "current": _overview_period(db, granularity, buckets[-1]),
-        "previous": _overview_period(db, granularity, buckets[-2]),
+        "current": current,
+        "previous": previous,
     }
 
 
