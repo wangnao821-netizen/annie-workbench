@@ -1223,3 +1223,20 @@ class BatchTopologyImportRequest(BaseModel):
 class BatchTopologyImportResponse(BaseModel):
     ok: bool
     created_cases: list[dict] = Field(default_factory=list)
+
+
+class ChecklistMatchedFileDetail(BaseModel):
+    checklist_id: int
+    item_name: str
+    master_id: str | None = None
+    status: str
+    matched_file_id: str
+    matched_file_name: str
+
+
+class ChecklistMatchFilesResponse(BaseModel):
+    ok: bool
+    case_id: str
+    matched_count: int
+    gathering_progress: int
+    matched_details: list[ChecklistMatchedFileDetail] = Field(default_factory=list)

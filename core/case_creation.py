@@ -325,6 +325,23 @@ def create_case_from_source(
     except Exception as exc:  # noqa: BLE001 — 清单预选失败不阻断建档
         logger.warning("Checklist pre-selection failed for %s: %s (non-fatal)", case_id, exc)
 
+    # 4. 材料清单预选与自动匹配（WO-54）
+    try:
+        from core.checklist.generator import (
+            generate_checklist_draft,
+            save_confirmed_checklist,
+        )
+        from core.checklist.matcher import match_checklist_files_for_case
+
+        draft = generate_checklist_draft(case_id, db)
+        save_confirmed_checklist(case_id, draft, db)
+
+        # 若已绑定有效 folder_path，即刻执行一次标题快速匹配与自动打勾
+        if folder_path and Path(folder_path).is_dir():
+            match_checklist_files_for_case(case_id, db)
+    except Exception as exc:  # noqa: BLE001 — 清单预选/匹配失败不阻断建档
+        logger.warning("Checklist pre-selection or auto-match failed for %s: %s (non-fatal)", case_id, exc)
+
     # 存量导入平台递交状态落库（#52）：清单预选之后写上下文事件，不触发蒸馏
     try:
         from core.context.accumulator import append_context_event

@@ -24,7 +24,11 @@ from core.case_engine.progression import evaluate_stage_signal
 from core.case_engine.snapshot import build_case_snapshot
 from core.case_folder.legacy_import import build_legacy_import_preview
 from core.case_folder.topology import scan_customer_topology
-from core.checklist.matcher import CaseNotFoundError, check_completeness
+from core.checklist.matcher import (
+    CaseNotFoundError,
+    check_completeness,
+    match_checklist_files_for_case,
+)
 from core.config import get_config
 from core.constants import TERMINAL_STAGES
 from core.context.accumulator import append_context_event, get_context_events
@@ -58,6 +62,7 @@ from server.api.schemas import (
     CaseResponse,
     CaseResubmitRequest,
     CaseSnapshotResponse,
+    ChecklistMatchFilesResponse,
     ContextEventRequest,
     ContextEventResponse,
     DeclarationCheckRequest,
@@ -1017,3 +1022,19 @@ def batch_topology_import(
     )
     db.commit()
     return BatchTopologyImportResponse(ok=True, created_cases=created)
+
+
+@router.post("/{case_id}/checklist/match-files", response_model=ChecklistMatchFilesResponse)
+def match_case_checklist_files(
+    case_id: str,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> ChecklistMatchFilesResponse:
+    """重新扫描案件关联文件夹，按文件标题快速匹配并自动勾选材料清单。"""
+    res = match_checklist_files_for_case(case_id, db)
+    return ChecklistMatchFilesResponse(
+        ok=True,
+        case_id=case_id,
+        matched_count=res["matched_count"],
+        gathering_progress=res.get("gathering_progress", 0),
+        matched_details=res.get("items", []),
+    )
