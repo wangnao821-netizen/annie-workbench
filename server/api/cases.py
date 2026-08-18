@@ -6,6 +6,7 @@ from dataclasses import asdict
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from core.agents.declaration_check import run_declaration_check
@@ -75,6 +76,30 @@ def _get_case_or_404(case_id: str, db: Session) -> Case:
     if not case:
         raise HTTPException(status_code=404, detail=f"案件 {case_id} 不存在")
     return case
+
+
+# 删除案件时级联清理：含 case_id 列的业务表白名单（不含 cases 本身，最后删）
+_CASE_CASCADE_TABLES = (
+    "actions",
+    "case_briefs",
+    "case_chat_messages",
+    "case_checklist",
+    "case_context_events",
+    "case_knowledge",
+    "case_milestones",
+    "case_timeline_events",
+    "email_drafts",
+    "file_events",
+    "import_jobs",
+    "knowledge_entries",
+    "os_conditions",
+    "pending_actions",
+    "pii_map",
+    "processed_files",
+    "system_events",
+    "brain_facts",
+    "ai_usage_log",
+)
 
 
 def _checklist_stats(case_id: str, db: Session) -> tuple[int, int]:
@@ -644,6 +669,59 @@ def stage_advance(
         )
     mark_case_summary_dirty(case_id, db)
     return {"status": "pending_confirmation", "action_id": action.id, "title": action.title}
+
+
+@router.delete("/{case_id}")
+def delete_case(
+    case_id: str,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> dict:
+    """物理删除案件（闭环管理）：级联清理全部关联业务数据后删除案件行。
+
+    红线说明：删除是 Vera 明确操作（前端 confirm 弹窗确认后调用）；
+    客户文件夹/文件本身不做任何物理操作（红线#2/#6 不变）。
+    """
+    _get_case_or_404(case_id, db)
+    affected: dict[str, int] = {"cases": 1}
+
+    # 1. brain_facts 关联的向量嵌入（vec0 虚拟表；不可用时静默降级）
+    fact_ids = [
+        row[0]
+        for row in db.execute(
+            text("SELECT id FROM brain_facts WHERE case_id = :cid"),
+            {"cid": case_id},
+        )
+    ]
+    for fid in fact_ids:
+        try:
+            db.execute(text("DELETE FROM fact_embeddings WHERE fact_id = :fid"), {"fid": fid})
+        except Exception:  # noqa: BLE001 — vec0 不可用时降级，不阻断删除
+            pass
+
+    # 2. email_drafts 关联的回复行（email_draft_replies 无 case_id 列，按 draft_id 清）
+    draft_ids = [
+        row[0]
+        for row in db.execute(
+            text("SELECT id FROM email_drafts WHERE case_id = :cid"),
+            {"cid": case_id},
+        )
+    ]
+    for did in draft_ids:
+        db.execute(text("DELETE FROM email_draft_replies WHERE draft_id = :did"), {"did": did})
+
+    # 3. 含 case_id 列的业务表白名单级联清理
+    for table in _CASE_CASCADE_TABLES:
+        rows = db.execute(
+            text(f"DELETE FROM {table} WHERE case_id = :cid"),
+            {"cid": case_id},
+        ).rowcount
+        if rows:
+            affected[table] = rows
+
+    # 4. 删除案件主行
+    db.execute(text("DELETE FROM cases WHERE case_id = :cid"), {"cid": case_id})
+    db.commit()
+    return {"deleted": True, "case_id": case_id, "affected": affected}
 
 
 @router.get("/{case_id}/timeline", response_model=list[TimelineEventResponse])
