@@ -32,7 +32,6 @@ from core.checklist.matcher import (
 from core.config import get_config
 from core.constants import TERMINAL_STAGES
 from core.context.accumulator import append_context_event, get_context_events
-from core.events.timeline import get_timeline
 from core.facts.extract import sync_brain_facts
 from core.models.orm import (
     Action,
@@ -45,6 +44,7 @@ from core.models.orm import (
     ImportRecord,
     OsCondition,
 )
+from core.pipeline.msg_timeline import get_timeline_for_case, sync_timeline_for_case
 from core.policy.engine import check_policy
 from core.policy.prompts import polish_policy_text
 from server.api.schemas import (
@@ -62,6 +62,7 @@ from server.api.schemas import (
     CaseResponse,
     CaseResubmitRequest,
     CaseSnapshotResponse,
+    CaseTimelineResponse,
     ChecklistMatchFilesResponse,
     ContextEventRequest,
     ContextEventResponse,
@@ -80,7 +81,8 @@ from server.api.schemas import (
     StageAdvanceRequest,
     SubmissionCheckResponse,
     SupersedeEventRequest,
-    TimelineEventResponse,
+    TimelineEventItem,
+    TimelineExtractResponse,
 )
 from server.deps import get_db, get_settings
 
@@ -916,29 +918,6 @@ def reopen_case(
     return {"status": "active", "stage": restored_stage, "message": "案件已解封"}
 
 
-@router.get("/{case_id}/timeline", response_model=list[TimelineEventResponse])
-def case_timeline(
-    case_id: str,
-    limit: int = 50,
-    db: Session = Depends(get_db),  # noqa: B008
-):
-    """案件时间线 — core.events.timeline。"""
-    _get_case_or_404(case_id, db)
-    events = get_timeline(case_id, db, limit=min(limit, 200))
-    return [
-        TimelineEventResponse(
-            id=e.id,
-            case_id=e.case_id,
-            event_type=e.event_type,
-            title=e.title,
-            description=e.description,
-            source_ref=e.source_ref,
-            created_at=e.created_at,
-        )
-        for e in events
-    ]
-
-
 @router.get("/{case_id}/snapshot", response_model=CaseSnapshotResponse)
 def case_snapshot(
     case_id: str,
@@ -1037,4 +1016,50 @@ def match_case_checklist_files(
         matched_count=res["matched_count"],
         gathering_progress=res.get("gathering_progress", 0),
         matched_details=res.get("items", []),
+    )
+
+
+@router.get("/{case_id}/timeline", response_model=CaseTimelineResponse)
+def get_case_timeline(
+    case_id: str,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> CaseTimelineResponse:
+    """获取案件的沟通邮件时序脉络、审批官与关键卡点。"""
+    events = get_timeline_for_case(case_id, db)
+    case = db.query(Case).filter(Case.id == case_id).first()  # noqa: F841 — 契约保留存在性校验
+    assessor = None
+    lender_ref = None
+    active_blocker = None
+    for ev in reversed(events):
+        if not assessor and ev.get("assessor"):
+            assessor = ev["assessor"]
+        if not lender_ref and ev.get("lender_ref"):
+            lender_ref = ev["lender_ref"]
+        if not active_blocker and ev.get("is_blocker"):
+            active_blocker = ev.get("blocker_reason") or ev.get("title")
+
+    return CaseTimelineResponse(
+        ok=True,
+        case_id=case_id,
+        assessor_name=assessor,
+        lender_ref=lender_ref,
+        active_blocker=active_blocker,
+        events=[TimelineEventItem(**e) for e in events],
+    )
+
+
+@router.post("/{case_id}/timeline/extract-emails", response_model=TimelineExtractResponse)
+def extract_case_emails_timeline(
+    case_id: str,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> TimelineExtractResponse:
+    """重新扫描案件关联目录中的 .msg 邮件，提取时序图谱并落库。"""
+    res = sync_timeline_for_case(case_id, db)
+    return TimelineExtractResponse(
+        ok=True,
+        case_id=case_id,
+        extracted_count=res.get("extracted_count", 0),
+        assessor_name=res.get("assessor_name"),
+        lender_ref=res.get("lender_ref"),
+        active_blocker=res.get("active_blocker"),
     )

@@ -1240,3 +1240,37 @@ class ChecklistMatchFilesResponse(BaseModel):
     matched_count: int
     gathering_progress: int
     matched_details: list[ChecklistMatchedFileDetail] = Field(default_factory=list)
+
+
+# ── WO-55 邮件时序提取 Schemas ─────────────────────────────────────────
+
+class TimelineEventItem(BaseModel):
+    id: str | None = None
+    event_time: str
+    event_type: str  # submission_lodged / assessor_assigned / mir_requested / valuation_shortfall / reassessment_submitted / approval_issued / note
+    title: str
+    summary: str
+    sender: str | None = None
+    assessor: str | None = None
+    lender_ref: str | None = None
+    source_file: str | None = None
+    is_blocker: bool = False
+    blocker_reason: str | None = None
+
+
+class CaseTimelineResponse(BaseModel):
+    ok: bool
+    case_id: str
+    assessor_name: str | None = None
+    lender_ref: str | None = None
+    active_blocker: str | None = None
+    events: list[TimelineEventItem] = Field(default_factory=list)
+
+
+class TimelineExtractResponse(BaseModel):
+    ok: bool
+    case_id: str
+    extracted_count: int
+    assessor_name: str | None = None
+    lender_ref: str | None = None
+    active_blocker: str | None = None
