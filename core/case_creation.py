@@ -70,6 +70,7 @@ def _map_picked_to_checklist(item: dict) -> dict:
         "category": category,
         "is_required": bool(item.get("required", True)),
         "ai_suggestion": item.get("reason"),
+        "master_id": item.get("id"),  # pick 输出 id 即主库 master id（文件自动匹配依赖）
     }
 
 

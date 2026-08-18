@@ -54,7 +54,7 @@ def test_gemini_circuit_breaker(test_db, monkeypatch):
     case = Case(id="c_breaker", client_name="Breaker")
     test_db.add(case)
     test_db.commit()
-    monkeypatch.setattr(pai, "_run_agent", lambda a, p, t: (_ for _ in ()).throw(RuntimeError("provider down")))
+    monkeypatch.setattr(pai, "_run_agent", lambda a, p, t, d: (_ for _ in ()).throw(RuntimeError("provider down")))
     flow = _flow("calculator")
     args = {"request": "写一封英文邮件"}
     for _ in range(3):
@@ -68,7 +68,7 @@ def test_pai_failure_returns_none(test_db, monkeypatch):
     case = Case(id="c_fail", client_name="Fail")
     test_db.add(case)
     test_db.commit()
-    monkeypatch.setattr(pai, "_run_agent", lambda a, p, t: (_ for _ in ()).throw(RuntimeError("boom")))
+    monkeypatch.setattr(pai, "_run_agent", lambda a, p, t, d: (_ for _ in ()).throw(RuntimeError("boom")))
     assert pai.run_flow_with_pai(_flow("calculator"), "c_fail", {}, test_db) is None
 
 
@@ -97,7 +97,7 @@ def test_timeout_returns_none(test_db, monkeypatch):
     case = Case(id="c_to", client_name="Timeout")
     test_db.add(case)
     test_db.commit()
-    monkeypatch.setattr(pai, "_run_agent", lambda a, p, t: (_ for _ in ()).throw(TimeoutError("slow")))
+    monkeypatch.setattr(pai, "_run_agent", lambda a, p, t, d: (_ for _ in ()).throw(TimeoutError("slow")))
     assert pai.run_flow_with_pai(_flow("calculator"), "c_to", {}, test_db) is None
 
 
@@ -126,7 +126,7 @@ def test_confirm_hook_blocks_confirm_required(test_db, monkeypatch):
     res = pai.run_flow_with_pai(flow, "c_req", {"request": "x"}, test_db)
     assert res is not None and "已阻断" in res["reply"]
     fake = SimpleNamespace(output="ok", usage=lambda: None, all_messages=list)
-    monkeypatch.setattr(pai, "_run_agent", lambda a, p, t: fake)
+    monkeypatch.setattr(pai, "_run_agent", lambda a, p, t, d: fake)
     ok = pai.run_flow_with_pai(flow, "c_req", {"request": "x", "confirmed": True}, test_db)
     assert ok is not None and "已阻断" not in ok["reply"]
 
@@ -136,7 +136,7 @@ def test_usage_log_written_on_success(test_db, monkeypatch):
     test_db.add(case)
     test_db.commit()
 
-    def fake_run(agent, prompt, timeout):
+    def fake_run(agent, prompt, timeout, deps=None):
         return SimpleNamespace(
             output="检查完成",
             usage=lambda: SimpleNamespace(input_tokens=100, output_tokens=50, cache_read_tokens=80, cache_write_tokens=20, details={}),
@@ -159,7 +159,7 @@ def test_usage_not_written_on_fallback(test_db, monkeypatch):
     case = Case(id="c_nousage", client_name="NoUsage")
     test_db.add(case)
     test_db.commit()
-    monkeypatch.setattr(pai, "_run_agent", lambda a, p, t: (_ for _ in ()).throw(RuntimeError("x")))
+    monkeypatch.setattr(pai, "_run_agent", lambda a, p, t, d: (_ for _ in ()).throw(RuntimeError("x")))
     assert pai.run_flow_with_pai(_flow("calculator"), "c_nousage", {}, test_db) is None
     assert test_db.query(AiUsageLog).filter(AiUsageLog.case_id == "c_nousage").count() == 0
 

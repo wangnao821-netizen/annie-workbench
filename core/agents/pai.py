@@ -207,13 +207,14 @@ def _build_agent(provider: str, cfg) -> Any | None:
         OpenAIChatModel(pcfg.model, provider=OpenAIProvider(api_key=os.getenv(pcfg.api_key_env, ""), base_url=pcfg.base_url)),
         system_prompt=_SYSTEM_PROMPT,
         tools=_tool_defs(),
+        deps_type=FlowDeps,
     )
     return _AGENTS[provider]
 
 
-def _run_agent(agent: Any, prompt: str, timeout_s: float) -> Any:
+def _run_agent(agent: Any, prompt: str, timeout_s: float, deps: FlowDeps) -> Any:
     with ThreadPoolExecutor(max_workers=1) as pool:
-        return pool.submit(agent.run_sync, prompt).result(timeout=timeout_s)
+        return pool.submit(agent.run_sync, prompt, deps=deps).result(timeout=timeout_s)
 
 
 def _confirm_gate(flow: dict, args: dict) -> str | None:
@@ -259,7 +260,12 @@ def run_flow_with_pai(flow: dict, case_id: str | None, args: dict, db: Session, 
         safe_input = desensitize(raw_input, case_id or "global", db) if raw_input else ""
         prompt = _system_prompt(flow) + (f"\n【用户输入】{safe_input}" if safe_input else "")
         start = time.time()
-        result = _run_agent(agent, prompt, timeout)
+        result = _run_agent(
+            agent,
+            prompt,
+            timeout,
+            FlowDeps(db=db, case_id=case_id or "", track=track),
+        )
         latency_ms = int((time.time() - start) * 1000)
         model = cfg.settings.ai.fallback.model if provider == "gemini" and cfg.settings.ai.fallback else cfg.settings.ai.primary.model
         _log_usage(db, case_id, track, provider, model, result, latency_ms, str(flow.get("key", "unknown")))
