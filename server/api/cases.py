@@ -23,6 +23,7 @@ from core.case_engine.folder import auto_create, link_existing
 from core.case_engine.progression import evaluate_stage_signal
 from core.case_engine.snapshot import build_case_snapshot
 from core.case_folder.legacy_import import build_legacy_import_preview
+from core.case_folder.topology import scan_customer_topology
 from core.checklist.matcher import CaseNotFoundError, check_completeness
 from core.config import get_config
 from core.constants import TERMINAL_STAGES
@@ -37,12 +38,15 @@ from core.models.orm import (
     CaseContextEvent,
     CaseKnowledge,
     CaseTimelineEvent,
+    ImportRecord,
     OsCondition,
 )
 from core.policy.engine import check_policy
 from core.policy.prompts import polish_policy_text
 from server.api.schemas import (
     ArchivedCaseResponse,
+    BatchTopologyImportRequest,
+    BatchTopologyImportResponse,
     BrainFactResponse,
     CaseCloseRequest,
     CaseContextResponse,
@@ -60,6 +64,8 @@ from server.api.schemas import (
     DeclarationCheckResponse,
     FactAmendRequest,
     FactDisclosureRequest,
+    FolderTopologyScanRequest,
+    FolderTopologyScanResponse,
     LegacyImportPreviewRequest,
     LegacyImportPreviewResponse,
     ParseFileResponse,
@@ -962,3 +968,52 @@ def legacy_import_preview(
     """存量导入预览：Broker Notes 画像 + 平台递交状态（只读）。"""
     data = build_legacy_import_preview(req.folder_path, db)
     return LegacyImportPreviewResponse(**data)
+
+
+@router.post("/folder-topology/scan", response_model=FolderTopologyScanResponse)
+def scan_folder_topology(
+    req: FolderTopologyScanRequest,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> FolderTopologyScanResponse:
+    """扫描客户目录拓扑结构与多案卷元数据（只读）。"""
+    res = scan_customer_topology(req.folder_path, db=db)
+    return FolderTopologyScanResponse(**res)
+
+
+@router.post("/topology-import/batch", response_model=BatchTopologyImportResponse)
+def batch_topology_import(
+    req: BatchTopologyImportRequest,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> BatchTopologyImportResponse:
+    """批量从识别出的拓扑案卷中建档。"""
+    created: list[dict] = []
+    for item in req.items:
+        case = create_case_from_source(
+            client_name=item.client_name,
+            source="topology_import",
+            db=db,
+            lender=item.lender,
+            loan_amount=item.loan_amount,
+            is_imported=item.is_imported,
+            platform_submissions=item.platform_submissions,
+            auto_folder=False,
+        )
+        case.folder_path = item.folder_path
+        db.flush()
+        created.append({
+            "case_id": case.id,
+            "client_name": item.client_name,
+            "folder_path": item.folder_path,
+        })
+    db.add(
+        ImportRecord(
+            source="topology_import",
+            status="done",
+            file_count=len(req.items),
+            started_at=datetime.now(UTC),
+            finished_at=datetime.now(UTC),
+            note=f"批量拓扑导入 {len(req.items)} 案卷",
+        )
+    )
+    db.commit()
+    return BatchTopologyImportResponse(ok=True, created_cases=created)

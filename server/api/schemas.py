@@ -1170,3 +1170,56 @@ class LegacyImportPreviewResponse(BaseModel):
     prefilled: dict = Field(default_factory=dict)
     submissions: list[LegacyImportSubmission] = Field(default_factory=list)
     submitted_platforms: list[str] = Field(default_factory=list)
+
+
+# ── WO-53 目录拓扑与多案卷智能识别 Schemas ─────────────────────────────
+
+class FolderTopologyScanRequest(BaseModel):
+    folder_path: str
+
+
+class CaseSubfolderMeta(BaseModel):
+    dir_name: str
+    folder_path: str
+    sequence: int | None = None
+    is_resub: bool = False
+    loan_type: str = "Refinance"
+    lender: str | None = None
+    property_address: str | None = None
+    doc_type: str | None = None
+    status: str = "active"  # active / withdrawn / onhold / submitted
+    onhold_reason: str | None = None
+    is_recommended_active: bool = False
+    has_broker_notes: bool = False
+    broker_notes_name: str | None = None
+    file_count: int = 0
+    prefilled: dict = Field(default_factory=dict)
+    submitted_platforms: list[str] = Field(default_factory=list)
+
+
+class FolderTopologyScanResponse(BaseModel):
+    ok: bool
+    message: str | None = None
+    client_name: str | None = None
+    client_root: str | None = None
+    cases: list[CaseSubfolderMeta] = Field(default_factory=list)
+
+
+class BatchTopologyImportItem(BaseModel):
+    folder_path: str
+    client_name: str
+    lender: str | None = None
+    loan_amount: float | None = None
+    property_address: str | None = None
+    stage: str = "gathering"
+    is_imported: bool = True
+    platform_submissions: list[str] = Field(default_factory=list)
+
+
+class BatchTopologyImportRequest(BaseModel):
+    items: list[BatchTopologyImportItem]
+
+
+class BatchTopologyImportResponse(BaseModel):
+    ok: bool
+    created_cases: list[dict] = Field(default_factory=list)
