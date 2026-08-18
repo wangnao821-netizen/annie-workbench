@@ -891,14 +891,15 @@ def reopen_case(
     case = _get_case_or_404(case_id, db)
     if case.stage not in TERMINAL_STAGES:
         raise HTTPException(status_code=409, detail="案件不在终态，无需解封")
-    case.stage = case.previous_stage or "收集资料"
+    restored_stage = case.previous_stage or "收集资料"
+    case.stage = restored_stage
     case.closed_at = None
     case.close_reason = None
     case.close_note = None
     _write_lifecycle_event(case_id, f"案件解封，回到 {case.stage}", db)
     mark_case_summary_dirty(case_id, db)
     db.commit()
-    return {"status": "active", "stage": case.stage, "message": "案件已解封"}
+    return {"status": "active", "stage": restored_stage, "message": "案件已解封"}
 
 
 @router.get("/{case_id}/timeline", response_model=list[TimelineEventResponse])
