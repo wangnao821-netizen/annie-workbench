@@ -67,13 +67,12 @@ Get-ChildItem (Join-Path $staging "backend\data") -Recurse -File -ErrorAction Si
 Get-ChildItem (Join-Path $staging "backend\core\data") -Recurse -File -ErrorAction SilentlyContinue | Remove-Item -Force
 Get-ChildItem (Join-Path $staging "backend\logs") -Recurse -File -ErrorAction SilentlyContinue | Remove-Item -Force
 Get-ChildItem (Join-Path $staging "backend") -Recurse -Directory -Filter "__pycache__" -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
-
 # ---- 4. portable python + trimmed site-packages ---------------------------
 Write-Host "[prepare] copying base python..."
 $basePy = "C:\Users\Yaruo\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none"
 Copy-Item -LiteralPath $basePy -Destination (Join-Path $staging "runtime\python") -Recurse -Force
 
-# ---- 4b. OCR tessdata（eng + chi_sim；缺失时自动下载） ---------------------
+# ---- 4b. OCR tessdata (eng + chi_sim; auto-download if missing) -------------
 $tessSrc = Join-Path $PSScriptRoot "tessdata"
 $tessDst = Join-Path $staging "runtime\tessdata"
 if (-not (Test-Path (Join-Path $tessSrc "eng.traineddata"))) {
