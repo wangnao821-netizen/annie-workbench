@@ -33,7 +33,7 @@ def _log(db, created_at, hit=0, miss=0, prompt=100, compl=50, cost=0.001, latenc
         scope="case",
         track="internal",
         provider="deepseek",
-        model="deepseek-chat",
+        model="deepseek-v4-flash",
         prompt_tokens=prompt,
         completion_tokens=compl,
         prompt_cache_hit_tokens=hit,

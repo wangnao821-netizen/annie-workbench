@@ -158,7 +158,7 @@ def extract_lead_from_email(
         llm_client = OpenAI(api_key=api_key, base_url=base_url, timeout=30)
         prompt = _EXTRACTION_PROMPT.format(subject=safe_subject, body=safe_body)
         ai_response = llm_client.chat.completions.create(
-            model="deepseek-chat",
+            model="deepseek-v4-flash",
             messages=[
                 {"role": "system", "content": "你是一个专业的澳洲贷款经纪助手。只返回 JSON，不要 markdown 代码块。"},
                 {"role": "user", "content": prompt},

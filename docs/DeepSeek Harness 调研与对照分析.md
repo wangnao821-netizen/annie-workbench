@@ -29,5 +29,5 @@
 2. **借鉴 3 点（可落地）**：
    - 前端"用量/缓存命中率"小面板（数据已有 AiUsageLog，纯前端 F 批次）；
    - 会话压缩 WO 设计参考 compaction；
-   - 评估模型配置是否跟进 V4（V1 以成本为主，默认保持 deepseek-chat；Pro 待稳定再评估）。
+   - 模型配置跟进 V4（2026-08-18 已执行）：deepseek-chat 已于 2026-07-24 官方弃用，默认主力切换为 deepseek-v4-flash（原 deepseek-chat 非思考角色）；deepseek-v4-pro 待业务需要再评估（成本更高）。
 3. 缓存纪律保持现状（已被官方实测验证）。

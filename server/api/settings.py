@@ -196,7 +196,13 @@ def test_ai_connection(req: AiTestRequest) -> AiTestResponse:
         base = (req.base_url or "").strip() or os.getenv(
             "DEEPSEEK_API_BASE" if req.provider == "deepseek" else "GEMINI_API_BASE"
         )
-        model = "deepseek-chat" if req.provider == "deepseek" else "gemini-2.0-flash"
+        from core.config import get_config
+
+        model = (
+            get_config().ai.primary.model
+            if req.provider == "deepseek"
+            else "gemini-2.0-flash"
+        )
         client = OpenAI(api_key=api_key, base_url=base or None, timeout=15.0)
         client.chat.completions.create(
             model=model,

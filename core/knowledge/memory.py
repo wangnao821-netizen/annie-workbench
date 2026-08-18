@@ -83,7 +83,7 @@ def _get_mem0() -> Any | None:
             llm_config = {
                 "provider": "deepseek",
                 "config": {
-                    "model": "deepseek-chat",
+                    "model": "deepseek-v4-flash",
                     "api_key": deepseek_key,
                 },
             }

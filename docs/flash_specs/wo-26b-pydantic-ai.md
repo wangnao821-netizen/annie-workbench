@@ -41,7 +41,7 @@
 
 ```yaml
 ai:
-  primary: { provider: deepseek, model: deepseek-chat, api_key_env: DEEPSEEK_API_KEY, base_url: "https://api.deepseek.com/v1" }
+  primary: { provider: deepseek, model: deepseek-v4-flash, api_key_env: DEEPSEEK_API_KEY, base_url: "https://api.deepseek.com/v1" }
   fallback: { provider: gemini, model: gemini-2.0-flash, api_key_env: GEMINI_API_KEY, base_url: "https://generativelanguage.googleapis.com/v1beta/openai" }
   routing:
     default_provider: deepseek
