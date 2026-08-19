@@ -11,10 +11,13 @@ from core.archive.knowledge_mining import (
     get_all_assessor_insights,
     search_case_precedents,
 )
+from core.archive.portfolio import get_archive_hub_stats, get_client_portfolios
 from core.archive.retention import get_all_retention_radar
 from server.api.schemas import (
     ArchiveBatchImportRequest,
     ArchiveBatchImportResponse,
+    ArchiveHubStats,
+    ArchivePortfolioResponse,
     ArchiveScanResponse,
     AssessorListResponse,
     CasePrecedentSearchResponse,
@@ -93,3 +96,28 @@ def get_case_knowledge_card_endpoint(
     if not card:
         return KnowledgeCardResponse(ok=False, message="案卷不存在或尚未结案")
     return KnowledgeCardResponse(ok=True, card=card)
+
+
+@router.get("/stats", response_model=ArchiveHubStats)
+def get_archive_stats_endpoint(
+    db: Session = Depends(get_db),  # noqa: B008
+) -> ArchiveHubStats:
+    """获取档案中心全局大盘统计指标。"""
+    res = get_archive_hub_stats(db)
+    return ArchiveHubStats(**res)
+
+
+@router.get("/portfolio", response_model=ArchivePortfolioResponse)
+def get_portfolio_endpoint(
+    query: str | None = None,
+    limit: int = 50,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> ArchivePortfolioResponse:
+    """获取按客户主体聚合的终生资产全景列表。"""
+    stats = get_archive_hub_stats(db)
+    clients = get_client_portfolios(db, query=query, limit=limit)
+    return ArchivePortfolioResponse(
+        ok=True,
+        stats=ArchiveHubStats(**stats),
+        clients=clients,
+    )

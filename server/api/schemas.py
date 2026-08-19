@@ -1416,3 +1416,30 @@ class KnowledgeCardResponse(BaseModel):
     ok: bool
     card: dict[str, Any] | None = None
     message: str | None = None
+
+
+# ── WO-60 档案中心全景：大盘指标与客户终生资产 Schemas ─────────────────────
+
+class ArchiveHubStats(BaseModel):
+    total_archived_clients: int = 0
+    total_cases_count: int = 0
+    total_loan_volume: float = 0.0
+    total_opportunities_count: int = 0
+    total_precedents_count: int = 0
+
+
+class ClientPortfolioItem(BaseModel):
+    client_name: str
+    total_properties_count: int = 0
+    total_loan_amount: float = 0.0
+    primary_lender: str | None = None
+    latest_settlement_date: str | None = None
+    cases_summary: list[dict] = Field(default_factory=list)
+    active_opportunities_count: int = 0
+    latest_opportunity_title: str | None = None
+
+
+class ArchivePortfolioResponse(BaseModel):
+    ok: bool
+    stats: ArchiveHubStats
+    clients: list[ClientPortfolioItem] = Field(default_factory=list)
