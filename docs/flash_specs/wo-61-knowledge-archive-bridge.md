@@ -11,9 +11,10 @@
 
 ## 背景（为什么要做）
 
-系统目前在「档案库」具备了历史案卷与先例提炼能力，在「知识中心」具备了三层经验架构（`KnowledgeEntry`），但两者存在数据割裂：
-1. **归档自动沉淀入知识库（Archive ➔ Knowledge Sync）**：
-   - 历史案卷归档入库或新案结案时，AI 提炼的《实战复盘知识卡》与审批官习惯应自动写入 `KnowledgeEntry`（`layer="global_experience"`, `source="archive_precedent"`）；
+系统目前在「档案库」具备了历史案卷与先例提炼能力，在「知识中心」具备了三层经验架构（`KnowledgeEntry`），现在建立**默认全自动闭环打通**：
+1. **默认全自动静默同步（Default Auto-Sync Ingestion Hook）**：
+   - 历史案卷批量归档（`batch_import_archive_cases`）或新案放款结案时，后端底层**默认自动调用**先例萃取，生成《实战复盘知识卡》并自动写入 `KnowledgeEntry`（`layer="global_experience"`, `source="archive_precedent"`），做到 **0 人工干预，100% 自动入库**；
+   - 同时保留 `POST /api/archive/sync-knowledge` 作为高级模型升级或数据重洗的维护接口；
 2. **知识中心双向溯源（Knowledge ➔ Archive Traceability）**：
    - 知识中心的先例条目支持反向关联 `case_id`，供 Vera 一键穿透至档案库查看原始案卷；
 3. **工作台在办案件先例智库推荐（Workbench Precedent Recommender）**：
@@ -24,10 +25,11 @@
 | 文件 | 操作 | 锚点 |
 |------|------|------|
 | `core/archive/knowledge_bridge.py` | **新建** | 档案先例沉淀同步入知识库、反向溯源与工作台先例推荐匹配引擎（≤260 行） |
+| `core/archive/ingestion.py` | 修改 | `batch_import_archive_cases` 末尾默认联动触发先例自动同步（约 10 行） |
 | `server/api/schemas.py` | 修改 | 文件末尾追加 `KnowledgeSyncResponse`、`RecommendedPrecedentItem`、`CaseRecommendedPrecedentsResponse` |
 | `server/api/archive.py` | 修改 | 追加 `POST /api/archive/sync-knowledge` 端点（约 20 行） |
 | `server/api/cases.py` | 修改 | 追加 `GET /api/cases/{case_id}/recommended-precedents` 端点（约 25 行） |
-| `tests/test_api/test_knowledge_bridge.py` | **新建** | 知识同步写入、反向溯源字段、工作台精准推荐算法与 2 个 API 端点测试（≤220 行） |
+| `tests/test_api/test_knowledge_bridge.py` | **新建** | 默认自动同步写入、反向溯源字段、工作台精准推荐算法与 2 个 API 端点测试（≤220 行） |
 
 ⚠️ 严禁修改上表以外的任何文件。
 
@@ -90,7 +92,17 @@ def get_recommended_precedents_for_case(
     """
 ```
 
-### 2. `server/api/schemas.py`（追加到文件末尾）
+### 2. `core/archive/ingestion.py` 联动自动同步
+在 `batch_import_archive_cases` 创建 Case 成功后，添加：
+```python
+    try:
+        from core.archive.knowledge_bridge import sync_archive_to_knowledge_base
+        sync_archive_to_knowledge_base(db)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Auto sync knowledge failed: %s", exc)
+```
+
+### 3. `server/api/schemas.py`（追加到文件末尾）
 ```python
 class KnowledgeSyncResponse(BaseModel):
     ok: bool
@@ -118,7 +130,7 @@ class CaseRecommendedPrecedentsResponse(BaseModel):
     precedents: list[RecommendedPrecedentItem] = Field(default_factory=list)
 ```
 
-### 3. `server/api/archive.py` 追加端点
+### 4. `server/api/archive.py` 追加端点
 ```python
 from core.archive.knowledge_bridge import sync_archive_to_knowledge_base
 from server.api.schemas import KnowledgeSyncResponse
@@ -133,7 +145,7 @@ def sync_archive_knowledge_endpoint(
     return KnowledgeSyncResponse(**res)
 ```
 
-### 4. `server/api/cases.py` 追加端点
+### 5. `server/api/cases.py` 追加端点
 ```python
 from core.archive.knowledge_bridge import get_recommended_precedents_for_case
 from server.api.schemas import CaseRecommendedPrecedentsResponse
@@ -162,10 +174,13 @@ def get_case_precedents_endpoint(
 1. `test_sync_archive_to_knowledge_base`:
    - 插入 2 个结案 Case，调用 `sync_archive_to_knowledge_base`；
    - 验证 `KnowledgeEntry` 表生成了 `source="archive_precedent"` 的记录，再次调用验证幂等性。
-2. `test_get_recommended_precedents_matching`:
+2. `test_batch_import_archive_auto_syncs_knowledge`:
+   - 调用 `batch_import_archive_cases` 归档一个结案案卷；
+   - 验证无需手动触发，`KnowledgeEntry` 表已自动生成对应的实战先例记录。
+3. `test_get_recommended_precedents_matching`:
    - 插入 ORDE 估价卡点的先例 KnowledgeEntry；
    - 创建一个新的 ORDE 活跃 Case，验证推荐引擎精准匹配并给出最高评分与匹配理由。
-3. `test_archive_and_cases_endpoints`:
+4. `test_archive_and_cases_endpoints`:
    - TestClient 验证 `POST /api/archive/sync-knowledge` 与 `GET /api/cases/{case_id}/recommended-precedents` 端点 200 响应。
 
 ---
@@ -175,7 +190,7 @@ def get_case_precedents_endpoint(
 $env:PYTHONPATH="D:\vera-workbench\.venv\Lib\site-packages"
 $env:TESSDATA_PREFIX="C:\Users\Yaruo\AppData\Local\Temp\py311embed\tessdata"
 python -m pytest tests/test_api/test_knowledge_bridge.py -v
-python -m ruff check core/archive/knowledge_bridge.py server/api/archive.py server/api/cases.py server/api/schemas.py tests/test_api/test_knowledge_bridge.py
+python -m ruff check core/archive/knowledge_bridge.py core/archive/ingestion.py server/api/archive.py server/api/cases.py server/api/schemas.py tests/test_api/test_knowledge_bridge.py
 ```
 - 测试 100% 通过（0 failed）
 - ruff 检查 0 errors / 0 warnings

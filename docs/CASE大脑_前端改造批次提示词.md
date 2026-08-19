@@ -6683,10 +6683,9 @@ interface ArchivePortfolioResponse {
   - 展开卡片展示三段式复盘结构（🎯 背景与痛点 ➔ 💡 突破策略 ➔ 🏆 获批经验）；
   - 提供 **`[ 📂 查看档案库原始案卷 ➔ ]`** 按钮，点击直接导航定位至档案中心该客户卡片。
 
-### 2. 档案中心增加「一键同步至知识库」按钮（Archive ➔ Knowledge Sync）
-- 在 `ArchiveHub.tsx`（或先例智库面板）顶部增加：
-  - `[ 🔄 同步先例至知识中心 ]` 按钮；
-  - 点击后调用 `POST /api/archive/sync-knowledge`，成功后弹出 Toast：“已成功将 X 条实战先例同步至全局决策知识库！”。
+### 2. 档案中心【默认自动沉淀 + 维护性刷新入口】
+- **归档即自动入库**：归档成功后，Toast 提示直接展示：*“已成功归档 X 个案卷，并自动提炼沉淀至知识库！”*；
+- **维护性小按钮**：在档案中心工具栏或右上角提供一个轻量的 `[ 🔄 刷新智库先例 ]` 图标按钮，点击调用 `POST /api/archive/sync-knowledge`，供模型升级或数据重洗使用。
 
 ### 3. 工作台在办案件增加「💡 历史相似先例与破局建议」（Workbench Precedents Radar）
 - 在案件详情页概览（`CaseDetailView.tsx`）或卡点报警横幅下方：
@@ -6699,7 +6698,7 @@ interface ArchivePortfolioResponse {
 
 ## 接口契约参考
 
-### 一键同步先例入知识库
+### 一键同步/刷新先例入知识库
 `POST /api/archive/sync-knowledge`
 返回：
 ```typescript
@@ -6738,8 +6737,9 @@ interface CaseRecommendedPrecedentsResponse {
 ## 验收（AI Studio 侧）
 1. `npx tsc --noEmit` 零错误；构建通过；
 2. 知识中心能看到实战先例卡片，并能点击穿透至档案库；
-3. 档案中心支持一键同步先例入知识库；
+3. 历史案卷归档时默认自动沉淀入知识库；
 4. 工作台在办案件中，遇到卡点或特定银行时能自动推荐历史相似先例与破局建议。
+
 
 
 

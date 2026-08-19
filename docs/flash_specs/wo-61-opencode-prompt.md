@@ -8,15 +8,17 @@
      - 扫描已结档案件，调用 `generate_case_knowledge_card` 生成复盘卡并落库为 `KnowledgeEntry`（`layer="global_experience"`, `source="archive_precedent"`, `case_id=case.id`），实现幂等；
    - 实现 `get_recommended_precedents_for_case(case_id, db, limit=3)`：
      - 根据当前案件机构、方案类型与卡点（`blocker`），从 `KnowledgeEntry` 库中多维评分匹配最相关的历史先例与破局启示。
-2. **修改 `server/api/schemas.py`**：
+2. **修改 `core/archive/ingestion.py`**：
+   - 在 `batch_import_archive_cases` 执行完毕前，默认自动调用 `sync_archive_to_knowledge_base(db)`，实现**归档即自动静默沉淀入知识库（0 手工）**。
+3. **修改 `server/api/schemas.py`**：
    - 在文件末尾追加：`KnowledgeSyncResponse`、`RecommendedPrecedentItem`、`CaseRecommendedPrecedentsResponse`。
-3. **修改 `server/api/archive.py`**：
+4. **修改 `server/api/archive.py`**：
    - 追加端点：`POST /api/archive/sync-knowledge`。
-4. **修改 `server/api/cases.py`**：
+5. **修改 `server/api/cases.py`**：
    - 顶部引入 `get_recommended_precedents_for_case` 与 `CaseRecommendedPrecedentsResponse`；
    - 追加端点：`GET /api/cases/{case_id}/recommended-precedents`。
-5. **新建全量测试 `tests/test_api/test_knowledge_bridge.py`**：
-   - 覆盖知识同步落库、反向关联、工作台先例打分匹配与 2 个 API 端点。
+6. **新建全量测试 `tests/test_api/test_knowledge_bridge.py`**：
+   - 覆盖自动同步落库、反向关联、工作台先例打分匹配与 2 个 API 端点。
 
 ## 纪律红线
 - 严格遵循 `wo-61-knowledge-archive-bridge.md` 契约，字段和函数名一字不改；
@@ -27,6 +29,6 @@
 $env:PYTHONPATH="D:\vera-workbench\.venv\Lib\site-packages"
 $env:TESSDATA_PREFIX="C:\Users\Yaruo\AppData\Local\Temp\py311embed\tessdata"
 python -m pytest tests/test_api/test_knowledge_bridge.py -v
-python -m ruff check core/archive/knowledge_bridge.py server/api/archive.py server/api/cases.py server/api/schemas.py tests/test_api/test_knowledge_bridge.py
+python -m ruff check core/archive/knowledge_bridge.py core/archive/ingestion.py server/api/archive.py server/api/cases.py server/api/schemas.py tests/test_api/test_knowledge_bridge.py
 ```
 全部测试 pass 且 ruff 零报错后汇报。
