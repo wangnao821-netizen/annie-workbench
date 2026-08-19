@@ -1294,3 +1294,52 @@ class CaseScaffoldResponse(BaseModel):
     case_folder: str
     created_subdirs: list[str] = Field(default_factory=list)
     message: str | None = None
+
+
+# ── WO-60 历史案卷批量归档入库 Schemas ───────────────────────────────
+
+class ArchiveCaseItem(BaseModel):
+    dir_name: str
+    folder_path: str
+    client_name: str
+    lender: str | None = None
+    loan_amount: float | None = None
+    property_address: str | None = None
+    settlement_date: str | None = None
+    interest_rate: str | None = None
+    status: str = "settled"  # settled / withdrawn
+    eligible: bool = True
+    in_workbench: bool = False
+    already_archived: bool = False
+    filter_reason: str | None = None
+    file_count: int = 0
+
+
+class ArchiveScanResponse(BaseModel):
+    ok: bool
+    message: str | None = None
+    client_name: str | None = None
+    total_found: int = 0
+    eligible_count: int = 0
+    cases: list[ArchiveCaseItem] = Field(default_factory=list)
+
+
+class ArchiveBatchImportItem(BaseModel):
+    folder_path: str
+    client_name: str
+    lender: str | None = None
+    loan_amount: float | None = None
+    property_address: str | None = None
+    settlement_date: str | None = None
+    interest_rate: str | None = None
+    status: str = "settled"
+
+
+class ArchiveBatchImportRequest(BaseModel):
+    items: list[ArchiveBatchImportItem]
+
+
+class ArchiveBatchImportResponse(BaseModel):
+    ok: bool
+    imported_count: int
+    created_cases: list[dict] = Field(default_factory=list)

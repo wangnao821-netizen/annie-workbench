@@ -57,6 +57,7 @@ app.add_middleware(
 from server.api.admin import router as admin_router
 from server.api.agents import router as agents_router
 from server.api.analytics import router as analytics_router
+from server.api.archive import router as archive_router
 from server.api.banks import router as banks_router
 from server.api.calculator import router as calculator_router
 from server.api.cards import router as cards_router
@@ -81,6 +82,7 @@ from server.api.wechat import router as wechat_router
 
 app.include_router(admin_router)
 app.include_router(agents_router)
+app.include_router(archive_router)
 app.include_router(cards_router)
 app.include_router(folders_router)
 app.include_router(skills_router)
