@@ -1,4 +1,4 @@
-# AI Studio 前端改造提示词：批次 P5（WO-60 档案中心批量归档历史案卷与放款事实呈现）
+# AI Studio 前端改造提示词：批次 P5（WO-57 档案中心批量归档历史案卷与放款事实呈现）
 
 ## 你的角色
 你是精通 React 19 + TypeScript + TailwindCSS + Lucide Icons 的前端专家，正在为 **Vera 工作台** 升级「档案库 / 档案中心（Archive Hub）」。

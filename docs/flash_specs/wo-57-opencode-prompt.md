@@ -1,6 +1,6 @@
-# OpenCode 任务提示词：WO-60 历史案卷批量归档入库与放款事实解析
+# OpenCode 任务提示词：WO-57 历史案卷批量归档入库与放款事实解析
 
-请作为后端资深开发工程师，严格按照 `docs/flash_specs/wo-60-archive-batch-ingestion.md` 施工单执行代码编写。
+请作为后端资深开发工程师，严格按照 `docs/flash_specs/wo-57-archive-batch-ingestion.md` 施工单执行代码编写。
 
 ## 核心任务
 1. **新建 `core/archive/ingestion.py`**：
@@ -21,7 +21,7 @@
    - 使用 `tmp_path` 构造虚拟测试数据，覆盖已放款识别、在途冲突拦截、已归档拦截与 2 个 API 端点。
 
 ## 纪律红线
-- 严格遵循 `wo-60-archive-batch-ingestion.md` 契约，字段和函数名一字不改；
+- 严格遵循 `wo-57-archive-batch-ingestion.md` 契约，字段和函数名一字不改；
 - 所有路径操作必须使用 `pathlib.Path`；
 - 禁止修改改动范围之外的任何文件。
 
