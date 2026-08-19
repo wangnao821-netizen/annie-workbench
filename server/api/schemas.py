@@ -1214,9 +1214,19 @@ class BatchTopologyImportItem(BaseModel):
     lender: str | None = None
     loan_amount: float | None = None
     property_address: str | None = None
-    stage: str = "gathering"
+    stage: str = "收集资料"
     is_imported: bool = True
     platform_submissions: list[str] = Field(default_factory=list)
+    # ── WO-62 新增贯通字段 ──
+    client_phone: str | None = None
+    client_email: str | None = None
+    employment_type: str | None = None
+    residency: str | None = None
+    property_value: float | None = None
+    interest_rate: float | None = None
+    doc_type: str | None = None
+    loan_type: str | None = None
+    onhold_reason: str | None = None
 
 
 class BatchTopologyImportRequest(BaseModel):

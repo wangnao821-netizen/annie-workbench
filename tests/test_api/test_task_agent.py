@@ -180,3 +180,36 @@ class TestBackwardCompat:
             db=test_db,
         )
         assert action.priority == "high"
+
+
+class TestStageAdvanceDispatch:
+    """阶段推进 Action 经由调度器 dispatch approve 时真正推进 Case.stage。"""
+
+    def test_stage_advance_dispatch_approve_progresses_case(self, client, test_db):
+        # 1. 创建处于「收集资料」阶段的案件
+        case = Case(
+            id="CASE-ADV-001",
+            client_name="李四",
+            stage="收集资料",
+            lender="CBA",
+            loan_amount=500000,
+        )
+        test_db.add(case)
+        test_db.commit()
+
+        # 2. 调用 stage-advance 生成 Action
+        advance_resp = client.post("/api/cases/CASE-ADV-001/stage-advance", json={
+            "signal": "application_submitted",
+        })
+        assert advance_resp.status_code == 200
+        action_id = advance_resp.json()["action_id"]
+
+        # 3. 调度器 approve 该 Action
+        dispatch_resp = client.post(f"/api/tasks/{action_id}/dispatch", json={
+            "action": "approve",
+        })
+        assert dispatch_resp.status_code == 200
+
+        # 4. 验证 Case.stage 已真实流转为「已递交(等银行)」
+        test_db.refresh(case)
+        assert case.stage == "已递交(等银行)"

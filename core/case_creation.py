@@ -309,21 +309,6 @@ def create_case_from_source(
 
     db.commit()
 
-    # 建档即预选清单（#13 配套②）：银行+收入类型 → pick_checklist（规则预选，不调 LLM）
-    try:
-        from core.checklist.generator import save_confirmed_checklist
-        from core.checklist.master_picker import pick_checklist
-        picked = pick_checklist(
-            {"lender": lender or "CBA", "employment_type": employment_type or "PAYG",
-             "residency": residency or "PR", "purpose": purpose or "Purchase"},
-            db,
-            use_ai=False,
-        )
-        if picked:
-            mapped = [_map_picked_to_checklist(it) for it in picked]
-            save_confirmed_checklist(case_id, mapped, db)
-    except Exception as exc:  # noqa: BLE001 — 清单预选失败不阻断建档
-        logger.warning("Checklist pre-selection failed for %s: %s (non-fatal)", case_id, exc)
 
     # 4. 材料清单预选与自动匹配（WO-54）
     try:

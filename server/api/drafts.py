@@ -221,3 +221,82 @@ def rollback_draft(
     db.commit()
     db.refresh(target)
     return _to_draft(target)
+
+
+# ── 基于 draft_id 直接操作端点（支持手动草稿与独立操作） ──────────────────
+
+@router.get("/by-id/{draft_id}", response_model=DraftResponse)
+def get_draft_by_id(
+    draft_id: int,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> DraftResponse:
+    """按 draft_id 直接获取草稿详情。"""
+    draft = db.query(EmailDraft).filter(EmailDraft.id == draft_id).first()
+    if not draft:
+        raise HTTPException(status_code=404, detail=f"草稿 {draft_id} 不存在")
+    return _to_draft(draft)
+
+
+@router.post("/by-id/{draft_id}/refine", response_model=DraftResponse)
+def refine_draft_by_id(
+    draft_id: int,
+    req: DraftRefineRequest,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> DraftResponse:
+    """按 draft_id 对草稿进行 AI 指令润色。"""
+    draft = db.query(EmailDraft).filter(EmailDraft.id == draft_id).first()
+    if not draft:
+        raise HTTPException(status_code=404, detail=f"草稿 {draft_id} 不存在")
+    updated = rewrite_reply_draft(draft.id, req.instruction, db)
+    if updated is None:
+        raise HTTPException(status_code=400, detail="草稿不可修正（非草稿状态或重写失败）")
+    return _to_draft(updated)
+
+
+@router.post("/by-id/{draft_id}/confirm", response_model=DraftResponse)
+def confirm_draft_by_id(
+    draft_id: int,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> DraftResponse:
+    """按 draft_id 确认批准草稿（标记 approved）。"""
+    draft = db.query(EmailDraft).filter(EmailDraft.id == draft_id).first()
+    if not draft:
+        raise HTTPException(status_code=404, detail=f"草稿 {draft_id} 不存在")
+    if draft.status != "draft":
+        raise HTTPException(status_code=409, detail=f"草稿当前状态为 {draft.status}，无法确认")
+    draft.status = "approved"
+    draft.approved_at = datetime.now(UTC)
+    db.commit()
+    db.refresh(draft)
+    return _to_draft(draft)
+
+
+@router.get("/by-id/{draft_id}/versions", response_model=list[DraftResponse])
+def draft_versions_by_id(
+    draft_id: int,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> list[DraftResponse]:
+    """按 draft_id 查询版本历史。"""
+    draft = db.query(EmailDraft).filter(EmailDraft.id == draft_id).first()
+    if not draft:
+        raise HTTPException(status_code=404, detail=f"草稿 {draft_id} 不存在")
+    if draft.source_action_id:
+        versions = _all_versions(draft.source_action_id, db)
+    else:
+        versions = [draft]
+    return [_to_draft(d) for d in versions]
+
+
+@router.post("/by-id/{draft_id}/rollback", response_model=DraftResponse)
+def rollback_draft_by_id(
+    draft_id: int,
+    req: RollbackRequest,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> DraftResponse:
+    """按 draft_id 回滚版本。"""
+    draft = db.query(EmailDraft).filter(EmailDraft.id == draft_id).first()
+    if not draft:
+        raise HTTPException(status_code=404, detail=f"草稿 {draft_id} 不存在")
+    if not draft.source_action_id:
+        return _to_draft(draft)
+    return rollback_draft(draft.source_action_id, req, db)

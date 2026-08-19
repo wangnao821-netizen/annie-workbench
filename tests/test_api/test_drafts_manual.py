@@ -106,3 +106,34 @@ class TestCreateManualDraft:
         })
         assert resp.status_code == 404
         assert "不存在" in resp.json()["detail"]
+
+
+class TestDraftByIdEndpoints:
+    def test_get_and_confirm_draft_by_id(self, client, case):
+        # 1. 创建手动草稿
+        create_resp = client.post("/api/drafts/", json={
+            "case_id": case.id,
+            "subject": "手动草稿测试",
+            "body": "请查看附件材料。",
+        })
+        assert create_resp.status_code == 200
+        draft_id = create_resp.json()["id"]
+
+        # 2. 按 draft_id 获取详情
+        get_resp = client.get(f"/api/drafts/by-id/{draft_id}")
+        assert get_resp.status_code == 200
+        data = get_resp.json()
+        assert data["id"] == draft_id
+        assert data["subject"] == "手动草稿测试"
+        assert data["status"] == "draft"
+
+        # 3. 按 draft_id 确认批准
+        confirm_resp = client.post(f"/api/drafts/by-id/{draft_id}/confirm")
+        assert confirm_resp.status_code == 200
+        confirm_data = confirm_resp.json()
+        assert confirm_data["status"] == "approved"
+
+        # 4. 获取版本历史
+        ver_resp = client.get(f"/api/drafts/by-id/{draft_id}/versions")
+        assert ver_resp.status_code == 200
+        assert len(ver_resp.json()) >= 1

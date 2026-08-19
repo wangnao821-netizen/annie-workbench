@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import asdict
 from datetime import UTC, datetime
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy import text
@@ -54,6 +56,7 @@ from core.policy.engine import check_policy
 from core.policy.prompts import polish_policy_text
 from server.api.schemas import (
     ArchivedCaseResponse,
+    BatchTopologyImportItem,
     BatchTopologyImportRequest,
     BatchTopologyImportResponse,
     BrainFactResponse,
@@ -972,12 +975,88 @@ def scan_folder_topology(
     return FolderTopologyScanResponse(**res)
 
 
+def _seed_initial_brain_facts_for_import(
+    case: Case,
+    item: BatchTopologyImportItem,
+    db: Session,
+) -> None:
+    """沉淀存量导入案件的初始 Brain Facts（交易/房产/身份/职业），非阻塞。
+
+    幂等：同 (case_id, key, track, valid_to IS NULL) 已存在则跳过。
+    来源事件固定为一条 confirmed internal 事件（trigger_distill=False，不触发蒸馏）。
+    """
+    logger = logging.getLogger("server.api.cases")
+    facts: list[tuple[str, str, str]] = []
+    if item.client_name:
+        facts.append(("identity.full_name", item.client_name, "identity"))
+    if item.residency:
+        facts.append(("identity.residency", item.residency, "identity"))
+    if item.employment_type:
+        facts.append(("employment.type", item.employment_type, "employment"))
+    if item.property_address:
+        facts.append(("property.address", item.property_address, "property"))
+    if item.property_value is not None:
+        facts.append(("property.value", str(item.property_value), "property"))
+    if item.loan_amount is not None:
+        facts.append(("loan.amount", str(item.loan_amount), "loan"))
+    if item.interest_rate is not None:
+        facts.append(("loan.rate", str(item.interest_rate), "loan"))
+    if item.loan_type:
+        facts.append(("loan.type", item.loan_type, "loan"))
+    if item.lender:
+        facts.append(("bank.lender", item.lender, "bank"))
+    if item.onhold_reason:
+        facts.append(("special.circumstances", f"暂停原因：{item.onhold_reason}", "special"))
+    if case.stage:
+        facts.append(("stage.current", case.stage, "stage"))
+    if not facts:
+        return
+    try:
+        event = append_context_event(
+            case_id=case.id,
+            source_type="manual_note",
+            content="存量拓扑导入：初始画像已沉淀（姓名/身份/雇佣/房产/贷款/银行/阶段）",
+            db=db,
+            trigger_distill=False,
+        )
+        for key, value, category in facts:
+            existing = (
+                db.query(BrainFact)
+                .filter(
+                    BrainFact.case_id == case.id,
+                    BrainFact.key == key,
+                    BrainFact.track == "internal",
+                    BrainFact.valid_to.is_(None),
+                )
+                .first()
+            )
+            if existing is not None:
+                continue
+            db.add(
+                BrainFact(
+                    case_id=case.id,
+                    key=key,
+                    value=value,
+                    category=category,
+                    track="internal",
+                    event_id=event.id,
+                    valid_from=datetime.now(UTC),
+                )
+            )
+        db.commit()
+    except Exception as exc:  # noqa: BLE001 — 事实沉淀失败不阻断建档
+        db.rollback()
+        logger.warning(
+            "seed initial brain facts on topology import failed for %s: %s", case.id, exc
+        )
+
+
 @router.post("/topology-import/batch", response_model=BatchTopologyImportResponse)
 def batch_topology_import(
     req: BatchTopologyImportRequest,
     db: Session = Depends(get_db),  # noqa: B008
 ) -> BatchTopologyImportResponse:
-    """批量从识别出的拓扑案卷中建档。"""
+    """批量从识别出的拓扑案卷中建档（贯通画像、即刻匹配清单、沉淀事实）。"""
     created: list[dict] = []
     for item in req.items:
         case = create_case_from_source(
@@ -986,17 +1065,46 @@ def batch_topology_import(
             db=db,
             lender=item.lender,
             loan_amount=item.loan_amount,
+            client_phone=item.client_phone or "",
+            client_email=item.client_email or "",
+            employment_type=item.employment_type,
+            residency=item.residency,
+            property_value=item.property_value,
+            interest_rate=item.interest_rate,
+            purpose=item.loan_type,
             is_imported=item.is_imported,
             platform_submissions=item.platform_submissions,
             auto_folder=False,
         )
         case.folder_path = item.folder_path
+        if item.stage:
+            case.stage = item.stage
+        if item.doc_type:
+            case.case_type = item.doc_type
+        if item.onhold_reason:
+            case.special_circumstances = f"暂停原因：{item.onhold_reason}"
         db.flush()
+
+        # 核心修复 1：路径回填后立即触发清单文件快速匹配与自动勾选
+        if item.folder_path and Path(item.folder_path).is_dir():
+            try:
+                match_checklist_files_for_case(case.id, db)
+            except Exception as exc:  # noqa: BLE001 — 清单匹配失败不阻断建档
+                logging.getLogger("server.api.cases").warning(
+                    "match checklist files on topology import failed for %s: %s",
+                    case.id,
+                    exc,
+                )
+
+        # 核心修复 2：沉淀初始 Brain Facts（交易/房产/身份/职业）
+        _seed_initial_brain_facts_for_import(case, item, db)
+
         created.append({
             "case_id": case.id,
             "client_name": item.client_name,
             "folder_path": item.folder_path,
         })
+
     db.add(
         ImportRecord(
             source="topology_import",

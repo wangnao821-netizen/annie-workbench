@@ -158,13 +158,21 @@ def dispatch_task(
     if task is None:
         raise ValueError(f"任务不存在: task_id={task_id}")
 
-    status_map = {
-        "approve": "completed",
-        "reject": "rejected",
-        "defer": "deferred",
-        "delegate": "delegated",
-    }
-    task.status = status_map[action]
+    if task.type == "stage_advance" and action == "approve":
+        from core.case_engine.progression import confirm_stage_advance
+        confirm_stage_advance(task_id, db)
+        task = db.get(Action, task_id)
+        if task is None:
+            raise ValueError(f"任务不存在: task_id={task_id}")
+    else:
+        status_map = {
+            "approve": "completed",
+            "reject": "rejected",
+            "defer": "deferred",
+            "delegate": "delegated",
+        }
+        task.status = status_map[action]
+
     task.assignee = operator
     if note:
         entry = f"[{operator}] {note}"
