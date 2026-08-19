@@ -6,11 +6,13 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from core.archive.ingestion import batch_import_archive_cases, scan_archive_folder
+from core.archive.retention import get_all_retention_radar
 from server.api.schemas import (
     ArchiveBatchImportRequest,
     ArchiveBatchImportResponse,
     ArchiveScanResponse,
     FolderTopologyScanRequest,
+    RetentionRadarResponse,
 )
 from server.deps import get_db
 
@@ -36,3 +38,12 @@ def import_archive_batch(
     items_data = [item.model_dump() for item in req.items]
     res = batch_import_archive_cases(items_data, db=db)
     return ArchiveBatchImportResponse(**res)
+
+
+@router.get("/retention-radar", response_model=RetentionRadarResponse)
+def get_retention_radar_endpoint(
+    db: Session = Depends(get_db),  # noqa: B008
+) -> RetentionRadarResponse:
+    """获取档案中心二次经营商机雷达（红黄绿四大时钟统计与客户列表）。"""
+    res = get_all_retention_radar(db)
+    return RetentionRadarResponse(**res)

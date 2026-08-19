@@ -1343,3 +1343,34 @@ class ArchiveBatchImportResponse(BaseModel):
     ok: bool
     imported_count: int
     created_cases: list[dict] = Field(default_factory=list)
+
+
+# ── WO-58 二次经营时钟引擎与商机雷达 Schemas ─────────────────────────────
+
+class RetentionOpportunityItem(BaseModel):
+    case_id: str
+    client_name: str
+    property_address: str | None = None
+    lender: str | None = None
+    loan_amount: float | None = None
+    interest_rate: str | None = None
+    settlement_date: str | None = None
+    level: str  # red / yellow / green / blue
+    opp_type: str  # fixed_rate_expiry / annual_repricing / equity_cashout / settlement_care
+    title: str
+    action_suggest: str
+    days_relevant: int = 0
+
+
+class RetentionRadarSummary(BaseModel):
+    total_opportunities: int = 0
+    red_count: int = 0
+    yellow_count: int = 0
+    green_count: int = 0
+    blue_count: int = 0
+
+
+class RetentionRadarResponse(BaseModel):
+    ok: bool
+    summary: RetentionRadarSummary
+    opportunities: list[RetentionOpportunityItem] = Field(default_factory=list)
