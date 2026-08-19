@@ -217,6 +217,24 @@ def _build_case_meta(case_dir: Path, db: Session | None) -> dict[str, Any]:
             prefilled = result.get("prefilled") or {}
         except Exception:  # noqa: BLE001 — 解析/画像失败降级为空预填，不阻断
             prefilled = {}
+    already_imported = False
+    existing_case_id = None
+    existing_stage = None
+    if db is not None:
+        from core.models.orm import Case
+
+        posix_path = case_dir.as_posix()
+        str_path = str(case_dir)
+        existing = (
+            db.query(Case)
+            .filter((Case.folder_path == posix_path) | (Case.folder_path == str_path))
+            .first()
+        )
+        if existing is not None:
+            already_imported = True
+            existing_case_id = existing.id
+            existing_stage = existing.stage
+
     return {
         "dir_name": case_dir.name,
         "folder_path": str(case_dir),
@@ -234,6 +252,9 @@ def _build_case_meta(case_dir: Path, db: Session | None) -> dict[str, Any]:
         "file_count": _count_files(case_dir),
         "prefilled": prefilled,
         "submitted_platforms": _submitted_platforms(case_dir),
+        "already_imported": already_imported,
+        "existing_case_id": existing_case_id,
+        "existing_stage": existing_stage,
     }
 
 

@@ -1195,6 +1195,9 @@ class CaseSubfolderMeta(BaseModel):
     file_count: int = 0
     prefilled: dict = Field(default_factory=dict)
     submitted_platforms: list[str] = Field(default_factory=list)
+    already_imported: bool = False
+    existing_case_id: str | None = None
+    existing_stage: str | None = None
 
 
 class FolderTopologyScanResponse(BaseModel):
