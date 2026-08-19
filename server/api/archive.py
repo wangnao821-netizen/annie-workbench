@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from core.archive.ingestion import batch_import_archive_cases, scan_archive_folder
+from core.archive.knowledge_bridge import sync_archive_to_knowledge_base
 from core.archive.knowledge_mining import (
     generate_case_knowledge_card,
     get_all_assessor_insights,
@@ -23,6 +24,7 @@ from server.api.schemas import (
     CasePrecedentSearchResponse,
     FolderTopologyScanRequest,
     KnowledgeCardResponse,
+    KnowledgeSyncResponse,
     RetentionRadarResponse,
 )
 from server.deps import get_db
@@ -49,6 +51,15 @@ def import_archive_batch(
     items_data = [item.model_dump() for item in req.items]
     res = batch_import_archive_cases(items_data, db=db)
     return ArchiveBatchImportResponse(**res)
+
+
+@router.post("/sync-knowledge", response_model=KnowledgeSyncResponse)
+def sync_archive_knowledge_endpoint(
+    db: Session = Depends(get_db),  # noqa: B008
+) -> KnowledgeSyncResponse:
+    """一键将档案库历史结案先例同步蒸馏入知识中心（KnowledgeEntry）。"""
+    res = sync_archive_to_knowledge_base(db)
+    return KnowledgeSyncResponse(**res)
 
 
 @router.get("/retention-radar", response_model=RetentionRadarResponse)

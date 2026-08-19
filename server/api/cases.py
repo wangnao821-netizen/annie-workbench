@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from core.agents.declaration_check import run_declaration_check
 from core.ai.case_context import build_case_context
 from core.ai.case_summary import mark_case_summary_dirty
+from core.archive.knowledge_bridge import get_recommended_precedents_for_case
 from core.bank_registry import (
     display_name,
     display_platform,
@@ -63,6 +64,7 @@ from server.api.schemas import (
     CaseFolderRequest,
     CaseFolderResponse,
     CaseHoldRequest,
+    CaseRecommendedPrecedentsResponse,
     CaseResponse,
     CaseResubmitRequest,
     CaseScaffoldRequest,
@@ -1068,6 +1070,22 @@ def extract_case_emails_timeline(
         assessor_name=res.get("assessor_name"),
         lender_ref=res.get("lender_ref"),
         active_blocker=res.get("active_blocker"),
+    )
+
+
+@router.get("/{case_id}/recommended-precedents", response_model=CaseRecommendedPrecedentsResponse)
+def get_case_precedents_endpoint(
+    case_id: str,
+    limit: int = 3,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> CaseRecommendedPrecedentsResponse:
+    """获取与当前在办案件最匹配的历史实战先例与破局策略。"""
+    items = get_recommended_precedents_for_case(case_id, db=db, limit=limit)
+    return CaseRecommendedPrecedentsResponse(
+        ok=True,
+        case_id=case_id,
+        total_recommended=len(items),
+        precedents=items,
     )
 
 

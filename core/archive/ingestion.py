@@ -258,5 +258,10 @@ def batch_import_archive_cases(items: list[dict[str, Any]], db: Session) -> dict
         )
     )
     db.commit()
+    try:
+        from core.archive.knowledge_bridge import sync_archive_to_knowledge_base
+        sync_archive_to_knowledge_base(db)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Auto sync knowledge failed: %s", exc)
     logger.info("Archive batch imported %d closed cases", len(created))
     return {"ok": True, "imported_count": len(created), "created_cases": created}

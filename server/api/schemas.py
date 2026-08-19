@@ -1443,3 +1443,31 @@ class ArchivePortfolioResponse(BaseModel):
     ok: bool
     stats: ArchiveHubStats
     clients: list[ClientPortfolioItem] = Field(default_factory=list)
+
+
+# ── WO-61 档案库↔知识中心双向打通 Schemas ─────────────────────────────
+
+class KnowledgeSyncResponse(BaseModel):
+    ok: bool
+    synced_count: int = 0
+    total_precedents: int = 0
+    message: str | None = None
+
+
+class RecommendedPrecedentItem(BaseModel):
+    precedent_id: str
+    case_id: str
+    title: str
+    lender: str | None = None
+    client_name: str | None = None
+    strategy_summary: str | None = None
+    takeaway: str | None = None
+    relevance_score: int = 0
+    match_reasons: list[str] = Field(default_factory=list)
+
+
+class CaseRecommendedPrecedentsResponse(BaseModel):
+    ok: bool
+    case_id: str
+    total_recommended: int = 0
+    precedents: list[RecommendedPrecedentItem] = Field(default_factory=list)
