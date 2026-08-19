@@ -12,20 +12,32 @@ from fastapi.staticfiles import StaticFiles
 # ── 环境变量 ───────────────────────────────────────────
 VERA_PORT = int(os.getenv("VERA_PORT", "8000"))
 VERA_DATA_DIR = os.getenv("VERA_DATA_DIR", "")  # 空 = 默认 data/
-APP_VERSION = "2.1.0"
+APP_VERSION = "2.2.0"
 
 # ── 后台调度（Phase 2 数据保命） ───────────────────────
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
-    """启动：配置 fail-fast + 调度器容错（Phase 2 收口）。
+    """启动：配置 fail-fast + 调度器容错 + 行业知识种子库自动导入。
 
     第一层 get_config()：环境/配置错误（如缺 CLIENT_FILES_ROOT）→ 启动失败，显式暴露；
-    第二层 init_scheduler()：调度器故障 → 告警降级，不阻断应用。
+    第二层 seed_industry_knowledge()：行业规则库种子数据（compliance/platform/policy）自动幂等导入；
+    第三层 init_scheduler()：调度器故障 → 告警降级，不阻断应用。
     """
     from core.config import get_config
     from core.scheduler.jobs import init_scheduler, shutdown_scheduler
 
     get_config()
+
+    try:
+        from core.knowledge.seeder import seed_industry_knowledge
+        from core.models.db import get_session_factory
+
+        factory = get_session_factory()
+        with factory() as db:
+            seed_industry_knowledge(db)
+    except Exception as exc:  # noqa: BLE001
+        logging.getLogger("server.main").warning("seed industry knowledge failed: %s", exc)
+
     try:
         init_scheduler()
     except Exception as exc:  # noqa: BLE001 — 调度器故障不阻断应用
