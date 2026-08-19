@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -244,3 +245,55 @@ def parse_folder_naming(path: str | Path) -> dict[str, str]:
             "case_id": parts[-1],
         }
     return {"client_name": _clean_client_name(parts[-1])}
+
+
+# ── WO-56 全新空白建案：标准 11 目录脚手架 ─────────────────────────────
+
+STANDARD_CASE_SUBDIRS = (
+    "Send to Lender",
+    "Approval",
+    "Valuation",
+    "To be signed",
+    "Supporting Documents",
+    "Application Summary",
+    "Bank Statements",
+    "Identification",
+    "Income & Employment",
+    "Liabilities",
+    "Communications",
+)
+
+
+def scaffold_case_directories(
+    parent_path: str,
+    client_name: str,
+    case_name: str | None = None,
+    create_subdirs: bool = True,
+) -> dict[str, Any]:
+    """在指定的父目录下生成规范的客户与案件文件夹，并按需创建标准 11 子目录。
+
+    目录规则：
+    1. 客户根目录: {parent_path}/{client_name}
+    2. 案卷目录: {parent_path}/{client_name}/{case_name or '1. Initial Submission'}
+    3. 在案卷目录下创建 STANDARD_CASE_SUBDIRS 所有子文件夹；
+    4. 返回 {"ok": True, "client_folder": str, "case_folder": str, "created_subdirs": list[str]}。
+    """
+    parent = Path(parent_path)
+    client_folder = parent / client_name
+    case_folder = client_folder / (case_name or "1. Initial Submission")
+
+    client_folder.mkdir(parents=True, exist_ok=True)
+    case_folder.mkdir(parents=True, exist_ok=True)
+
+    created_subdirs: list[str] = []
+    if create_subdirs:
+        for subdir in STANDARD_CASE_SUBDIRS:
+            (case_folder / subdir).mkdir(exist_ok=True)
+            created_subdirs.append(subdir)
+
+    return {
+        "ok": True,
+        "client_folder": str(client_folder),
+        "case_folder": str(case_folder),
+        "created_subdirs": created_subdirs,
+    }

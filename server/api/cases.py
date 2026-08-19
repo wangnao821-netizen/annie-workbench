@@ -19,7 +19,11 @@ from core.bank_registry import (
     resolve_platform_key,
 )
 from core.case_creation import create_case_from_source
-from core.case_engine.folder import auto_create, link_existing
+from core.case_engine.folder import (
+    auto_create,
+    link_existing,
+    scaffold_case_directories,
+)
 from core.case_engine.progression import evaluate_stage_signal
 from core.case_engine.snapshot import build_case_snapshot
 from core.case_folder.legacy_import import build_legacy_import_preview
@@ -61,6 +65,8 @@ from server.api.schemas import (
     CaseHoldRequest,
     CaseResponse,
     CaseResubmitRequest,
+    CaseScaffoldRequest,
+    CaseScaffoldResponse,
     CaseSnapshotResponse,
     CaseTimelineResponse,
     ChecklistMatchFilesResponse,
@@ -1063,3 +1069,20 @@ def extract_case_emails_timeline(
         lender_ref=res.get("lender_ref"),
         active_blocker=res.get("active_blocker"),
     )
+
+
+@router.post("/scaffold", response_model=CaseScaffoldResponse)
+def scaffold_case_folder(
+    req: CaseScaffoldRequest,
+) -> CaseScaffoldResponse:
+    """在选定父目录下预创建标准客户/案卷目录骨架（含 11 个标准子文件夹）。"""
+    try:
+        res = scaffold_case_directories(
+            parent_path=req.parent_path,
+            client_name=req.client_name,
+            case_name=req.case_name,
+            create_subdirs=req.create_subdirs,
+        )
+        return CaseScaffoldResponse(**res)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail=f"创建目录骨架失败: {exc}")

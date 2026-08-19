@@ -1274,3 +1274,20 @@ class TimelineExtractResponse(BaseModel):
     assessor_name: str | None = None
     lender_ref: str | None = None
     active_blocker: str | None = None
+
+
+# ── WO-56 新建案件标准目录脚手架 Schemas ─────────────────────────────
+
+class CaseScaffoldRequest(BaseModel):
+    parent_path: str
+    client_name: str
+    case_name: str | None = None
+    create_subdirs: bool = True
+
+
+class CaseScaffoldResponse(BaseModel):
+    ok: bool
+    client_folder: str
+    case_folder: str
+    created_subdirs: list[str] = Field(default_factory=list)
+    message: str | None = None
