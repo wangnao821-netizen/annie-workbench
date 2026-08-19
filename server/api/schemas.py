@@ -1374,3 +1374,45 @@ class RetentionRadarResponse(BaseModel):
     ok: bool
     summary: RetentionRadarSummary
     opportunities: list[RetentionOpportunityItem] = Field(default_factory=list)
+
+
+# ── WO-59 AI 知识萃取与审批官/先例图谱 Schemas ───────────────────────────
+
+class AssessorInsightItem(BaseModel):
+    assessor_name: str
+    lender: str | None = None
+    case_count: int = 0
+    latest_case_id: str | None = None
+    latest_case_ref: str | None = None
+    common_blockers: list[str] = Field(default_factory=list)
+    communication_tips: str = "建议邮件提供清晰材料清单并一次性补齐"
+
+
+class AssessorListResponse(BaseModel):
+    ok: bool
+    total_assessors: int = 0
+    assessors: list[AssessorInsightItem] = Field(default_factory=list)
+
+
+class CasePrecedentItem(BaseModel):
+    case_id: str
+    client_name: str
+    property_address: str | None = None
+    lender: str | None = None
+    loan_amount: float | None = None
+    doc_type: str | None = None
+    interest_rate: str | None = None
+    settlement_date: str | None = None
+    summary_highlight: str | None = None
+
+
+class CasePrecedentSearchResponse(BaseModel):
+    ok: bool
+    total_found: int = 0
+    precedents: list[CasePrecedentItem] = Field(default_factory=list)
+
+
+class KnowledgeCardResponse(BaseModel):
+    ok: bool
+    card: dict[str, Any] | None = None
+    message: str | None = None

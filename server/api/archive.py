@@ -6,12 +6,20 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from core.archive.ingestion import batch_import_archive_cases, scan_archive_folder
+from core.archive.knowledge_mining import (
+    generate_case_knowledge_card,
+    get_all_assessor_insights,
+    search_case_precedents,
+)
 from core.archive.retention import get_all_retention_radar
 from server.api.schemas import (
     ArchiveBatchImportRequest,
     ArchiveBatchImportResponse,
     ArchiveScanResponse,
+    AssessorListResponse,
+    CasePrecedentSearchResponse,
     FolderTopologyScanRequest,
+    KnowledgeCardResponse,
     RetentionRadarResponse,
 )
 from server.deps import get_db
@@ -47,3 +55,41 @@ def get_retention_radar_endpoint(
     """获取档案中心二次经营商机雷达（红黄绿四大时钟统计与客户列表）。"""
     res = get_all_retention_radar(db)
     return RetentionRadarResponse(**res)
+
+
+@router.get("/assessors", response_model=AssessorListResponse)
+def get_assessors_endpoint(
+    db: Session = Depends(get_db),  # noqa: B008
+) -> AssessorListResponse:
+    """获取所有已知审批官画像与统计数据。"""
+    items = get_all_assessor_insights(db)
+    return AssessorListResponse(ok=True, total_assessors=len(items), assessors=items)
+
+
+@router.get("/precedents", response_model=CasePrecedentSearchResponse)
+def search_precedents_endpoint(
+    lender: str | None = None,
+    doc_type: str | None = None,
+    keyword: str | None = None,
+    limit: int = 20,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> CasePrecedentSearchResponse:
+    """多维检索历史结案实战先例。"""
+    items = search_case_precedents(
+        db, lender=lender, doc_type=doc_type, keyword=keyword, limit=limit
+    )
+    return CasePrecedentSearchResponse(
+        ok=True, total_found=len(items), precedents=items
+    )
+
+
+@router.get("/cases/{case_id}/knowledge-card", response_model=KnowledgeCardResponse)
+def get_case_knowledge_card_endpoint(
+    case_id: str,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> KnowledgeCardResponse:
+    """获取单个已结案案卷的经验复盘卡片。"""
+    card = generate_case_knowledge_card(case_id, db)
+    if not card:
+        return KnowledgeCardResponse(ok=False, message="案卷不存在或尚未结案")
+    return KnowledgeCardResponse(ok=True, card=card)

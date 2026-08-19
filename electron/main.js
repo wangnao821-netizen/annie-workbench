@@ -25,7 +25,7 @@ const ENV_EXAMPLE = path.join(APP_BACKEND, '.env.example');
 const BACKEND_SCRIPT = path.join(APP_BACKEND, 'run_backend.py');
 const DIST_DIR = IS_PACKAGED
   ? path.join(process.resourcesPath, 'web')
-  : path.join(DEV_ROOT, 'ui', 'vera-工作台 (93)', 'dist');
+  : path.join(DEV_ROOT, 'ui', 'vera-工作台 (94)', 'dist');
 const RUNTIME_PY = IS_PACKAGED
   ? path.join(process.resourcesPath, 'runtime', 'python', 'python.exe')
   : null;
