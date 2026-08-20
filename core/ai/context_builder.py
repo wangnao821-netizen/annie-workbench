@@ -12,7 +12,6 @@
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -44,7 +43,8 @@ class AssembledContext:
 # 角色层预算 600 → 1000：2026-08-20 人格文案升级（Emoji 排版规范 + 称呼规范）实测约 915 字符，
 # 600 会把 Emoji 排版规范截掉；1000 容纳完整文案并留自定义人格余量。
 # 角色层是每个 prompt 的固定前缀，DeepSeek 前缀缓存命中后成本可忽略。
-BUDGET_ROLE = 1000
+# 人格提示词最长 1411 字符（含多轮槽位澄清对位锁定协议），预算须容纳最长的内置人格
+BUDGET_ROLE = 1500
 BUDGET_TEAM_EXP = 1500
 BUDGET_CASE_BRAIN = 1800
 BUDGET_LIVE_DATA = 3000
@@ -306,8 +306,9 @@ def prefill_case_brain_from_text(case_id: str, raw_text: str, db: Session) -> No
     if not raw_text or not raw_text.strip():
         return
 
-    import json
-    from core.ai.gateway import ApiGateway
+        import json
+
+        from core.ai.gateway import ApiGateway
     from core.config import get_config
     from core.models.types import DesensitizedText
     from core.pii.gateway import desensitize, rehydrate

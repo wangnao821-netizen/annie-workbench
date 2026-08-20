@@ -102,9 +102,10 @@ def test_timeout_returns_none(test_db, monkeypatch):
 
 
 def test_tool_parameter_validation():
-    res = pai._calculator_assess(bank="", request="")
-    assert res["status"] == "invalid"
-    assert "bank" in res["reason"]
+    # 当前签名 (ctx, bank, request)：ctx 缺失时安全降级为 error，不抛异常
+    res = pai._calculator_assess(None, bank="", request="")
+    assert res["status"] == "error"
+    assert "案件对话" in res["message"]
 
 
 def test_confirm_hook_blocks_scan_without_path(test_db):

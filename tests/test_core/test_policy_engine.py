@@ -143,7 +143,7 @@ class TestCreatePolicyEvent:
     def _create(self, client, **kwargs):
         payload = {"client_name": "张三", "source": "manual"}
         payload.update(kwargs)
-        return client.post("/api/cases", json=payload)
+        return client.post("/api/cases/", json=payload)
 
     def test_create_case_writes_policy_event(self, client, test_db):
         # create_case(lender=ANZ, employment_type=自雇, lvr=85) → confirmed internal 政策事件

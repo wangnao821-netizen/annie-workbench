@@ -77,7 +77,7 @@ class TestArchivedCases:
     """GET /api/cases/archived/。"""
 
     def test_empty_db(self, client):
-        resp = client.get("/api/cases/archived/")
+        resp = client.get("/api/cases/archived")
         assert resp.status_code == 200
         assert resp.json() == []
 
@@ -96,7 +96,7 @@ class TestArchivedCases:
         test_db.add(Case(id="ACT-1", client_name="客户B", lender="NAB", loan_amount=200000, stage="收集资料"))
         test_db.commit()
 
-        resp = client.get("/api/cases/archived/")
+        resp = client.get("/api/cases/archived")
         assert resp.status_code == 200
         body = resp.json()
         assert len(body) == 1
@@ -106,7 +106,7 @@ class TestArchivedCases:
         assert body[0]["close_reason"] == "settled"
 
     def test_not_captured_by_case_detail(self, client):
-        resp = client.get("/api/cases/archived/")
+        resp = client.get("/api/cases/archived")
         assert resp.status_code == 200
         assert resp.json() == []
 

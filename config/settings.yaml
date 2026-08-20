@@ -82,7 +82,7 @@ parser:
   msg_recursion_limit: 3
 
 database:
-  path: "core/data/assistant.db"
+  path: "data/assistant.db"
 
 logging:
   level: "INFO"

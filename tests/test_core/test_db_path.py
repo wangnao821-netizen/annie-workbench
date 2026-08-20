@@ -1,4 +1,4 @@
-"""#20 收口：DB 唯一真源 = core/data/assistant.db — 防路径漂移回归。"""
+"""#20 收口：DB 唯一真源 = data/assistant.db — 防路径漂移回归。"""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 def test_default_is_core_db() -> None:
     from core.models import db
 
-    assert str(db.DB_PATH).endswith(os.path.join("core", "data", "assistant.db"))
+    assert str(db.DB_PATH).endswith(os.path.join("data", "assistant.db"))
 
 
 def test_env_override_wins() -> None:
@@ -30,4 +30,4 @@ def test_settings_sync() -> None:
 
     raw = (PROJECT_ROOT / "config" / "settings.yaml").read_text(encoding="utf-8")
     cfg = yaml.safe_load(raw)
-    assert cfg["database"]["path"] == "core/data/assistant.db"
+    assert cfg["database"]["path"] == "data/assistant.db"

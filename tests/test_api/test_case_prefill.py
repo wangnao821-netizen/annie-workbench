@@ -34,7 +34,7 @@ def _api_env(monkeypatch, tmp_path):
 
 
 def _create(client, **payload):
-    resp = client.post("/api/cases", json=payload)
+    resp = client.post("/api/cases/", json=payload)
     assert resp.status_code == 200
     return resp.json()["case_id"]
 

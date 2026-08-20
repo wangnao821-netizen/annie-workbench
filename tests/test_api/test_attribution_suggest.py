@@ -70,7 +70,7 @@ class TestAttributionSuggest:
                 _result("这条信息看起来属于李四（NAB），我没有记录。"),
             ],
         )
-        resp = client.post("/api/chat", json={"case_id": "AS-1", "message": "记一下李四转贷"})
+        resp = client.post("/api/chat/", json={"case_id": "AS-1", "message": "记一下李四转贷"})
         assert resp.status_code == 200
         body = resp.json()
         cards = body["tool_cards"]
@@ -99,7 +99,7 @@ class TestAttributionSuggest:
                 _result("好的。"),
             ],
         )
-        resp = client.post("/api/chat", json={"case_id": "AS-3", "message": "记一笔"})
+        resp = client.post("/api/chat/", json={"case_id": "AS-3", "message": "记一笔"})
         body = resp.json()
         cards = body["tool_cards"]
         assert len(cards) == 1
@@ -120,7 +120,7 @@ class TestAttributionSuggest:
                 _result("好的，已记录。"),
             ],
         )
-        resp = client.post("/api/chat", json={"case_id": "AS-5", "message": "记收入"})
+        resp = client.post("/api/chat/", json={"case_id": "AS-5", "message": "记收入"})
         body = resp.json()
         assert body["tool_cards"] == []
         assert len(body["recorded_facts"]) == 1
@@ -139,7 +139,7 @@ class TestAttributionSuggest:
                 _result("好的，已记录。"),
             ],
         )
-        resp = client.post("/api/chat", json={"case_id": "AS-7", "message": "记收入"})
+        resp = client.post("/api/chat/", json={"case_id": "AS-7", "message": "记收入"})
         body = resp.json()
         assert body["tool_cards"] == []
         assert len(body["recorded_facts"]) == 1

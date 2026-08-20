@@ -24,7 +24,11 @@ def _make_client(tmp_path) -> tuple[TestClient, object]:
     return TestClient(app), env_file
 
 
-def test_get_ai_settings_status(tmp_path):
+def test_get_ai_settings_status(tmp_path, monkeypatch):
+    # 隔离真实 DB/环境里的密钥：db_keys 置空 + env 清空，保证断言确定
+    monkeypatch.setattr(settings_mod, "_get_db_ai_keys", lambda db: {})
+    for k in ("DEEPSEEK_API_KEY", "GEMINI_API_KEY", "GEMINI_API_BASE", "DEEPSEEK_API_BASE"):
+        monkeypatch.setenv(k, "")
     client, _ = _make_client(tmp_path)
     r = client.get("/api/settings/ai")
     assert r.status_code == 200

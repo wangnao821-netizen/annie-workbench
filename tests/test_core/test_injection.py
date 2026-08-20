@@ -5,11 +5,12 @@ from __future__ import annotations
 import pytest
 
 from core.ai.gateway import ApiCallResult, ApiGateway
-from core.chat.context import DIALOGUE_TOKEN_BUDGET, LAYER_ORDER, build_chat_layers
+from core.chat.context import LAYER_ORDER, build_chat_layers
 from core.chat.loop import run_chat_with_tools
 from core.models.orm import Case, CaseChatMessage
 
-DIALOGUE_BUDGET_CHARS = DIALOGUE_TOKEN_BUDGET * 2
+# cd038a5 起对话预算扩至 3000 字符（context.py _build_dialogue），测试同步该契约
+DIALOGUE_BUDGET_CHARS = 3000
 
 
 @pytest.fixture(autouse=True)
@@ -58,11 +59,12 @@ class TestLayerOrder:
     def test_cache_friendly_order(self, test_db):
         _add_case(test_db, "LO-1")
         layers = build_chat_layers("LO-1", "你好", "internal", test_db)
-        assert [l["layer"] for l in layers] == LAYER_ORDER
+        # cd038a5 起追加第 6 层 current_user_message（当前用户指令置于最末）
+        assert [l["layer"] for l in layers] == LAYER_ORDER + ["current_user_message"]
 
     def test_global_chat_no_case_layers(self, test_db):
         layers = build_chat_layers(None, "你好", "internal", test_db)
-        assert [l["layer"] for l in layers] == ["role", "live"]
+        assert [l["layer"] for l in layers] == ["role", "current_user_message"]
         assert "你好" in layers[1]["text"]
 
 
@@ -78,7 +80,7 @@ class TestDialogueWindow:
 
     def test_over_budget_truncated_from_head(self, test_db):
         _add_case(test_db, "DW-2")
-        _add_messages(test_db, "DW-2", 6, lambda i: (f"M{i}") + "x" * 290)
+        _add_messages(test_db, "DW-2", 6, lambda i: (f"M{i}") + "x" * 540)
         dialogue = _dialogue(test_db, "DW-2")
         assert len(dialogue) <= DIALOGUE_BUDGET_CHARS
         assert "M1" not in dialogue
