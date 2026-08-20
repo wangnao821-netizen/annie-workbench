@@ -166,13 +166,18 @@ def run_chat_with_tools_stream(
         user_address=rt.get("user_address") or "Vera",
     ) or _SYSTEM_PROMPT
 
+    # P2 阶段：意图前置分流器（Fast-Path + 语义分流）
+    from core.chat.intent_router import ChatIntent, classify_chat_intent
+
+    intent, intent_meta = classify_chat_intent(message, case_id, db)
+    logger.info("Chat intent classified: %s (reason: %s)", intent.value, intent_meta.get("reason"))
+
     tool_cards: list[dict] = []
     recorded_facts: list[dict] = []
     full_reply_parts: list[str] = []
 
-    # JIT 文件夹穿透预提取：若用户提到查文件夹、对账单、工资单、流水等，自动扫描提取本地文件内容
-    folder_keywords = ("对账单", "工资单", "流水", "statement", "payslip", "文件夹", "查材料", "查一下文件", "找文件")
-    if case_id and any(kw in message.lower() for kw in folder_keywords):
+    # 1. 若为查阅文件夹/材料意图：触发 JIT 文件穿透扫描与内容提取
+    if intent == ChatIntent.FOLDER_LOOKUP and case_id:
         from core.chat.tools import _folder_lookup
         lookup_res = _folder_lookup({"query": message}, case_id, db)
         if lookup_res.get("ok") and lookup_res.get("files_found"):
@@ -186,6 +191,12 @@ def run_chat_with_tools_stream(
                 injected_docs_text = "\n\n".join(docs_summary_blocks)
                 base_prompt += f"\n\n【JIT 案卷本地文件扫描与内容提取结果】\n{injected_docs_text}\n(请直接基于上述提取出的白纸黑字真实数据进行总结和风险点分析，无需再说明未提取数据)"
             _collect_cards(lookup_res, tool_cards, recorded_facts)
+
+    # 2. 若为能力问答/闲聊状态意图：注入针对性极简响应指引
+    elif intent == ChatIntent.META_HELP:
+        base_prompt = f"【用户提问】\n{safe_message}\n\n【指令】请条理分明、清晰专业地向 Vera 介绍你作为信贷 AI 助手的实战核心能力（如案卷诊断、材料查验与 OCR 提取、贷款额度精算、政策匹配、催件与复议策略等），保持自信利落风格。"
+    elif intent == ChatIntent.STATUS_ACK:
+        base_prompt = f"【用户回复】\n{safe_message}\n\n【指令】这是简短状态/闲聊/确认指令。请用 1 句话利落回应（如确认收到指示、随时待命），绝不展开任何无关的长篇分析。"
 
     yield {"event": "step", "data": {"label": "Vera AI 正在生成实战建议与分析...", "status": "generating"}}
 
