@@ -422,31 +422,31 @@ export function FileDeckContent({ caseId }: FileDeckContentProps) {
                       <button
                         type="button"
                         onClick={() => handleOpenPreview(fileItem)}
-                        className="px-2 py-0.5 rounded-lg text-xs font-bold border border-[var(--accent-soft)] bg-[var(--accent-soft)] text-[var(--accent)] hover:opacity-85 cursor-pointer flex items-center space-x-1 transition-colors"
+                        title="预览"
+                        className="p-1.5 rounded-lg border border-[var(--accent-soft)] bg-[var(--accent-soft)] text-[var(--accent)] hover:opacity-85 cursor-pointer transition-colors"
                         id={`deck-btn-preview-${idx}`}
                       >
                         <Eye className="w-3 h-3" />
-                        <span>预览</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => handleStartRename(fileItem)}
-                        className="px-2 py-0.5 rounded-lg text-xs font-bold border border-[var(--purple-soft)] bg-[var(--purple-soft)] text-[var(--purple)] hover:opacity-85 cursor-pointer flex items-center space-x-1 transition-colors opacity-0 group-hover:opacity-100"
+                        title="改名"
+                        className="p-1.5 rounded-lg border border-[var(--purple-soft)] bg-[var(--purple-soft)] text-[var(--purple)] hover:opacity-85 cursor-pointer transition-colors"
                         id={`deck-btn-rename-${idx}`}
                       >
                         <Edit3 className="w-3 h-3" />
-                        <span>改名</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => handleStartMove(fileItem)}
-                        className="px-2 py-0.5 rounded-lg text-xs font-bold border border-[var(--yellow-soft)] bg-[var(--yellow-soft)] text-[var(--yellow)] hover:opacity-85 cursor-pointer flex items-center space-x-1 transition-colors opacity-0 group-hover:opacity-100"
+                        title="移动"
+                        className="p-1.5 rounded-lg border border-[var(--yellow-soft)] bg-[var(--yellow-soft)] text-[var(--yellow)] hover:opacity-85 cursor-pointer transition-colors"
                         id={`deck-btn-move-${idx}`}
                       >
                         <FolderInput className="w-3 h-3" />
-                        <span>移动</span>
                       </button>
                     </div>
                   </div>
