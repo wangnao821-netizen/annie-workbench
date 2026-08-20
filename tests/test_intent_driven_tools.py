@@ -50,17 +50,30 @@ def test_intent_calculator_forced_call(db_session, monkeypatch):
 def test_intent_task_create_forced_call(db_session, monkeypatch):
     called = []
     def fake_task(args, case_id, db):
-        called.append(args.get("title"))
-        return {"ok": True, "status": "confirmed", "event_id": 1, "content": args.get("title"), "summary": "Task created"}
+        called.append(args)
+        return {"ok": True, "task_id": 1, "title": args.get("title"), "priority": args.get("priority"), "deadline": args.get("deadline")}
 
     monkeypatch.setattr("core.chat.tools._create_task", fake_task)
     with patch("core.ai.gateway.ApiGateway.call_llm_stream", return_value=["任务已记录"]):
-        gen = run_chat_with_tools_stream("CASE-T", "帮我建一个任务：明天催客户补交ANZ对账单", "internal", db_session)
+        gen = run_chat_with_tools_stream("CASE-T", "帮我建一个加急任务：明天催客户补交ANZ对账单", "internal", db_session)
         events, _text = _collect_stream_events(gen)
 
     assert len(called) == 1
-    assert "明天催客户补交ANZ对账单" in called[0]
+    assert "催客户补交ANZ对账单" in called[0]["title"]
+    assert called[0]["priority"] == "high"
+    assert called[0]["deadline"] is not None
+    assert "tool_cards" in events
     assert "done" in events
+
+
+def test_intent_task_create_global_needs_case_card(db_session):
+    with patch("core.ai.gateway.ApiGateway.call_llm_stream", return_value=["请在左侧选择案件"]):
+        gen = run_chat_with_tools_stream(None, "下周一记一下，电话客户", "internal", db_session)
+        events, _text = _collect_stream_events(gen)
+
+    assert "tool_cards" in events
+    assert "done" in events
+
 
 
 def test_intent_checklist_gap_forced_call(db_session, monkeypatch):

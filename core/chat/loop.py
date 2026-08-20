@@ -197,8 +197,28 @@ def run_chat_with_tools_stream(
 
     elif intent == ChatIntent.CALCULATOR_ASSESS and case_id:
         try:
+            from core.chat.slot_extractor import (
+                extract_financial_slots,
+                llm_extract_slots,
+            )
             from core.chat.tools import _calculator_assess
-            res = _calculator_assess({"request": message}, case_id, db)
+            from core.facts.slots import set_slot_fact
+
+            slots = extract_financial_slots(message, db, case_id)
+            if slots.get("confidence") != "high":
+                llm_slots = llm_extract_slots(message, "calculator_assess", case_id, db)
+                if llm_slots:
+                    for k in ("target_loan", "spouse_income", "interest_rate", "employment_income"):
+                        if llm_slots.get(k) is not None:
+                            slots[k] = llm_slots[k]
+
+            # 关键槽位写入 BrainFact（P3 持久化落库）
+            if slots.get("spouse_income") is not None:
+                set_slot_fact(case_id, "applicant.spouse_income", slots["spouse_income"], db, category="applicant")
+            if slots.get("target_loan") is not None:
+                set_slot_fact(case_id, "loan.target_amount", slots["target_loan"], db, category="loan")
+
+            res = _calculator_assess({**slots, "request": message}, case_id, db)
             if res.get("card"):
                 tool_cards.append(res["card"])
                 yield {"event": "tool_cards", "data": [res["card"]]}
@@ -210,14 +230,35 @@ def run_chat_with_tools_stream(
 
     elif intent == ChatIntent.TASK_CREATE and case_id:
         try:
+            from core.chat.slot_extractor import extract_task_slots, llm_extract_slots
             from core.chat.tools import _create_task
-            title = _extract_task_title(message)
-            res = _create_task({"title": title, "context": {"source": "chat"}}, case_id, db)
+
+            slots = extract_task_slots(message)
+            if slots.get("confidence") != "high":
+                llm_slots = llm_extract_slots(message, "task_create", case_id, db)
+                if llm_slots:
+                    slots["title"] = llm_slots.get("title") or slots.get("title") or message[:30]
+                    slots["deadline"] = llm_slots.get("deadline") or slots.get("deadline")
+                    slots["priority"] = llm_slots.get("priority") or slots.get("priority")
+
+            res = _create_task({
+                "title": slots["title"],
+                "deadline": slots.get("deadline"),
+                "priority": slots.get("priority", "normal"),
+                "context": {"source": "chat", "raw_time": slots.get("raw_time")},
+            }, case_id, db)
+
             if res.get("ok"):
+                dl_display = slots.get("deadline") or "未设期限"
                 tool_cards.append({
                     "type": "task_created",
-                    "title": f"📋 任务已创建：{res.get('title', title)}",
-                    "payload": {"task_id": res.get("task_id"), "priority": res.get("priority")},
+                    "title": f"📋 任务已创建：{slots['title']}（{dl_display}，{slots['priority']}）",
+                    "payload": {
+                        "task_id": res.get("task_id"),
+                        "title": slots["title"],
+                        "deadline": slots.get("deadline"),
+                        "priority": slots.get("priority"),
+                    },
                 })
             else:
                 tool_cards.append({
@@ -232,6 +273,16 @@ def run_chat_with_tools_stream(
         except Exception as te:  # noqa: BLE001
             logger.warning("task_create branch failed (non-fatal): %s", te)
             base_prompt += f"\n\n【任务创建提示】工具调用暂不可用: {te}"
+
+    elif intent == ChatIntent.TASK_CREATE and not case_id:
+        # WO-65：全局对话下建任务不静默退化，产出引导卡片
+        tool_cards.append({
+            "type": "needs_case",
+            "title": "📌 请选择关联案件",
+            "payload": {"hint": "在右栏选择案件后再记任务，任务会归到该案件"},
+        })
+        yield {"event": "tool_cards", "data": tool_cards}
+        base_prompt = f"【用户回复】\n{safe_message}\n\n【指令】检测到用户意在创建待办任务，但当前处于全局对话模式。请简短提示用户在左侧或列表中选择对应案件，以便将任务精准归档。"
 
     elif intent == ChatIntent.CHECKLIST_GAP and case_id:
         try:

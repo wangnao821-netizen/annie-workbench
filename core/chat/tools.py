@@ -168,29 +168,52 @@ def execute_tool(
 
 
 def _calculator_assess(arguments: dict, case_id: str, db: Session) -> dict:
-    """贷款能力测算：案件画像齐全时调 calculator.assess；不足返回 needs_form 卡片。
+    """贷款能力测算：支持 arguments 显式槽位覆写案件画像。
     返回统一为 {"status": "result"|"needs_form", "card": {...}, "summary": str}。"""
     if not case_id or db is None:
-        return {"status": "needs_form", "card": {"type": "calculator_form"}, "summary": "需要关联案件以执行借贷额度评估。"}
+        return {"status": "needs_form", "card": {"type": "calculator_form", "missing": ["case_id"]}, "summary": "需要关联案件以执行借贷额度评估。"}
 
     try:
+        from core.bank_registry import resolve_lender_key
+        from core.calculator import profiles as profiles_mod
         from core.calculator.assess import assess
+        from core.calculator.models import (
+            ApplicantIn,
+            AssessRequest,
+            HouseholdIn,
+            LoanIn,
+            LoanPortionIn,
+        )
         from core.models.orm import Case
 
         case = db.query(Case).filter(Case.id == case_id).first()
         if not case:
-            return {"status": "needs_form", "card": {"type": "calculator_form"}, "summary": "未找到案件档案。"}
+            return {"status": "needs_form", "card": {"type": "calculator_form", "missing": ["case"]}, "summary": "未找到案件档案。"}
 
-        # 构造 profile
-        profile = {
-            "employment_type": case.employment_type or "PAYG",
-            "income": getattr(case, "loan_amount", 0.0) or 100000.0,
-            "property_value": getattr(case, "property_value", 0.0) or 0.0,
-            "loan_amount": getattr(case, "loan_amount", 0.0) or 0.0,
-            "interest_rate": float(getattr(case, "interest_rate", 6.89) or 6.89),
-        }
-        req = arguments.get("request") or {}
-        res = assess(req if isinstance(req, dict) else {}, profile)
+        # 加载银行真实档案（含 parameters），槽位显式覆写画像
+        bank = resolve_lender_key(case.lender or "") or "cba"
+        profile = profiles_mod.load_profile(bank)
+
+        base_income = float(arguments.get("employment_income") or 100000.0)
+        spouse_income = float(arguments.get("spouse_income") or 0.0)
+        rate_pct = float(arguments.get("interest_rate") or 6.89)
+        rate = rate_pct / 100.0 if rate_pct > 1 else rate_pct
+        target_loan = float(arguments.get("target_loan") or (case.loan_amount or 400000.0))
+        security = float(getattr(case, "property_value", 0.0) or 0.0)
+
+        applicants = [ApplicantIn(base=base_income)]
+        if spouse_income > 0:
+            applicants.append(ApplicantIn(base=spouse_income))
+        req = AssessRequest(
+            bank=bank,
+            applicants=applicants,
+            loan=LoanIn(
+                portions=[LoanPortionIn(amount=target_loan, rate=rate, term_years=30)],
+                security_value=security,
+            ),
+            household=HouseholdIn(status="Single"),
+        )
+        res = assess(req, profile)
         return {
             "status": "result",
             "card": {"type": "calculator_result", "data": res},
@@ -198,7 +221,7 @@ def _calculator_assess(arguments: dict, case_id: str, db: Session) -> dict:
         }
     except Exception as e:  # noqa: BLE001
         logger.warning("calculator_assess failed: %s", e)
-        return {"status": "needs_form", "card": {"type": "calculator_form"}, "summary": f"测算降级: {e}"}
+        return {"status": "needs_form", "card": {"type": "calculator_form", "error": str(e)}, "summary": f"测算降级: {e}"}
 
 
 def _declaration_check(arguments: dict, case_id: str, db: Session) -> dict:
