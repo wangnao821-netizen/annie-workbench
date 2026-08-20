@@ -224,6 +224,11 @@ def _build_live_data(case_id: str, task_type: str, db: Session) -> str:
                 mark = "✅" if i.status in ("received", "collected", "deferred") else "⬜"
                 parts.append(f"  {mark} {i.item_name} ({i.status})")
 
+        from core.facts.slots import build_confirmed_slots_prompt_block
+        slots_block = build_confirmed_slots_prompt_block(case_id, db)
+        if slots_block:
+            parts.append(slots_block)
+
         from core.models.orm import CaseContextEvent
         events = (
             db.query(CaseContextEvent)
@@ -233,7 +238,7 @@ def _build_live_data(case_id: str, task_type: str, db: Session) -> str:
             .all()
         )
         if events:
-            parts.append("【案件事实账本（已确认数据）】:")
+            parts.append("【案件事实账本（已确认动态）】:")
             for ev in events:
                 parts.append(f"  • {ev.content}")
 

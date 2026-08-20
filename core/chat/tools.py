@@ -341,6 +341,13 @@ def _record_fact(arguments: dict, case_id: str, track: str, db: Session) -> dict
             track=track,
             status=status,
         )
+        if status == "confirmed":
+            try:
+                from core.facts.extract import sync_brain_facts
+                sync_brain_facts(case_id, db, event=event)
+            except Exception as se:
+                logger.warning("sync_brain_facts on confirmed event failed (non-fatal): %s", se)
+
         return {
             "ok": True,
             "event_id": event.id,
