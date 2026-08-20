@@ -63,13 +63,13 @@ def lookup_files(
     if not case_dir.is_dir():
         return []
 
-    q = raw_q.strip().lower()
-    # 智能同义词映射
-    q_tokens = [q]
-    if any(k in q for k in ["对账", "账单", "贷款", "负债", "liability", "statement", "hl"]):
-        q_tokens.extend(["liability", "statement", "hl", "loan", "cba", "zank"])
-    if any(k in q for k in ["工资", "payslip", "pay", "income", "收入"]):
-        q_tokens.extend(["payslip", "pay", "income", "salary"])
+    # P1 阶段：调用对话口语别名网进行全量信贷材料同义词扩展
+    from core.checklist.spoken_aliases import resolve_spoken_query
+
+    resolved = resolve_spoken_query(raw_q)
+    q_tokens = [tok.lower().strip() for tok in resolved["target_keywords"] if tok.strip()]
+    if not q_tokens:
+        q_tokens = [raw_q.strip().lower()]
 
     results: list[dict[str, Any]] = []
 
@@ -80,7 +80,7 @@ def lookup_files(
         rel_to_case = f.relative_to(case_dir).as_posix()
         doc_type, _confidence = classify_file(f.name)
 
-        if q:
+        if raw_q:
             name_l = f.name.lower()
             rel_l = rel_to_case.lower()
             type_l = (doc_type or "").lower()
