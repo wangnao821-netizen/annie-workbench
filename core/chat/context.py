@@ -23,28 +23,22 @@ def build_chat_layers(
     track: str,
     db: Session,
 ) -> list[dict]:
-    """组装五层注入内容（按 LAYER_ORDER 缓存友好排序）。
-
-    全局对话（case_id 为空）→ 只返回 role 层 + 用户消息（#2：不注入案件上下文）。
-    对话追加区 = 最近 DIALOGUE_WINDOW_ROUNDS 轮 CaseChatMessage（追加式，旧→新）；
-    超预算从头部截断——已确认内容已蒸馏进摘要（折叠），窗口外不注入原话。
-
-    Returns:
-        [{"layer": "role", "text": str}, ...]（按 LAYER_ORDER 排序）
-    """
+    """组装上下文层级（严格保证当前用户最新输入处于最末尾，历史对话紧随其上）。"""
     if not case_id:
         return [
             {"layer": "role", "text": _build_role_prompt(db)},
-            {"layer": "live", "text": message},
+            {"layer": "current_user_message", "text": f"【Vera 当前最新指令/回复】\n{message}"},
         ]
 
-    ctx = assemble_context(case_id, "case_chat", db, extra_data=message)
+    # extra_data 传空，避免将当前用户输入混入 live_data 中间层
+    ctx = assemble_context(case_id, "case_chat", db, extra_data="")
     return [
         {"layer": "role", "text": _build_role_prompt(db)},
         {"layer": "case_brain", "text": ctx.case_brain},
         {"layer": "team", "text": ctx.team_experience},
         {"layer": "live", "text": ctx.live_data},
         {"layer": "dialogue", "text": _build_dialogue(case_id, db, track)},
+        {"layer": "current_user_message", "text": f"【Vera 当前最新指令/回复（你必须针对此话直接对位作答）】\n{message}"},
     ]
 
 
