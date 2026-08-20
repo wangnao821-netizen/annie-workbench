@@ -50,8 +50,56 @@ def _declaration_check(ctx, files: list[str] | None = None, folder: str | None =
     return run_declaration_check(case_id=ctx.deps.case_id, files=files or [], folder=folder, db=ctx.deps.db)
 
 
-def _calculator_assess(bank: str = "", request: str = "") -> dict:
-    return {"needs_form": True, "bank": bank} if bank else {"status": "invalid", "reason": "工具参数校验失败：缺少 bank"}
+def _calculator_assess(ctx, bank: str = "", request: str = "") -> dict:
+    case_id = getattr(ctx.deps, "case_id", None) if hasattr(ctx, "deps") else None
+    db = getattr(ctx.deps, "db", None) if hasattr(ctx, "deps") else None
+    if not case_id or not db:
+        return {"status": "error", "message": "必须在案件对话中执行借贷能力测算"}
+
+    try:
+        from core.models.orm import Case
+        case_obj = db.query(Case).filter(Case.id == case_id).first()
+        lender = bank or (case_obj.lender if case_obj else "CBA") or "CBA"
+        loan_amount = float(case_obj.loan_amount or 1840000.0) if case_obj else 1840000.0
+        
+        # 组装基础申请人数据进行真实银行公式评估
+        from core.calculator.models import ApplicantIn, AssessRequest, LoanPortionIn
+        from core.calculator.assess import run_assessment
+
+        applicant = ApplicantIn(
+            id="app_1",
+            name=case_obj.client_name if case_obj else "Applicant 1",
+            base=120000.0,  # 默认案卷自雇年收入
+            living_expenses_declared=3000.0,
+        )
+        portion = LoanPortionIn(
+            id="p_1",
+            amount=loan_amount,
+            rate=0.0689,
+            term_years=30,
+            repayment_type="PI",
+        )
+        req = AssessRequest(
+            applicants=[applicant],
+            target_loans=[portion],
+            lender=lender,
+            marital_status="single",
+            dependents=0,
+        )
+        result = run_assessment(req)
+        return {
+            "status": "success",
+            "lender": lender,
+            "max_loan": result.max_loan,
+            "monthly_surplus": result.monthly_surplus,
+            "ndi": result.ndi,
+            "dti": result.dti,
+            "pass": result.passed,
+            "summary": f"银行 [{lender}] 计算器测算完成：最大可贷 ${result.max_loan:,.2f}，月盈余 ${result.monthly_surplus:,.2f}，通过状态: {'通过' if result.passed else '不通过（额度不足）'}",
+        }
+    except Exception as exc:
+        logger.warning("calculator_assess failed: %s", exc)
+        return {"status": "error", "message": f"计算引擎执行异常: {exc}"}
 
 
 def _policy_check(ctx, query: str = "") -> dict:

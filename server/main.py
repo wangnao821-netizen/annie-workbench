@@ -29,10 +29,21 @@ async def _lifespan(app: FastAPI):
     get_config()
 
     try:
-        from core.knowledge.seeder import seed_industry_knowledge
         from core.models.db import get_session_factory
 
         factory = get_session_factory()
+
+        # 启动时从数据库同步 AI API Key 到环境变量（Settings UI 保存在 SQLite 中）
+        from server.api.settings import _get_db_ai_keys
+        with factory() as db:
+            synced = _get_db_ai_keys(db)
+            if synced:
+                logging.getLogger("server.main").info(
+                    "Synced %d AI key(s) from DB to env: %s",
+                    len(synced), ", ".join(sorted(synced)),
+                )
+
+        from core.knowledge.seeder import seed_industry_knowledge
         with factory() as db:
             seed_industry_knowledge(db)
     except Exception as exc:  # noqa: BLE001

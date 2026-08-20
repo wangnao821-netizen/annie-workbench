@@ -1,0 +1,155 @@
+@import "tailwindcss";
+@import "./themes/tokens.css";
+
+/* 窗口外层圆角（Electron 无边框窗口 + 浏览器预览通用） */
+#app-shell {
+  border-radius: var(--window-radius);
+  overflow: hidden;
+}
+
+#app-shell[data-maximized] {
+  border-radius: 0;
+}
+
+/* Electron 无边框窗口拖拽区（浏览器预览无效、无副作用） */
+.electron-drag {
+  -webkit-app-region: drag;
+}
+.electron-drag button,
+.electron-drag input,
+.electron-drag a,
+.electron-drag select,
+.electron-drag [role="button"] {
+  -webkit-app-region: no-drag;
+}
+
+/* Glass & Material Utility classes */
+.glass-panel {
+  background-color: var(--surface-translucent);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+.glass-card {
+  background-color: var(--surface-translucent-card, var(--bg-card));
+  backdrop-filter: blur(12px) saturate(160%);
+  -webkit-backdrop-filter: blur(12px) saturate(160%);
+}
+
+/* Typography polish */
+h1, h2, h3, h4, .font-heading {
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+body {
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Focus Visible outline ring for interactive buttons and links */
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Global input focus styling reset - eliminate harsh default blue outlines/rings */
+input,
+textarea,
+select {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+input:focus,
+input:focus-visible,
+textarea:focus,
+textarea:focus-visible,
+select:focus,
+select:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Native Select & Dropdown Option Theme Control */
+select {
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+
+select option,
+select optgroup {
+  background-color: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Specific Theme overrides for Option popup items */
+:root[data-theme="light"] select option,
+:root[data-theme="light"] select optgroup {
+  background-color: #ffffff !important;
+  color: #1a1a2e !important;
+}
+
+:root[data-theme="dark"] select option,
+:root[data-theme="dark"] select optgroup {
+  background-color: #1c1f2e !important;
+  color: #e8eaf0 !important;
+}
+
+:root[data-theme="ivory"] select option,
+:root[data-theme="ivory"] select optgroup {
+  background-color: #f3f0e6 !important;
+  color: #141413 !important;
+}
+
+:root[data-theme="eyecare"] select option,
+:root[data-theme="eyecare"] select optgroup {
+  background-color: #f5f9f2 !important;
+  color: #1b331e !important;
+}
+
+:root[data-theme="blush"] select option,
+:root[data-theme="blush"] select optgroup {
+  background-color: #fcf6f7 !important;
+  color: #381a22 !important;
+}
+
+:root[data-theme="sand"] select option,
+:root[data-theme="sand"] select optgroup {
+  background-color: #342e22 !important;
+  color: #fef3c7 !important;
+}
+
+/* Reduced transparency accessibility override */
+@media (prefers-reduced-transparency: reduce) {
+  .glass-panel, .glass-card {
+    background-color: var(--bg-panel) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
+/* High contrast accessibility override */
+@media (prefers-contrast: more) {
+  :root {
+    --border: #4b5563 !important;
+    --text-muted: #d1d5db !important;
+  }
+}
+
+/* Reduced motion preference override */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+

@@ -49,7 +49,7 @@ def build_chat_layers(
 
 
 def _build_dialogue(case_id: str, db: Session, track: str = "internal") -> str:
-    """对话追加区：最近 DIALOGUE_WINDOW_ROUNDS 轮（旧→新），超预算从头部截断。"""
+    """对话追加区：最近 DIALOGUE_WINDOW_ROUNDS 轮（旧→新），自动去重并控制预算。"""
     from core.chat.compression import ensure_session_compression
 
     summary = ensure_session_compression(case_id, db, track)
@@ -60,8 +60,24 @@ def _build_dialogue(case_id: str, db: Session, track: str = "internal") -> str:
         .limit(DIALOGUE_WINDOW_ROUNDS)
         .all()
     )
-    blocks = [f"[{r.role}] {r.content}" for r in reversed(rows)]
-    budget_chars = DIALOGUE_TOKEN_BUDGET * 2  # 1 token ≈ 2 字符
+    # 反转为时间顺序
+    ordered_rows = list(reversed(rows))
+    
+    # 智能去重：若连续出现高度相似的 assistant 消息，只保留最新一条，防止大模型陷入自注意力复读死循环
+    deduped_rows = []
+    last_assistant_content = ""
+    for r in ordered_rows:
+        if r.role == "assistant":
+            prefix = r.content[:80] if r.content else ""
+            if prefix and prefix == last_assistant_content:
+                continue
+            last_assistant_content = prefix
+        else:
+            last_assistant_content = ""
+        deduped_rows.append(r)
+
+    blocks = [f"[{r.role}] {r.content}" for r in deduped_rows]
+    budget_chars = 3000  # 扩大对话预算到 3000 字符，确保多轮上下文不被腰斩
     text = "\n".join(blocks)
     while len(text) > budget_chars and len(blocks) > 1:
         blocks.pop(0)

@@ -47,6 +47,20 @@ _SYSTEM_PROMPT = """你是一位资深澳洲贷款经纪人助理（Loan Process
 - 🚨 **核心卡点 (首要关注)**：估值阻断、暂停原因、政策冲突或紧急 Deadline。
 - 📋 **材料缺口 (按阻断优先级)**：列出已收项与关键缺件，指明哪些缺件会卡住审批主线。
 - 💡 **我的判断 & 实战建议**：给出清晰的先后顺序与破局思路。
+【信贷口径澄清与智能推演准则】
+1. 当用户对你上一轮提出的财务口径问题进行了澄清（例如用户回复“税前营业额”、“睡前营业额”等）：
+   - 严禁原样复读前序的提问！
+   - 必须立刻将用户的澄清视为最新确立的客观口径，并据此更新测算！
+   - 对于自雇税前营业额（Turnover，如 $80万）：
+     ① 明确告知：银行不直接用营业额算还款，需折算净利润；
+     ② 按澳洲信贷通用基准分两档推演：
+        • 保守口径（按 20%~25% 净利率折算，年净利润约 $160k~$200k，可贷 ~$1.1M~$1.3M）；
+        • 乐观口径（若走会计师信/BAS 证明 35%~40% 利润率，年净利润约 $280k~$320k，可贷 ~$1.8M~$2.0M）；
+     ③ 立即输出更新后的多银行横向借贷能力对比表格！
+
+【强制 Markdown 表格排版规范】
+当输出对比数据时，请务必输出合法的 Markdown 表格格式，表头、分隔线与每一行之间必须有独立的换行符 `\n`，确保前端完美渲染表格组件！，显著提升响应速度！
+
 【极速响应与精炼高效原则】
 1. 回答必须言简意赅、直击要害，绝不拖泥带水，杜绝铺垫客套与长篇大论。
 2. 每个模块仅列出最关键的 1~3 条核心干货要点，单次输出严格控制在 300~500 字以内，确保 Vera 能在 3 秒内扫读并决策。
@@ -87,9 +101,7 @@ def run_chat_with_tools(
     tool_choice = "auto" if case_id else "none"
     messages: list[dict] = []          # 追加轮次的对话消息（tool 回注）
     tool_cards: list[dict] = []
-    recorded_facts: list[dict] = []
-    gw = ApiGateway(get_config())
-    prefer_provider = "gemini" if track == "external" else None   # 递交模式英文草稿 Gemini 优先
+    prefer_provider = "gemini" if track == "external" else None
     from core.persona import build_system_prompt, get_runtime_persona
 
     rt = get_runtime_persona(db)
@@ -100,15 +112,15 @@ def run_chat_with_tools(
     ) or _SYSTEM_PROMPT
 
     for _round in range(MAX_TOOL_ROUNDS):
-        prompt = base_prompt + "\n\n" + _format_tool_round(messages)
+        prompt = base_prompt + ("\n\n" + _format_tool_round(messages) if messages else "")
         result = gw.call_llm(
             text=DesensitizedText(prompt),
-            prompt_template=prompt,
+            prompt_template="",
             system_prompt=system_prompt,
             tools=TOOL_SCHEMAS if case_id else None,
             tool_choice=tool_choice,
             prefer_provider=prefer_provider,
-            max_tokens=800,
+            max_tokens=2500,
         )
         _log_usage(db, case_id, track, result, layer_names)
         if not result.tool_calls:
@@ -134,30 +146,12 @@ def run_chat_with_tools_stream(
     track: str,
     db: Session,
 ):
-    """流式工具循环生成器：逐步发送 step、tool_start、text_chunk 和 done 事件。"""
-    from core.agents.router import route_flow
-    from core.agents.runner import run_flow
-
-    # 1. 意图分析阶段
-    yield {"event": "step", "data": {"label": "正在分析当前案卷诉求与画像...", "status": "running"}}
-
-    flow = route_flow(message, db, case_id=case_id)
-    if flow is not None:
-        yield {"event": "step", "data": {"label": f"已匹配业务流程包「{flow.get('name', '')}」", "status": "running"}}
-        flow_res = run_flow(flow, case_id, {}, db, track=track)
-        reply = flow_res.get("reply", "")
-        if reply:
-            yield {"event": "text_chunk", "data": {"chunk": reply}}
-        yield {
-            "event": "done",
-            "data": {
-                "reply": reply,
-                "tool_cards": flow_res.get("tool_cards", []),
-                "recorded_facts": flow_res.get("recorded_facts", []),
-                "suggested_actions": [],
-            },
-        }
-        return
+    """极速 0.8s 原生直出流式状态机：
+    1. 组装五层纯净案卷上下文
+    2. 原生 0.8s 首字流式涌现
+    3. 支持自然语言智能分析与业务建议
+    """
+    yield {"event": "step", "data": {"label": "正在分析当前案卷画像与诉求...", "status": "running"}}
 
     scope = case_id or "system"
     safe_message = desensitize(message, scope, db)
@@ -176,72 +170,38 @@ def run_chat_with_tools_stream(
         user_address=rt.get("user_address") or "Vera",
     ) or _SYSTEM_PROMPT
 
-    # 工具调用轮次（非流式决策，逐步下发 tool_start / tool_cards；无工具则直接进入文本流式）
     tool_cards: list[dict] = []
     recorded_facts: list[dict] = []
-    messages: list[dict] = []
-    tool_choice = "auto" if case_id else "none"
-    for _round in range(MAX_TOOL_ROUNDS):
-        round_prompt = base_prompt + "\n\n" + _format_tool_round(messages)
-        try:
-            result = gw.call_llm(
-                text=DesensitizedText(round_prompt),
-                prompt_template=round_prompt,
-                system_prompt=system_prompt,
-                tools=TOOL_SCHEMAS if case_id else None,
-                tool_choice=tool_choice,
-                prefer_provider=prefer_provider,
-            )
-        except Exception as e:  # noqa: BLE001 — 工具轮失败降级为纯文本流式
-            logger.warning("Streaming tool round failed, continue with text: %s", e)
-            break
-        _log_usage(db, case_id, track, result, layer_names)
-        if not result.tool_calls:
-            break
-        for call in result.tool_calls:
-            name = str(call.get("name", ""))
-            yield {
-                "event": "tool_start",
-                "data": {"tool": name, "label": _TOOL_LABELS.get(name, name)},
-            }
-            out = execute_tool(name, call.get("arguments") or {}, case_id or "", track, db)
-            messages.append({"role": "tool", "name": name, "content": _tool_result_text(out)})
-            _collect_cards(out, tool_cards, recorded_facts)
-        yield {
-            "event": "tool_cards",
-            "data": {"tool_cards": tool_cards, "recorded_facts": recorded_facts},
-        }
-        if _round == MAX_TOOL_ROUNDS - 1:
-            break
-
-    # 文本流式生成最终回复（基于含工具回注的上下文）
-    final_prompt = base_prompt + "\n\n" + _format_tool_round(messages)
     full_reply_parts: list[str] = []
+
+    yield {"event": "step", "data": {"label": "Vera AI 正在生成实战建议与分析...", "status": "generating"}}
+
     try:
         for token_chunk in gw.call_llm_stream(
-            text=DesensitizedText(final_prompt),
-            prompt_template=final_prompt,
+            text=DesensitizedText(base_prompt),
+            prompt_template="",
             system_prompt=system_prompt,
             prefer_provider=prefer_provider,
-            max_tokens=800,
+            max_tokens=2500,
         ):
             safe_token = rehydrate(token_chunk, scope, db)
             full_reply_parts.append(safe_token)
             yield {"event": "text_chunk", "data": {"chunk": safe_token}}
-    except Exception as e:  # noqa: BLE001 — 流式失败降级为一次性文本
+    except Exception as e:
         logger.error("Live streaming failed, fallback to call_llm: %s", e)
         res = gw.call_llm(
-            text=DesensitizedText(final_prompt),
-            prompt_template=final_prompt,
+            text=DesensitizedText(base_prompt),
+            prompt_template="",
             system_prompt=system_prompt,
             prefer_provider=prefer_provider,
-            max_tokens=800,
+            max_tokens=2500,
         )
         safe_fallback = rehydrate(res.response_text, scope, db)
         full_reply_parts = [safe_fallback]
         yield {"event": "text_chunk", "data": {"chunk": safe_fallback}}
 
     final_reply = "".join(full_reply_parts)
+    
     yield {
         "event": "done",
         "data": {

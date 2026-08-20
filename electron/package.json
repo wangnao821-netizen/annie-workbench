@@ -7,7 +7,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "cross-env VERA_DEV=1 VERA_DEV_URL=http://localhost:3000 electron .",
-    "build-web": "cd \"../ui/vera-工作台 (15)\" && npm run build -- --base=./ --mode production",
+    "build-web": "cd \"../frontend\" && npm run build -- --base=./ --mode production",
     "prepare": "powershell -NoProfile -ExecutionPolicy Bypass -File prepare-package.ps1",
     "dist": "npm run prepare && electron-builder",
     "dist:dir": "npm run prepare && electron-builder --dir",
@@ -31,6 +31,7 @@
     },
     "files": [
       "main.js",
+      "preload.cjs",
       "preload.js",
       "package.json"
     ],
@@ -46,7 +47,7 @@
         "filter": ["**/*"]
       },
       {
-        "from": "../ui/vera-工作台 (15)/dist",
+        "from": "../frontend/dist",
         "to": "web",
         "filter": ["**/*"]
       }

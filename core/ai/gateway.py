@@ -127,7 +127,11 @@ class ApiGateway:
         elif provider_config.provider == "deepseek":
             env_base = os.getenv("DEEPSEEK_API_BASE") or os.getenv("DEEPSEEK_BASE_URL")
             if env_base:
-                base_url = env_base
+                # Ensure /v1 is present for DeepSeek to avoid 301 redirects
+                if env_base.rstrip("/").endswith("api.deepseek.com"):
+                    base_url = "https://api.deepseek.com/v1"
+                else:
+                    base_url = env_base
 
         client_kwargs: dict = {"api_key": api_key}
         if base_url:
@@ -148,29 +152,9 @@ class ApiGateway:
         tools: list[dict] | None = None,        # <-- 新增
         tool_choice: str | None = None,          # <-- 新增 "auto" | "none" | "required"
         prefer_provider: str | None = None,      # 新增：模型路由（#10）优先 provider
+        max_tokens: int | None = None,           # 新增：最大输出 token 控制
     ) -> ApiCallResult:
-        """Call the LLM with strict safety checks and automatic fallback.
-
-        Tries the primary provider first. On retriable failures (connection,
-        timeout, rate limit), automatically falls back to the secondary
-        provider if configured.
-
-        Args:
-            text: The heavily redacted text payload. Must be a DesensitizedText instance.
-            prompt_template: The instruction prompt.
-            system_prompt: Optional tailored system instructions.
-            tools: Optional OpenAI-compatible function calling tool schemas.
-            tool_choice: Optional "auto"/"none"/"required" (defaults to "auto" when tools given).
-
-        Returns:
-            An ApiCallResult mapping the response and metadata.
-
-        Raises:
-            SafetyViolationError: If final payload contains PII.
-            LLMError: If all providers fail.
-            TypeError: If text is not DesensitizedText.
-        """
-        # Ensure it is explicitly typed content
+        """Call the LLM with strict safety checks and automatic fallback."""
         if not isinstance(text, DesensitizedText):
             raise TypeError("ApiGateway requires DesensitizedText object.")
 
@@ -190,7 +174,7 @@ class ApiGateway:
         for client, model, provider_name in providers:
             try:
                 result = self._do_call(
-                    client, model, provider_name, full_prompt, system_prompt, tools, tool_choice
+                    client, model, provider_name, full_prompt, system_prompt, tools, tool_choice, max_tokens
                 )
                 _USAGE["calls"] += 1
                 _USAGE["prompt_tokens"] += result.prompt_tokens or 0
@@ -198,7 +182,6 @@ class ApiGateway:
                 _USAGE["cost_usd"] += result.cost_usd or 0.0
                 return result
             except AuthenticationError as e:
-                # Auth errors are NOT retriable — bad key is bad key
                 logger.error("Authentication failed for %s: %s", provider_name, e)
                 raise LLMError(f"Authentication failed for {provider_name}: {e}") from e
             except self._RETRIABLE_ERRORS as e:
@@ -209,12 +192,152 @@ class ApiGateway:
                 )
                 last_error = e
                 continue
-            except Exception as e:  # noqa: BLE001 — provider 失败进入下一个 fallback
+            except Exception as e:  # noqa: BLE001
                 logger.error("Unexpected error from %s: %s", provider_name, e)
                 last_error = e
                 continue
 
         raise LLMError(f"All providers failed. Last error: {last_error}") from last_error
+
+    def call_llm_stream(
+        self,
+        text: DesensitizedText,
+        prompt_template: str,
+        system_prompt: str = "You are a helpful assistant.",
+        prefer_provider: str | None = None,
+        max_tokens: int | None = 2500,
+    ):
+        """流式调用 LLM，逐步 yield text chunks。"""
+        if not isinstance(text, DesensitizedText):
+            raise TypeError("ApiGateway requires DesensitizedText object.")
+
+        full_prompt = f"{prompt_template}\n\n{text}" if prompt_template else str(text)
+
+        try:
+            self._detector.assert_clean(full_prompt)
+        except Exception as e:
+            logger.critical("Safety leak detected before streaming API transmission! details=%s", e)
+            raise SafetyViolationError("Payload contains PII") from e
+
+        providers = self._ordered_providers(prefer_provider)
+        for client, model, provider_name in providers:
+            try:
+                kwargs: dict = {
+                    "model": model,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": full_prompt},
+                    ],
+                    "temperature": 0.0,
+                    "stream": True,
+                }
+                if max_tokens:
+                    kwargs["max_tokens"] = max_tokens
+
+                response = client.chat.completions.create(**kwargs)
+                for chunk in response:
+                    if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
+                        yield chunk.choices[0].delta.content
+                return
+            except Exception as e:
+                logger.warning("Streaming failed on %s: %s, attempting fallback if available...", provider_name, e)
+                continue
+        raise LLMError("All providers failed during streaming.")
+
+    def call_llm_stream_with_tools(
+        self,
+        text: DesensitizedText,
+        prompt_template: str = "",
+        system_prompt: str = "You are a helpful assistant.",
+        tools: list[dict] | None = None,
+        tool_choice: str | None = None,
+        prefer_provider: str | None = None,
+        max_tokens: int | None = 2500,
+    ):
+        """单流统一调用：同时支持零延迟实时文本 chunk 与流式 tool_calls 探测。"""
+        if not isinstance(text, DesensitizedText):
+            raise TypeError("ApiGateway requires DesensitizedText object.")
+
+        full_prompt = f"{prompt_template}\n\n{text}" if prompt_template else str(text)
+
+        try:
+            self._detector.assert_clean(full_prompt)
+        except Exception as e:
+            logger.critical("Safety leak detected before unified streaming! details=%s", e)
+            raise SafetyViolationError("Payload contains PII") from e
+
+        providers = self._ordered_providers(prefer_provider)
+        for client, model, provider_name in providers:
+            try:
+                kwargs: dict = {
+                    "model": model,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": full_prompt},
+                    ],
+                    "temperature": 0.0,
+                    "stream": True,
+                }
+                if max_tokens:
+                    kwargs["max_tokens"] = max_tokens
+                if tools:
+                    kwargs["tools"] = tools
+                    if tool_choice:
+                        kwargs["tool_choice"] = tool_choice
+
+                response = client.chat.completions.create(**kwargs)
+                accumulated_tools: dict[int, dict] = {}
+                yielded_any_text = False
+
+                for chunk in response:
+                    if not chunk.choices:
+                        continue
+                    delta = chunk.choices[0].delta
+                    # 1. 文本增量：直接以 0.5s 零延迟流向前端
+                    if delta and delta.content:
+                        yielded_any_text = True
+                        yield {"type": "text", "content": delta.content}
+
+                    # 2. 工具调用增量收集
+                    if delta and getattr(delta, "tool_calls", None):
+                        for tc in delta.tool_calls:
+                            idx = tc.index if hasattr(tc, "index") and tc.index is not None else 0
+                            if idx not in accumulated_tools:
+                                accumulated_tools[idx] = {
+                                    "id": getattr(tc, "id", "") or "",
+                                    "name": getattr(getattr(tc, "function", None), "name", "") or "",
+                                    "arguments": "",
+                                }
+                            fn = getattr(tc, "function", None)
+                            if fn:
+                                if getattr(fn, "name", None):
+                                    accumulated_tools[idx]["name"] = fn.name
+                                if getattr(fn, "arguments", None):
+                                    accumulated_tools[idx]["arguments"] += fn.arguments
+
+                # 如果没有输出文本且收集到了工具调用
+                if accumulated_tools and not yielded_any_text:
+                    parsed_tool_calls = []
+                    for idx in sorted(accumulated_tools.keys()):
+                        t_info = accumulated_tools[idx]
+                        args_dict = {}
+                        if t_info["arguments"]:
+                            try:
+                                args_dict = json.loads(t_info["arguments"])
+                            except Exception:
+                                args_dict = {}
+                        parsed_tool_calls.append({
+                            "id": t_info["id"],
+                            "name": t_info["name"],
+                            "arguments": args_dict,
+                        })
+                    yield {"type": "tool_calls", "tool_calls": parsed_tool_calls}
+
+                return
+            except Exception as e:
+                logger.warning("Unified stream failed on %s: %s, trying next provider...", provider_name, e)
+                continue
+        raise LLMError("All providers failed during unified streaming.")
 
     def _ordered_providers(self, prefer_provider: str | None) -> list[tuple]:
         """模型路由（#10）：prefer 的 provider 排最前，其余按原序作 fallback。"""
@@ -233,6 +356,7 @@ class ApiGateway:
         system_prompt: str,
         tools: list[dict] | None = None,
         tool_choice: str | None = None,
+        max_tokens: int | None = None,
     ) -> ApiCallResult:
         """Execute a single API call to a specific provider."""
         start_time = time.time()
@@ -248,6 +372,8 @@ class ApiGateway:
         if tools:
             kwargs["tools"] = tools
             kwargs["tool_choice"] = tool_choice or "auto"
+        if max_tokens:
+            kwargs["max_tokens"] = max_tokens
 
         response = client.chat.completions.create(**kwargs)
 
