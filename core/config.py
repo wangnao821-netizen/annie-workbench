@@ -407,6 +407,19 @@ class ConfigLoader:
 
     def _load_all(self) -> None:
         """Load and validate all configuration files."""
+        # 0. Load persisted settings from database into environment if available
+        try:
+            from core.models.db import get_session
+            from core.models.orm import SystemSetting
+
+            with get_session() as db:
+                rows = db.query(SystemSetting).all()
+                for r in rows:
+                    if r.key and r.value and r.key not in os.environ:
+                        os.environ[r.key] = r.value
+        except Exception:
+            pass
+
         # 1. settings.yaml
         settings_raw = self._load_yaml("settings.yaml")
         # Substitute env var placeholder for root_path

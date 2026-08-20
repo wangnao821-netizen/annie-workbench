@@ -152,44 +152,87 @@ def _reload_ai_config() -> None:
     get_config()
 
 
+def _get_db_ai_keys(db: Session) -> dict[str, str]:
+    """从 SQLite system_settings 表中读取已持久化的 AI API 配置。"""
+    keys = list(_AI_FIELD_TO_ENV.values())
+    rows = db.query(SystemSetting).filter(SystemSetting.key.in_(keys)).all()
+    res = {}
+    for r in rows:
+        val = (r.value or "").strip()
+        if val:
+            res[r.key] = val
+            # 顺便同步回 os.environ，保证即使没有 .env，网关也能直接取到
+            os.environ[r.key] = val
+    return res
+
+
 @router.get("/ai", response_model=AiSettingsResponse)
-def get_ai_settings() -> AiSettingsResponse:
-    """读取 AI provider 配置状态（key 只回显是否配置，不返回原文）。"""
+def get_ai_settings(db: Session = Depends(get_db)) -> AiSettingsResponse:
+    """读取 AI provider 配置状态（优先从数据库读取持久化配置，key 只回显是否配置）。"""
     env = _read_dotenv()
+    db_keys = _get_db_ai_keys(db)
+
+    deepseek_key = db_keys.get("DEEPSEEK_API_KEY") or env.get("DEEPSEEK_API_KEY") or os.environ.get("DEEPSEEK_API_KEY")
+    deepseek_base = db_keys.get("DEEPSEEK_API_BASE") or env.get("DEEPSEEK_API_BASE") or os.environ.get("DEEPSEEK_API_BASE")
+
+    gemini_key = db_keys.get("GEMINI_API_KEY") or env.get("GEMINI_API_KEY") or os.environ.get("GEMINI_API_KEY")
+    gemini_base = db_keys.get("GEMINI_API_BASE") or env.get("GEMINI_API_BASE") or os.environ.get("GEMINI_API_BASE")
+
     return AiSettingsResponse(
         deepseek=AiProviderStatus(
-            key_configured=bool(env.get("DEEPSEEK_API_KEY")),
-            base_url=env.get("DEEPSEEK_API_BASE") or None,
+            key_configured=bool(deepseek_key),
+            base_url=deepseek_base or None,
         ),
         gemini=AiProviderStatus(
-            key_configured=bool(env.get("GEMINI_API_KEY")),
-            base_url=env.get("GEMINI_API_BASE") or None,
+            key_configured=bool(gemini_key),
+            base_url=gemini_base or None,
         ),
     )
 
 
 @router.patch("/ai", response_model=AiSettingsResponse)
-def update_ai_settings(req: AiSettingsUpdate) -> AiSettingsResponse:
-    """更新 AI key/base URL（写 .env + 热重载；空字符串=清除）。"""
+def update_ai_settings(
+    req: AiSettingsUpdate,
+    db: Session = Depends(get_db),
+) -> AiSettingsResponse:
+    """更新 AI key/base URL（同时持久化至 SQLite 数据库与 .env + 热重载；空字符串=清除）。"""
     updates: dict[str, str | None] = {}
     for field, env_key in _AI_FIELD_TO_ENV.items():
         if field in req.model_fields_set:
             raw = getattr(req, field)
             updates[env_key] = (raw or "").strip() or None
     if not updates:
-        return get_ai_settings()
-    _write_dotenv(updates)
+        return get_ai_settings(db=db)
+
+    # 1. 持久化至 SQLite system_settings 库表（确保重新打包/更新目录永不丢失）
+    for env_key, value in updates.items():
+        row = db.query(SystemSetting).filter(SystemSetting.key == env_key).first()
+        if value:
+            if row:
+                row.value = value
+            else:
+                db.add(SystemSetting(key=env_key, value=value))
+        elif row:
+            db.delete(row)
+    db.commit()
+
+    # 2. 尝试写入 .env（如有权限）
+    try:
+        _write_dotenv(updates)
+    except Exception:
+        pass
+
     _reload_ai_config()
-    # 写 .env 文件不会更新当前进程 os.environ，而网关按 os.environ 读 key——
-    # 必须同步环境变量，否则"保存后热重载"对运行中的后端不生效。
-    # 注意顺序：同步必须放在 _reload_ai_config() 之后——config 的 load_dotenv 会从 .env
-    # 复活已删除的键（override=False），最后同步才能保证以本次 PATCH 为准。
+
+    # 3. 同步环境变量
     for env_key, value in updates.items():
         if value is None:
             os.environ.pop(env_key, None)
         else:
             os.environ[env_key] = value
-    return get_ai_settings()
+
+    return get_ai_settings(db=db)
+
 
 
 @router.post("/ai/test", response_model=AiTestResponse)
