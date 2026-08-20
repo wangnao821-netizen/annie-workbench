@@ -8,10 +8,24 @@ from __future__ import annotations
 
 import os
 
+import pytest
 from fastapi.testclient import TestClient
 
 import server.api.settings as settings_mod
+from server.deps import get_db
 from server.main import app
+
+
+@pytest.fixture(autouse=True)
+def _isolate_db(test_db):
+    """强制所有用例使用隔离测试库，严禁 PATCH/清除落到真实 data/assistant.db。"""
+
+    def _get_db():
+        yield test_db
+
+    app.dependency_overrides[get_db] = _get_db
+    yield
+    app.dependency_overrides.pop(get_db, None)
 
 
 def _make_client(tmp_path) -> tuple[TestClient, object]:
