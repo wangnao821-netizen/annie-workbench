@@ -120,7 +120,7 @@ export function FloatingAI() {
     setMessages((prev) => [...prev, userMsg]);
     setInputText('');
 
-    const useMock = import.meta.env.VITE_USE_MOCK !== 'false';
+    const useMock = import.meta.env.VITE_USE_MOCK === 'true';
 
     if (useMock) {
       setTimeout(() => {

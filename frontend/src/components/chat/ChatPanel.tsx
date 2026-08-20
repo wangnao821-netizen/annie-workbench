@@ -116,13 +116,14 @@ export function ChatPanel({ caseId, onToggleCollapse }: ChatPanelProps) {
       return;
     }
     setLoading(true);
-    if (import.meta.env.VITE_USE_MOCK !== 'false') {
+    if (import.meta.env.VITE_USE_MOCK === 'true') {
       setMessages(MOCK_MESSAGES);
       setLoading(false);
       return;
     }
     try {
       const history = await getChatHistory(caseId);
+      // 顺序契约：后端已按 created_at desc, id desc + reversed 保证提问在上、回答在下，前端原样渲染不重排
       setMessages(history);
     } catch {
       useToastStore.getState().showToast('error', '加载对话历史失败');
@@ -169,7 +170,7 @@ export function ChatPanel({ caseId, onToggleCollapse }: ChatPanelProps) {
     setMessages((prev) => [...prev, userMsg]);
     setSending(true);
 
-    if (import.meta.env.VITE_USE_MOCK !== 'false') {
+    if (import.meta.env.VITE_USE_MOCK === 'true') {
       setTimeout(() => {
         const assistantMsg: ChatMessageResponse = {
           id: `ast-${Date.now()}`,

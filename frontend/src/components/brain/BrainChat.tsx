@@ -98,11 +98,16 @@ const MOCK_CONFIRMED_EVENTS: ContextEvent[] = [
 
 function formatChatTime(rawTime?: string): string {
   if (!rawTime) return '刚刚';
-  if (rawTime === '刚刚' || rawTime === '昨天' || !rawTime.includes('T')) {
+  if (rawTime === '刚刚' || rawTime === '昨天') {
     return rawTime;
   }
   try {
-    const d = new Date(rawTime);
+    let dateStr = rawTime;
+    // 如果是 ISO 字符串且未标注时区（无 Z 且无 +/- 偏移），作为 UTC 补齐 Z
+    if (dateStr.includes('T') && !dateStr.endsWith('Z') && !/[+-]\d{2}:\d{2}$/.test(dateStr)) {
+      dateStr += 'Z';
+    }
+    const d = new Date(dateStr);
     if (isNaN(d.getTime())) return rawTime;
 
     const now = new Date();
@@ -336,7 +341,7 @@ export function BrainChat({ caseId, onToggleRightDeck, isRightDeckCollapsed }: B
     }
 
     try {
-      if (import.meta.env.VITE_USE_MOCK !== 'false') {
+      if (import.meta.env.VITE_USE_MOCK === 'true') {
         useToastStore.getState().showToast('success', '已记录到当前案件');
         dismissCard(messageIdx, cardIdx);
         return;
@@ -470,7 +475,7 @@ export function BrainChat({ caseId, onToggleRightDeck, isRightDeckCollapsed }: B
 
   const fetchContextEventsData = useCallback(async () => {
     if (!caseId) { setPendingEvents([]); setConfirmedEvents([]); return; }
-    if (import.meta.env.VITE_USE_MOCK !== 'false') {
+    if (import.meta.env.VITE_USE_MOCK === 'true') {
       setPendingEvents(MOCK_PENDING_EVENTS);
       setConfirmedEvents(MOCK_CONFIRMED_EVENTS);
       return;
@@ -490,13 +495,15 @@ export function BrainChat({ caseId, onToggleRightDeck, isRightDeckCollapsed }: B
   const fetchHistory = useCallback(async () => {
     if (!caseId) { setMessages([]); return; }
     setLoading(true);
-    if (import.meta.env.VITE_USE_MOCK !== 'false') {
+    if (import.meta.env.VITE_USE_MOCK === 'true') {
       setMessages(MOCK_MESSAGES);
       setLoading(false);
       return;
     }
     try {
       const history = await getChatHistory(caseId);
+      // 顺序契约：后端 history 已按 created_at desc, id desc + reversed 返回，
+      // 保证提问(user)恒在回答(assistant)上方；前端原样渲染，禁止本地 sort/reverse/时间戳重排。
       setMessages(history);
     } catch {
       useToastStore.getState().showToast('error', '加载对话历史失败');
@@ -556,7 +563,7 @@ export function BrainChat({ caseId, onToggleRightDeck, isRightDeckCollapsed }: B
     setMessages((prev) => [...prev, { id: `usr-${Date.now()}`, role: 'user', content: text, created_at: '刚刚' }]);
     setSending(true);
 
-    if (import.meta.env.VITE_USE_MOCK !== 'false') {
+    if (import.meta.env.VITE_USE_MOCK === 'true') {
       const isDeclarationRequest = text.includes('一致性') || text.includes('申报') || text.includes('检查');
       const isFollowup = text.includes('跟进') || text.includes('followup');
       const isChaser = text.includes('催') || text.includes('chaser');
@@ -841,7 +848,7 @@ export function BrainChat({ caseId, onToggleRightDeck, isRightDeckCollapsed }: B
   };
 
   const handleConfirmEvent = async (eventId: number) => {
-    if (import.meta.env.VITE_USE_MOCK !== 'false') {
+    if (import.meta.env.VITE_USE_MOCK === 'true') {
       const target = pendingEvents.find((e) => e.id === eventId);
       if (target) {
         setPendingEvents((prev) => prev.filter((e) => e.id !== eventId));
@@ -862,7 +869,7 @@ export function BrainChat({ caseId, onToggleRightDeck, isRightDeckCollapsed }: B
   };
 
   const handleRevokeEvent = async (eventId: number) => {
-    if (import.meta.env.VITE_USE_MOCK !== 'false') {
+    if (import.meta.env.VITE_USE_MOCK === 'true') {
       setConfirmedEvents((prev) => prev.filter((e) => e.id !== eventId));
       useToastStore.getState().showToast('success', '已撤销');
       return;
@@ -1613,7 +1620,7 @@ export function BrainChat({ caseId, onToggleRightDeck, isRightDeckCollapsed }: B
         <div ref={messagesEndRef} className="h-2 shrink-0" />
       </div>
 
-      {/* Floating "↓ 最新消息" Button */}
+      {/* Floating "最新消息" Button */}
       <AnimatePresence>
         {showScrollBottomBtn && (
           <motion.button
@@ -1622,10 +1629,10 @@ export function BrainChat({ caseId, onToggleRightDeck, isRightDeckCollapsed }: B
             exit={{ opacity: 0, y: 10, scale: 0.9 }}
             onClick={() => scrollToBottom('smooth')}
             id="scroll-to-bottom-btn"
-            className="absolute right-6 bottom-4 z-20 px-3 py-1.5 rounded-full bg-[var(--accent)] text-[var(--on-accent)] font-bold text-xs shadow-lg flex items-center gap-1.5 hover:opacity-90 transition-all cursor-pointer"
+            className="absolute right-6 bottom-4 z-20 px-3.5 py-1.5 rounded-full bg-[var(--bg-card)]/95 backdrop-blur-md text-[var(--text-primary)] border border-[var(--border)] shadow-[var(--shadow-card)] font-medium text-xs flex items-center gap-1.5 hover:border-[var(--accent)] hover:text-[var(--accent)] hover:shadow-lg active:scale-95 transition-all cursor-pointer"
           >
-            <ArrowDown className="w-3.5 h-3.5" />
-            <span>↓ 最新消息</span>
+            <ArrowDown className="w-3.5 h-3.5 text-[var(--accent)]" />
+            <span>最新消息</span>
           </motion.button>
         )}
       </AnimatePresence>
