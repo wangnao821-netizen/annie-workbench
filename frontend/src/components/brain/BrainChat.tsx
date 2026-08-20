@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { motion, useReducedMotion, AnimatePresence } from 'motion/react';
-import { Sparkles, Send, Brain, Bot, User, Plus, MessageSquare, AlertTriangle, ShieldAlert, X, Paperclip, Loader2, Zap, Calculator, Mail, PlusCircle, FolderSearch, PanelRightClose, PanelRightOpen, ArrowDown, Wrench, CheckCircle2 } from 'lucide-react';
+import { Sparkles, Send, Brain, Bot, User, Plus, MessageSquare, AlertTriangle, ShieldAlert, X, Paperclip, Loader2, Zap, Calculator, Mail, PlusCircle, FolderSearch, PanelRightClose, PanelRightOpen, ArrowDown, Wrench, CheckCircle2, Copy, Check } from 'lucide-react';
 import { getChatHistory, sendChatStream, sendCardAction } from '../../services/api/chat';
 import { listContextEvents, confirmContextEvent, supersedeContextEvent, createContextEvent } from '../../services/api/cases';
 import { importCaseFile, getCaseFilePreview } from '../../services/api/fileOps';
@@ -158,6 +158,17 @@ export function BrainChat({ caseId, onToggleRightDeck, isRightDeckCollapsed }: B
   // Streaming steps & state
   const [activeStepLabel, setActiveStepLabel] = useState<string>('');
   const [activeStepStatus, setActiveStepStatus] = useState<'running' | 'generating' | 'done'>('done');
+  const [copiedMsgId, setCopiedMsgId] = useState<number | string | null>(null);
+
+  const handleCopyMessage = useCallback((text: string, id: number | string) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedMsgId(id);
+      setTimeout(() => {
+        setCopiedMsgId((prev) => (prev === id ? null : prev));
+      }, 2000);
+    });
+  }, []);
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const [dismissedConfirmCardMsgs, setDismissedConfirmCardMsgs] = useState<Record<string, boolean>>({});
 
@@ -1072,19 +1083,42 @@ export function BrainChat({ caseId, onToggleRightDeck, isRightDeckCollapsed }: B
 
                     {/* Message Bubble (Hidden when tool is running with empty content) */}
                     {!hideEmptyBubble && (
-                      <div className={`p-3 rounded-2xl text-xs max-w-[85%] leading-relaxed ${m.role === 'user' ? 'shadow-xs' : 'border'}`}
+                      <div className={`group relative p-3 rounded-2xl text-xs max-w-[85%] leading-relaxed select-text ${m.role === 'user' ? 'shadow-xs' : 'border'}`}
                         style={m.role === 'user' ? { backgroundColor: 'var(--accent)', color: 'var(--on-accent)' } : { backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+                        
+                        {/* Copy button for Assistant message */}
+                        {m.role === 'assistant' && !isStreamingThis && m.content && (
+                          <button
+                            type="button"
+                            onClick={() => handleCopyMessage(m.content, m.id)}
+                            title="复制回复正文"
+                            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md bg-[var(--bg-card-hover)] border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] shadow-2xs cursor-pointer flex items-center space-x-1 text-[10px]"
+                          >
+                            {copiedMsgId === m.id ? (
+                              <>
+                                <Check className="w-3 h-3 text-[var(--green)]" />
+                                <span className="text-[var(--green)] font-medium">已复制</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3 h-3" />
+                                <span>复制</span>
+                              </>
+                            )}
+                          </button>
+                        )}
+
                         {m.content.includes('📄 【文件识别】') ? (
                           <div className="space-y-1.5">
                             <div className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-[var(--green-soft)] text-[var(--green)] border border-[var(--green-soft)] font-bold text-[11px]">
                               <span>📄 文件识别</span>
                             </div>
-                            <div className="whitespace-pre-wrap">{m.content.replace('📄 【文件识别】', '')}</div>
+                            <div className="whitespace-pre-wrap select-text">{m.content.replace('📄 【文件识别】', '')}</div>
                           </div>
                         ) : m.role === 'user' ? (
-                          <div className="whitespace-pre-wrap">{m.content}</div>
+                          <div className="whitespace-pre-wrap select-text">{m.content}</div>
                         ) : (
-                          <div className="markdown-body text-xs leading-relaxed space-y-1.5 prose dark:prose-invert max-w-none">
+                          <div className="markdown-body text-xs leading-relaxed space-y-1.5 prose dark:prose-invert max-w-none select-text">
                             <ReactMarkdown
                               remarkPlugins={[remarkGfm]}
                               components={{

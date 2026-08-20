@@ -207,13 +207,36 @@ function createWindow() {
   mainWindow.on('unmaximize', () => {
     mainWindow.webContents.send('window-maximized-changed', false);
   });
-  mainWindow.on('close', (e) => {
-    if (!isQuitting && loadConfig().minimizeToTray !== false) {
-      e.preventDefault();
-      mainWindow.hide();
+  mainWindow.on('closed', () => { mainWindow = null; });
+
+  // 注册全局原生右键上下文菜单（支持划选复制、输入框粘贴等）
+  mainWindow.webContents.on('context-menu', (event, params) => {
+    const menuTemplate = [];
+    if (params.isEditable) {
+      menuTemplate.push(
+        { label: '剪切', role: 'cut' },
+        { label: '复制', role: 'copy' },
+        { label: '粘贴', role: 'paste' },
+        { type: 'separator' },
+        { label: '全选', role: 'selectAll' }
+      );
+    } else if (params.selectionText && params.selectionText.trim().length > 0) {
+      menuTemplate.push(
+        { label: '复制', role: 'copy' },
+        { type: 'separator' },
+        { label: '全选', role: 'selectAll' }
+      );
+    } else {
+      menuTemplate.push(
+        { label: '全选', role: 'selectAll' }
+      );
+    }
+
+    if (menuTemplate.length > 0) {
+      const contextMenu = Menu.buildFromTemplate(menuTemplate);
+      contextMenu.popup({ window: mainWindow });
     }
   });
-  mainWindow.on('closed', () => { mainWindow = null; });
 }
 
 /* ── 托盘 ──────────────────────────────────────────────── */
