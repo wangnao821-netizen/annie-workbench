@@ -323,7 +323,12 @@ export function CaseListSidebar({ activeView, onNavigate }: CaseListSidebarProps
                           </div>
                           <div className="flex items-center text-[11px] text-muted pt-0.5 w-full">
                             <span className="font-medium text-secondary min-w-0 flex-1 truncate">{c.stage}</span>
-                            <span className="font-mono font-medium text-[11px] ml-auto flex-shrink-0">{c.checklistProgress}%</span>
+                            <span
+                              className="font-mono font-medium text-[11px] ml-auto flex-shrink-0"
+                              title={`材料清单 ${c.checklistDone}/${c.checklistTotal}（${c.checklistProgress}%）`}
+                            >
+                              {c.checklistTotal > 0 ? `缺 ${c.checklistTotal - c.checklistDone} 项` : '—'}
+                            </span>
                           </div>
                         </div>
                       );
