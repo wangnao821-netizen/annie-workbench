@@ -45,7 +45,7 @@ class TestSystemPrompt:
     def test_prompt_contains_common_and_persona_rules(self) -> None:
         prompt = build_system_prompt()
         assert "有自己的专业观点" in prompt        # GitHub/OpenClaw 借鉴：不盲从
-        assert "【人格：专业稳重型｜资深澳洲信贷顾问】" in prompt
+        assert "【当前人格设定：专业稳重型" in prompt
         assert "结论先行" in prompt
         assert "客户名（银行）" in prompt          # 回复带名规则已并入公共规则
 
@@ -65,12 +65,15 @@ class TestSystemPrompt:
     def test_prompt_injects_identity(self) -> None:
         prompt = build_system_prompt("a", ai_name="小V", user_address="Vera姐")
         assert "你的名字是「小V」" in prompt
-        assert "用「Vera姐」称呼 Vera" in prompt
+        assert "称呼「Vera姐」" in prompt
         assert "仅限内线" in prompt
         assert "外线草稿" in prompt
 
-    def test_prompt_without_identity_has_no_name_lines(self) -> None:
-        assert "你的名字是" not in build_system_prompt("a")
+    def test_prompt_without_identity_uses_defaults(self) -> None:
+        """2026-08-20 起无运行期设置时注入默认称呼（Vera AI / Vera），不再省略。"""
+        prompt = build_system_prompt("a")
+        assert "你的名字是「Vera AI」" in prompt
+        assert "称呼「Vera」" in prompt
 
 
 class TestListPersonas:
@@ -105,7 +108,7 @@ class TestRoleInjection:
     def test_role_prompt_uses_persona(self) -> None:
         prompt = _build_role_prompt()
         assert "有自己的专业观点" in prompt
-        assert "【人格：专业稳重型" in prompt
+        assert "【当前人格设定：专业稳重型" in prompt
 
     def test_role_prompt_fallback_when_persona_fails(
         self, monkeypatch: pytest.MonkeyPatch
@@ -121,4 +124,4 @@ class TestRoleInjection:
         prompt = _build_role_prompt(test_db)
         assert "活泼幽默型" in prompt
         assert "你的名字是「小V」" in prompt
-        assert "用「Vera姐」称呼 Vera" in prompt
+        assert "称呼「Vera姐」" in prompt

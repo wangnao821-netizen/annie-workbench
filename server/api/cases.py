@@ -60,6 +60,8 @@ from server.api.schemas import (
     BatchTopologyImportRequest,
     BatchTopologyImportResponse,
     BrainFactResponse,
+    CaseBriefResponse,
+    CaseBriefUpdateRequest,
     CaseCloseRequest,
     CaseContextResponse,
     CaseCreateRequest,
@@ -75,6 +77,7 @@ from server.api.schemas import (
     CaseSnapshotResponse,
     CaseTimelineResponse,
     ChecklistMatchFilesResponse,
+    ChecklistRegenerateResponse,
     ContextEventRequest,
     ContextEventResponse,
     DeclarationCheckRequest,
@@ -1003,8 +1006,15 @@ def _seed_initial_brain_facts_for_import(
         facts.append(("loan.rate", str(item.interest_rate), "loan"))
     if item.loan_type:
         facts.append(("loan.type", item.loan_type, "loan"))
+    goal = item.client_goal or item.loan_type
+    if goal:
+        facts.append(("loan.goal", goal, "loan"))
     if item.lender:
         facts.append(("bank.lender", item.lender, "bank"))
+    if item.referrer_name:
+        facts.append(("referral.source", item.referrer_name, "relationship"))
+    if item.co_borrowers:
+        facts.append(("identity.co_borrowers", ", ".join(item.co_borrowers), "identity"))
     if item.onhold_reason:
         facts.append(("special.circumstances", f"暂停原因：{item.onhold_reason}", "special"))
     if case.stage:
@@ -1015,7 +1025,7 @@ def _seed_initial_brain_facts_for_import(
         event = append_context_event(
             case_id=case.id,
             source_type="manual_note",
-            content="存量拓扑导入：初始画像已沉淀（姓名/身份/雇佣/房产/贷款/银行/阶段）",
+            content="存量拓扑导入：初始画像已沉淀（姓名/身份/雇佣/房产/贷款/银行/阶段/目标/推荐渠道）",
             db=db,
             trigger_distill=False,
         )
@@ -1059,6 +1069,19 @@ def batch_topology_import(
     """批量从识别出的拓扑案卷中建档（贯通画像、即刻匹配清单、沉淀事实）。"""
     created: list[dict] = []
     for item in req.items:
+        goal = item.client_goal or item.loan_type or ""
+        
+        # 智能阶段判定
+        computed_stage = item.stage or "收集资料"
+        if item.status == "settled":
+            computed_stage = "已放款"
+        elif item.status == "closed":
+            computed_stage = "已终止"
+        elif item.status == "lead":
+            computed_stage = "初步咨询"
+        elif item.status == "onhold":
+            computed_stage = "递交准备"
+
         case = create_case_from_source(
             client_name=item.client_name,
             source="topology_import",
@@ -1072,13 +1095,17 @@ def batch_topology_import(
             property_value=item.property_value,
             interest_rate=item.interest_rate,
             purpose=item.loan_type,
+            client_goal=goal,
             is_imported=item.is_imported,
             platform_submissions=item.platform_submissions,
             auto_folder=False,
         )
         case.folder_path = item.folder_path
-        if item.stage:
-            case.stage = item.stage
+        case.stage = computed_stage
+        if goal:
+            case.client_goal = goal
+        if item.property_address:
+            case.property_address = item.property_address
         if item.doc_type:
             case.case_type = item.doc_type
         if item.onhold_reason:
@@ -1132,6 +1159,26 @@ def match_case_checklist_files(
         matched_count=res["matched_count"],
         gathering_progress=res.get("gathering_progress", 0),
         matched_details=res.get("items", []),
+    )
+
+
+@router.post("/{case_id}/checklist/regenerate", response_model=ChecklistRegenerateResponse)
+def regenerate_case_checklist(
+    case_id: str,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> ChecklistRegenerateResponse:
+    """重新生成材料清单：AI 推荐 + master_id 落库；LLM 失败回退规则预选。"""
+    _get_case_or_404(case_id, db)
+    from core.checklist.generator import classify_generated_by, regenerate_checklist
+
+    try:
+        items = regenerate_checklist(case_id, db)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return ChecklistRegenerateResponse(
+        case_id=case_id,
+        count=len(items),
+        generated_by=classify_generated_by(items),
     )
 
 
@@ -1212,3 +1259,62 @@ def scaffold_case_folder(
         return CaseScaffoldResponse(**res)
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=400, detail=f"创建目录骨架失败: {exc}")
+
+
+@router.get("/{case_id}/brief", response_model=CaseBriefResponse)
+def get_case_brief_endpoint(
+    case_id: str,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> CaseBriefResponse:
+    """获取该案卷的权威 Markdown 全景备忘录及脱敏对外版本。"""
+    from core.cases.brief import (
+        generate_case_brief_markdown,
+        strip_secret_sections_for_external,
+    )
+
+    case = db.query(Case).filter(Case.id == case_id).first()
+    if not case:
+        raise HTTPException(status_code=404, detail=f"案件 {case_id} 不存在")
+
+    facts = db.query(BrainFact).filter(BrainFact.case_id == case_id, BrainFact.valid_to.is_(None)).all()
+
+    # If case already has a user-edited/persisted markdown brief, use it; otherwise generate fresh
+    brief_md = case.context_summary if (case.context_summary and case.context_summary.strip().startswith("#")) else generate_case_brief_markdown(case, facts)
+    clean_md = strip_secret_sections_for_external(brief_md)
+
+    return CaseBriefResponse(
+        ok=True,
+        case_id=case_id,
+        client_name=case.client_name or "",
+        brief_markdown=brief_md,
+        external_clean_markdown=clean_md,
+    )
+
+
+@router.put("/{case_id}/brief", response_model=CaseBriefResponse)
+def update_case_brief_endpoint(
+    case_id: str,
+    req: CaseBriefUpdateRequest,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> CaseBriefResponse:
+    """接收用户在前端编辑后的 Markdown 全景备忘录，反向同步案件事实与上下文。"""
+    from core.cases.brief import (
+        parse_and_sync_case_brief,
+        strip_secret_sections_for_external,
+    )
+
+    case = db.query(Case).filter(Case.id == case_id).first()
+    if not case:
+        raise HTTPException(status_code=404, detail=f"案件 {case_id} 不存在")
+
+    parse_and_sync_case_brief(case_id, req.brief_markdown, db)
+    clean_md = strip_secret_sections_for_external(req.brief_markdown)
+
+    return CaseBriefResponse(
+        ok=True,
+        case_id=case_id,
+        client_name=case.client_name or "",
+        brief_markdown=req.brief_markdown,
+        external_clean_markdown=clean_md,
+    )
+

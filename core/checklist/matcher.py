@@ -184,33 +184,69 @@ _IGNORED_FILES = frozenset({".DS_Store", "Thumbs.db", "desktop.ini", "processed_
 # 核心材料别名映射规则库（key: master_id 语义标识，values: 文件名关键词列表）
 CHECKLIST_ALIAS_MAP: dict[str, list[str]] = {
     # 身份类
-    "driver_licence": ["dl", "driver license", "driver licence", "驾照", "id dl"],
-    "passport": ["passport", "护照", "id passport"],
-    "visa_vevo": ["visa", "vevo", "155", "189", "190", "500", "820", "801", "签证", "id visa"],
-    "voi": ["voi", "id voi", "verification of identity"],
-    "credit_consent": ["credit_check", "client_consent", "privacy consent", "征信授权"],
-    "identification": ["identification", "id summary", "身份证明"],
-    # 房产与负债类
-    "council_rates": ["rate notice", "rates notice", "council rate", "地税", "市政费", "rates"],
-    "home_loan_statement": ["liability hl", "loan statement", "mortgage statement", "hl 流水", "房贷流水", "home loan"],
-    "credit_card_statement": ["credit card", "cc statement", "信用卡流水", "cba credit"],
-    # 自雇与收入类
-    "se_declaration": ["se declaration", "self certified", "income declaration", "自雇声明", "self cert"],
-    "accountant_letter": ["accountant", "cpa letter", "会计信", "会计师声明", "accountant declaration"],
-    "company_search": ["company search", "asic search", "abn lookup", "公司查册"],
-    # 估价与建议书
-    "valuation_report": ["property val", "valuation report", "估价报告", "property valuation"],
-    "soca": ["soca", "credit advice", "statement of credit advice"],
+    "passport": ["passport", "护照", "id passport", "travel document"],
+    "driver_license": ["dl", "driver license", "driver licence", "驾照", "id dl", "driverlicence", "drivers licence", "driver_licence"],
+    "visa_grant": ["visa", "vevo", "155", "189", "190", "500", "820", "801", "签证", "id visa", "visa grant", "visa_grant"],
+    "medicare_card": ["medicare", "medicare card", "medicarecard"],
+    "voi_document": ["voi", "id voi", "verification of identity", "100 point", "id check", "id_document"],
+    "pr_grant_notice": ["pr grant", "pr letter", "permanent residency", "visa 155", "永居信"],
+    "name_change_certificate": ["name change", "change of name", "改名证明"],
+    "identification": ["identification", "id summary", "身份证明", "id document"],
+
+    # 收入 - PAYG
+    "payslip_2": ["payslip", "pay slip", "salary slip", "工资单", "payslips"],
+    "employment_letter": ["employment letter", "employment confirmation", "employment contract", "雇佣信"],
+    "group_certificate": ["group certificate", "payment summary", "年度工资", "income statement"],
+    "bonus_letter": ["bonus letter", "bonus confirmation", "奖金信"],
+
+    # 收入 - 自雇 (Self Employed & Alt Doc)
+    "accountant_letter": ["accountant", "cpa letter", "会计信", "会计师声明", "accountant declaration", "accountants declaration", "accountant's declaration", "accountants_declaration"],
+    "se_declaration": ["se declaration", "self certified", "income declaration", "自雇声明", "self cert", "repayment declaration", "self-employed declaration", "self_certified"],
+    "tax_return_2yr": ["tax return", "tax returns", "noa", "notice of assessment", "税表"],
+    "tax_return_1yr": ["tax return 1", "one year tax", "1 year tax"],
+    "bas_statements": ["bas", "business activity statement", "季度税表"],
+    "business_bank_statement": ["business bank", "business account", "公司流水", "business statement"],
+    "asic_company_search": ["asic", "company search", "abn lookup", "公司查册", "asic extract"],
+    "profit_loss_statement": ["profit & loss", "profit loss", "pnl", "损益表"],
+    "balance_sheet": ["balance sheet", "资产负债表"],
+    "abn_registration": ["abn registration", "abn certificate", "abn 证明"],
+
+    # 负债与流水
+    "existing_loan_statement": ["liability", "liability hl", "loan statement", "mortgage statement", "hl 流水", "房贷流水", "home loan", "homeloan", "existing loan", "home_loan_statement"],
+    "personal_bank_statement": ["bank statement", "personal bank", "个人流水", "bank statement 3", "bank_statement"],
+    "credit_card_statement": ["credit card", "cc statement", "信用卡流水", "credit card statement"],
+    "credit_consent": ["credit_check", "client_consent", "privacy consent", "征信授权", "credit consent"],
+
+    # 房产与估价
+    "council_rates_notice": ["rate notice", "rates notice", "council rate", "council rates", "地税", "市政费", "rates", "council_rates"],
+    "valuation_report": ["property val", "valuation report", "估价报告", "property valuation", "valuation", "property_val"],
+    "contract_of_sale": ["contract of sale", "sales contract", "购房合同", "contract of sale"],
+    "insurance_policy": ["insurance policy", "home insurance", "房屋保险", "insurance"],
+    "rental_agreement": ["rental agreement", "lease agreement", "tenancy agreement", "租约"],
+    "rental_statement": ["rental statement", "rental ledger", "租金流水"],
+
+    # 递交与建议书
+    "soca": ["soca", "credit advice", "statement of credit advice", "建议书"],
     "product_comparison": ["product comparison", "products comparison", "产品对比"],
-    "application_form": ["application form", "loan submission pack", "application summary", "申请表"],
+    "application_form": ["application form", "loan submission pack", "application summary", "申请表", "submission pack", "application", "loan submission"],
+    "settlement_statement": ["settlement statement", "settlement letter", "结算单"],
+    "discharge_authority": ["discharge authority", "discharge", "payout request", "解押授权"],
+    "payout_letter": ["payout letter", "payout quote", "结清报价"],
+    "title_search": ["title search", "title documents", "产权查询"],
 }
 
-# 优先扫描的子目录（先于根目录）
-_PRIORITY_SUBDIRS = ("Send to Lender", "To be signed", "Valuation")
+# 优先扫描的子目录（按优先级排序）
+_PRIORITY_SUBDIRS = (
+    "Send to Lender",
+    "To be signed",
+    "Valuation",
+    "Send to Infynity",
+    "Loan Documents",
+)
 
 
 def _normalize(text: str | None) -> str:
-    """清单项名称归一化：小写 + 去非字母数字（仅用于 item_name 兜底对齐）。"""
+    """清单项名称归一化：小写 + 去除标点空格（仅用于模糊对齐）。"""
     return re.sub(r"[^a-z0-9\u4e00-\u9fff]+", "", (text or "").lower())
 
 
@@ -236,35 +272,29 @@ def _resolve_case_folder(case: Case) -> Path | None:
 
 
 def _collect_folder_files(folder: Path) -> list[Path]:
-    """按优先级收集案卷文件：Send to Lender / To be signed / Valuation / 根目录 / 其余子目录。"""
+    """按优先级递归收集案卷文件：优先子目录 -> 根目录 -> 其他深层子目录。"""
     files: list[tuple[int, Path]] = []
     seen: set[Path] = set()
 
-    for rank, subdir in enumerate(_PRIORITY_SUBDIRS):
-        sub = folder / subdir
-        if not sub.is_dir():
-            continue
-        for f in sub.iterdir():
-            if f.is_file() and f.name not in _IGNORED_FILES and f not in seen:
-                files.append((rank, f))
-                seen.add(f)
+    for rank, subdir_name in enumerate(_PRIORITY_SUBDIRS):
+        for sub in folder.glob(f"**/{subdir_name}"):
+            if sub.is_dir():
+                for f in sub.rglob("*"):
+                    if f.is_file() and f.name not in _IGNORED_FILES and f not in seen:
+                        files.append((rank, f))
+                        seen.add(f)
 
+    # 根目录文件
     for f in folder.iterdir():
         if f.is_file() and f.name not in _IGNORED_FILES and f not in seen:
             files.append((len(_PRIORITY_SUBDIRS), f))
             seen.add(f)
 
-    for sub in folder.iterdir():
-        if (
-            not sub.is_dir()
-            or sub.name.startswith(".")
-            or sub.name in _PRIORITY_SUBDIRS
-        ):
-            continue
-        for f in sub.rglob("*"):
-            if f.is_file() and f.name not in _IGNORED_FILES and f not in seen:
-                files.append((len(_PRIORITY_SUBDIRS) + 1, f))
-                seen.add(f)
+    # 其余所有子目录深层递归
+    for f in folder.rglob("*"):
+        if f.is_file() and f.name not in _IGNORED_FILES and f not in seen:
+            files.append((len(_PRIORITY_SUBDIRS) + 1, f))
+            seen.add(f)
 
     files.sort(key=lambda pair: pair[0])
     return [f for _, f in files]

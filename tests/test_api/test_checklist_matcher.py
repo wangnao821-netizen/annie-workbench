@@ -50,11 +50,11 @@ def test_match_checklist_files_success(tmp_path, test_db):
     _make_case(test_db, case_id, str(folder))
     test_db.add_all([
         CaseChecklist(case_id=case_id, item_name="驾照", category="identity",
-                      is_required=True, master_id="driver_licence", status="pending"),
+                      is_required=True, master_id="driver_license", status="pending"),
         CaseChecklist(case_id=case_id, item_name="护照", category="identity",
                       is_required=True, master_id="passport", status="pending"),
         CaseChecklist(case_id=case_id, item_name="地税单", category="council_rates",
-                      is_required=True, master_id="council_rates", status="pending"),
+                      is_required=True, master_id="council_rates_notice", status="pending"),
         CaseChecklist(case_id=case_id, item_name="自雇声明", category="se",
                       is_required=True, master_id="se_declaration", status="pending"),
     ])
@@ -69,7 +69,7 @@ def test_match_checklist_files_success(tmp_path, test_db):
         it.master_id: it
         for it in test_db.query(CaseChecklist).filter(CaseChecklist.case_id == case_id).all()
     }
-    for mid in ("driver_licence", "passport", "council_rates", "se_declaration"):
+    for mid in ("driver_license", "passport", "council_rates_notice", "se_declaration"):
         item = by_mid[mid]
         assert item.status == "received"
         assert item.received_file_id is not None
@@ -94,7 +94,7 @@ def test_match_checklist_multi_file_binding(tmp_path, test_db):
     case_id = "CASE-WO54-MULTI"
     _make_case(test_db, case_id, str(folder))
     test_db.add(CaseChecklist(case_id=case_id, item_name="房贷流水", category="home_loan_statement",
-                              is_required=True, master_id="home_loan_statement", status="pending"))
+                              is_required=True, master_id="existing_loan_statement", status="pending"))
     test_db.commit()
 
     res = match_checklist_files_for_case(case_id, test_db)
@@ -125,9 +125,9 @@ def test_match_checklist_partial_progress(tmp_path, test_db):
         CaseChecklist(case_id=case_id, item_name="护照", category="identity",
                       is_required=True, master_id="passport", status="pending"),
         CaseChecklist(case_id=case_id, item_name="地税单", category="council_rates",
-                      is_required=True, master_id="council_rates", status="pending"),
+                      is_required=True, master_id="council_rates_notice", status="pending"),
         CaseChecklist(case_id=case_id, item_name="驾照", category="identity",
-                      is_required=True, master_id="driver_licence", status="pending"),
+                      is_required=True, master_id="driver_license", status="pending"),
     ])
     test_db.commit()
 
@@ -145,7 +145,7 @@ def test_match_checklist_missing_folder_safe(tmp_path, test_db):
     case_id = "CASE-WO54-NOFOLDER"
     _make_case(test_db, case_id, "")
     test_db.add(CaseChecklist(case_id=case_id, item_name="驾照", category="identity",
-                              is_required=True, master_id="driver_licence", status="pending"))
+                              is_required=True, master_id="driver_license", status="pending"))
     test_db.commit()
 
     res = match_checklist_files_for_case(case_id, test_db)
@@ -173,7 +173,7 @@ def test_match_checklist_empty_folder_safe(tmp_path, test_db):
     case_id = "CASE-WO54-EMPTY"
     _make_case(test_db, case_id, str(folder))
     test_db.add(CaseChecklist(case_id=case_id, item_name="驾照", category="identity",
-                              is_required=True, master_id="driver_licence", status="pending"))
+                              is_required=True, master_id="driver_license", status="pending"))
     test_db.commit()
 
     res = match_checklist_files_for_case(case_id, test_db)
@@ -193,11 +193,11 @@ def test_match_checklist_endpoint(tmp_path, test_db, client):
     _make_case(test_db, case_id, str(folder))
     test_db.add_all([
         CaseChecklist(case_id=case_id, item_name="驾照", category="identity",
-                      is_required=True, master_id="driver_licence", status="pending"),
+                      is_required=True, master_id="driver_license", status="pending"),
         CaseChecklist(case_id=case_id, item_name="护照", category="identity",
                       is_required=True, master_id="passport", status="pending"),
         CaseChecklist(case_id=case_id, item_name="地税单", category="council_rates",
-                      is_required=True, master_id="council_rates", status="pending"),
+                      is_required=True, master_id="council_rates_notice", status="pending"),
     ])
     test_db.commit()
 

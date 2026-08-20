@@ -72,7 +72,7 @@ def test_parse_case_folder_name_varieties():
     assert meta["lender"] == "Zank Financial"
     assert meta["property_address"] == "84 Louis Street, Granville NSW 2142"
     assert meta["doc_type"] is None
-    assert meta["status"] == "withdrawn"
+    assert meta["status"] == "closed"
     assert meta["onhold_reason"] is None
 
     meta = parse_case_folder_name(
@@ -126,7 +126,7 @@ def test_scan_customer_topology_multi_cases(tmp_path, test_db, monkeypatch):
 
     by_seq = {c["sequence"]: c for c in res["cases"]}
     assert by_seq[1]["status"] == "active"
-    assert by_seq[2]["status"] == "withdrawn"
+    assert by_seq[2]["status"] == "closed"
     assert by_seq[2]["has_broker_notes"] is True
     assert by_seq[5]["status"] == "onhold"
     assert by_seq[5]["onhold_reason"] == "估价费未支付"
@@ -161,9 +161,9 @@ def test_scan_customer_topology_single_folder_fallback(tmp_path):
     case = res["cases"][0]
     assert case["dir_name"] == "Yingkun CHEN"
     assert case["folder_path"] == str(root)
-    assert case["status"] == "active"
+    assert case["status"] == "lead"  # 2026-08-20 起：单文件夹且直接文件 ≤3 判为咨询潜客（形态 C）
     assert case["file_count"] == 2
-    assert case["is_recommended_active"] is True
+    assert case["is_recommended_active"] is False
 
 
 def test_scan_customer_topology_missing_folder(tmp_path):

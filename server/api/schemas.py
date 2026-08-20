@@ -1181,13 +1181,15 @@ class FolderTopologyScanRequest(BaseModel):
 class CaseSubfolderMeta(BaseModel):
     dir_name: str
     folder_path: str
+    client_name: str | None = None
+    client_category: str = "standard"  # multi_case / single_case / lead
     sequence: int | None = None
     is_resub: bool = False
     loan_type: str = "Refinance"
     lender: str | None = None
     property_address: str | None = None
     doc_type: str | None = None
-    status: str = "active"  # active / withdrawn / onhold / submitted
+    status: str = "active"  # active / onhold / settled / closed / lead
     onhold_reason: str | None = None
     is_recommended_active: bool = False
     has_broker_notes: bool = False
@@ -1198,13 +1200,38 @@ class CaseSubfolderMeta(BaseModel):
     already_imported: bool = False
     existing_case_id: str | None = None
     existing_stage: str | None = None
+    referrer_name: str | None = None
+    co_borrowers: list[str] = Field(default_factory=list)
+
+
+class ClientTopologyMeta(BaseModel):
+    client_name: str
+    client_folder: str
+    client_category: str = "multi_case"  # multi_case / single_case / lead
+    referrer_name: str | None = None
+    co_borrowers: list[str] = Field(default_factory=list)
+    total_cases: int = 0
+    active_cases: int = 0
+    cases: list[CaseSubfolderMeta] = Field(default_factory=list)
+
+
+class FolderTopologyScanSummary(BaseModel):
+    total_clients: int = 0
+    multi_case_clients: int = 0
+    single_case_clients: int = 0
+    lead_clients: int = 0
+    total_cases: int = 0
+    recommended_active_cases: int = 0
 
 
 class FolderTopologyScanResponse(BaseModel):
     ok: bool
     message: str | None = None
+    is_root_multi_client: bool = False
     client_name: str | None = None
     client_root: str | None = None
+    summary: FolderTopologyScanSummary | None = None
+    clients: list[ClientTopologyMeta] = Field(default_factory=list)
     cases: list[CaseSubfolderMeta] = Field(default_factory=list)
 
 
@@ -1215,6 +1242,7 @@ class BatchTopologyImportItem(BaseModel):
     loan_amount: float | None = None
     property_address: str | None = None
     stage: str = "收集资料"
+    status: str | None = None  # active / onhold / settled / closed / lead
     is_imported: bool = True
     platform_submissions: list[str] = Field(default_factory=list)
     # ── WO-62 新增贯通字段 ──
@@ -1227,6 +1255,9 @@ class BatchTopologyImportItem(BaseModel):
     doc_type: str | None = None
     loan_type: str | None = None
     onhold_reason: str | None = None
+    client_goal: str | None = None
+    referrer_name: str | None = None
+    co_borrowers: list[str] = Field(default_factory=list)
 
 
 class BatchTopologyImportRequest(BaseModel):
@@ -1481,3 +1512,26 @@ class CaseRecommendedPrecedentsResponse(BaseModel):
     case_id: str
     total_recommended: int = 0
     precedents: list[RecommendedPrecedentItem] = Field(default_factory=list)
+
+
+# ── 案卷全景备忘录 (Case Brief Markdown) Schemas ──────────────────────
+
+class CaseBriefResponse(BaseModel):
+    ok: bool
+    case_id: str
+    client_name: str
+    brief_markdown: str
+    external_clean_markdown: str
+
+
+class CaseBriefUpdateRequest(BaseModel):
+    brief_markdown: str
+
+
+# ── WO-52 清单重新生成 Schema ─────────────────────────────────────────
+
+class ChecklistRegenerateResponse(BaseModel):
+    case_id: str
+    count: int
+    generated_by: str  # "ai" | "rule_fallback"
+

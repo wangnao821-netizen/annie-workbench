@@ -171,31 +171,36 @@ JSON 格式要求：
   }}
 ]"""
 
-    # 7. Call LLM via ApiGateway
-    gateway = ApiGateway(config)
+    # 7. Call LLM via ApiGateway (with robust fallback)
+    items = None
     try:
+        gateway = ApiGateway(config)
         api_result = gateway.call_llm(
             text=DesensitizedText(prompt_template),
             prompt_template="Analyze the case and output the JSON checklist array.",
             system_prompt="You are an expert Australian mortgage broker assistant that outputs clean JSON arrays.",
         )
         resp_text = api_result.response_text.strip()
-    except Exception as exc:  # noqa: BLE001 — LLM 失败回退默认清单
-        logger.warning("LLM checklist generation fallback to default checklist: %s", exc)
-        resp_text = json.dumps([
-            {"item_name": "身份证明 (Passport/DL)", "category": "ID", "is_required": True, "status": "pending", "ai_suggestion": "核对姓名拼写与有效期"},
-            {"item_name": "近两个月工资单 (Payslips)", "category": "Income", "is_required": True, "status": "pending", "ai_suggestion": "核对雇主名与 YTD 累计收入"},
-            {"item_name": "银行流水账单 (Bank Statements)", "category": "Income", "is_required": True, "status": "pending", "ai_suggestion": "核查 BSB 与账户余额"}
-        ], ensure_ascii=False)
-    resp_text = resp_text.removeprefix("```json")
-    resp_text = resp_text.removeprefix("```")
-    resp_text = resp_text.removesuffix("```")
-
-    try:
-        items = json.loads(resp_text.strip())
-    except json.JSONDecodeError as exc:
-        logger.error("Failed to parse LLM checklist JSON. Raw: %s", api_result.response_text)
-        raise ValueError(f"AI 生成的 JSON 格式解析失败: {exc}") from exc
+        resp_text = resp_text.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+        items = json.loads(resp_text)
+    except Exception as exc:  # noqa: BLE001 — LLM 失败回退预选清单或默认清单
+        logger.warning("LLM checklist generation fallback: %s", exc)
+        if preselected:
+            return [
+                {
+                    "item_name": p.get("name_zh") or p.get("id"),
+                    "category": p.get("category") or "general",
+                    "is_required": bool(p.get("required", True)),
+                    "ai_suggestion": p.get("reason", "根据银行与客户画像规则预选"),
+                    "master_id": p.get("id"),
+                }
+                for p in preselected
+            ]
+        items = [
+            {"item_name": "身份证明 (Passport/DL)", "category": "identity", "is_required": True, "status": "pending", "ai_suggestion": "核对姓名拼写与有效期"},
+            {"item_name": "近两个月工资单 (Payslips)", "category": "payslip", "is_required": True, "status": "pending", "ai_suggestion": "核对雇主名与 YTD 累计收入"},
+            {"item_name": "银行流水账单 (Bank Statements)", "category": "bank_statement", "is_required": True, "status": "pending", "ai_suggestion": "核查 BSB 与账户余额"}
+        ]
 
     # 9. Rehydrate items (restore real names from tokens) + 关联全集 master_id
     master_map = _master_id_map()

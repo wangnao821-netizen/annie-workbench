@@ -310,15 +310,30 @@ def create_case_from_source(
     db.commit()
 
 
-    # 4. 材料清单预选与自动匹配（WO-54）
+    # 4. 材料清单预选与自动匹配（WO-54 & WO-62：采用毫秒级纯规则预选，杜绝建档阻塞大模型）
     try:
-        from core.checklist.generator import (
-            generate_checklist_draft,
-            save_confirmed_checklist,
-        )
+        from core.checklist.generator import save_confirmed_checklist
+        from core.checklist.master_picker import pick_checklist
         from core.checklist.matcher import match_checklist_files_for_case
 
-        draft = generate_checklist_draft(case_id, db)
+        case_info = {
+            "case_id": case_id,
+            "lender": lender,
+            "employment_type": employment_type,
+            "residency": residency,
+            "purpose": purpose,
+        }
+        picked = pick_checklist(case_info, db, use_ai=False)
+        draft = [
+            {
+                "item_name": p.get("name_zh") or p.get("id"),
+                "category": p.get("category") or "general",
+                "is_required": bool(p.get("required", True)),
+                "ai_suggestion": p.get("reason", "根据银行与客户画像规则预选"),
+                "master_id": p.get("id"),
+            }
+            for p in picked
+        ]
         save_confirmed_checklist(case_id, draft, db)
 
         # 若已绑定有效 folder_path，即刻执行一次标题快速匹配与自动打勾

@@ -207,11 +207,12 @@ def test_ai_connection(req: AiTestRequest) -> AiTestResponse:
         )
         from core.config import get_config
 
-        model = (
-            get_config().ai.primary.model
-            if req.provider == "deepseek"
-            else "gemini-2.0-flash"
-        )
+        cfg = get_config()
+        if req.provider == "deepseek":
+            ai_cfg = getattr(cfg.settings, "ai", None)
+            model = ai_cfg.primary.model if (ai_cfg and hasattr(ai_cfg, "primary")) else "deepseek-v4-flash"
+        else:
+            model = "gemini-2.0-flash"
         client = OpenAI(api_key=api_key, base_url=base or None, timeout=15.0)
         client.chat.completions.create(
             model=model,

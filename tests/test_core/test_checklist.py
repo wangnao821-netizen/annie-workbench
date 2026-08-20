@@ -162,9 +162,9 @@ class TestGeneratorDraft:
         monkeypatch.setattr("core.checklist.generator.ApiGateway", _FakeGateway)
 
         items = generate_checklist_draft("CASE-CHK-001", test_db)
-        assert len(items) >= 3
-        names = {i["item_name"] for i in items}
-        assert any("身份证明" in n for n in names) or any("Payslips" in n for n in names)
+        # 2026-08-20 起 LLM 失败回退"规则预选清单"（master 项），优于旧默认 3 项
+        assert len(items) >= 10
+        assert all(i["item_name"] for i in items)
 
     def test_unknown_case_raises(self, test_db):
         with pytest.raises(ValueError):

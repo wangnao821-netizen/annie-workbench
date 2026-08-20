@@ -105,20 +105,23 @@ def build_system_prompt(
     ai_name: str | None = None,
     user_address: str | None = None,
 ) -> str:
-    """拼装 Layer 1 角色 system prompt（公共规则 + 人格特征 + 运行期身份称呼）。
+    """拼装 Layer 1 角色 system prompt（公共规则 + 人格特征 + 运行期身份称呼 + Emoji 排版）。
 
     Args:
         key: 人格 key；None 用默认。
-        ai_name: Vera 给 AI 起的名字（仅内线使用）；None 不注入。
-        user_address: Vera 希望 AI 对她的称呼；None 不注入。
+        ai_name: Vera 给 AI 起的名字（仅内线使用）；缺省默认 "Vera AI"。
+        user_address: 希望 AI 对经纪人的称呼；缺省默认 "Vera"。
 
     Returns:
-        完整 system prompt 字符串；配置缺失时返回空串（调用方回退旧文案）。
+        完整 system prompt 字符串。
     """
     data = _load()
     persona = load_persona(key)
     if not persona:
         return ""
+
+    actual_ai_name = ai_name or "Vera AI"
+    actual_user_address = user_address or "Vera"
 
     common = [str(r) for r in data.get("common_rules", [])]
     lines: list[str] = []
@@ -127,14 +130,21 @@ def build_system_prompt(
         for r in common[1:]:
             lines.append(f"- {r}")
     if persona["name"]:
-        lines.append(f"\n【人格：{persona['name']}｜{persona['role']}】{persona['style']}")
+        lines.append(f"\n【当前人格设定：{persona['name']} ｜ 角色：{persona['role']}】\n语气风格：{persona['style']}")
     for r in persona["rules"]:
         lines.append(f"- {r}")
-    if ai_name or user_address:
-        lines.append("\n【身份与称呼（仅内线）】")
-        if ai_name:
-            lines.append(f"- 你的名字是「{ai_name}」，是 Vera 给你起的；首次互动可自然自我介绍，之后不必每次重复。")
-        if user_address:
-            lines.append(f"- 用「{user_address}」称呼 Vera（如：好的，{user_address}）；不要用生硬的『用户』称呼她。")
-        lines.append("- 名字与称呼仅限内线对话；外线草稿（邮件/递交材料）绝不出现你的名字或对 Vera 的称呼，一律以团队身份落款。")
+
+    lines.append("\n【身份称呼规范】")
+    lines.append(f"- 你的名字是「{actual_ai_name}」。")
+    lines.append(f"- 你的专属服务对象是「{actual_user_address}」，请务必以亲切专业的称呼「{actual_user_address}」开头与对方沟通（例如：『{actual_user_address}，我帮您梳理了当前案件...』），绝不能用生硬的『用户』称呼。")
+    lines.append("- 名字与称呼仅限内线对话；外线草稿（邮件/递交材料）绝不出现你的名字或对内部的称呼，一律以团队身份落款。")
+
+    lines.append("\n【结构化 Emoji 视觉排版规范】")
+    lines.append("请使用业务 Emoji 视觉标识作为各模块的小标题，层次分明：")
+    lines.append("- 📌 **案件全景 (已知画像)**：银行、方案、贷款金额、利率、客户画像与客户目标。")
+    lines.append("- 🚨 **核心卡点 (首要关注)**：估值阻断、暂停原因、政策冲突或紧急 Deadline。")
+    lines.append("- 📋 **材料缺口 (按阻断优先级)**：已收材料 vs 核心缺件，指明哪项是放款硬前提。")
+    lines.append("- 💡 **我的判断 & 实战建议**：给出清晰的先后顺序与破局思路。")
+    lines.append("- ✉️ **建议沟通草稿 / 待确认项**：提供现成专业话术（中文思路/英文正文）或向 Vera 确认的关键信息。")
+
     return "\n".join(lines)

@@ -105,15 +105,16 @@ def _build_risk(
     return risk
 
 
-def _build_timeline(case_id: str, db: Session) -> list[dict]:
-    """最新 N 条时间线事件。"""
-    events = (
+def _build_timeline(case_id: str, db: Session, limit: int | None = None) -> list[dict]:
+    """全量/指定数量时间线事件流。"""
+    query = (
         db.query(CaseTimelineEvent)
         .filter(CaseTimelineEvent.case_id == case_id)
         .order_by(CaseTimelineEvent.created_at.desc(), CaseTimelineEvent.id.desc())
-        .limit(_EVENT_LIMIT)
-        .all()
     )
+    if limit is not None and limit > 0:
+        query = query.limit(limit)
+    events = query.all()
     return [
         {
             "event_type": e.event_type,

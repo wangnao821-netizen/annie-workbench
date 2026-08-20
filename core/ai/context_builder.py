@@ -15,7 +15,6 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
@@ -27,9 +26,6 @@ from core.models.orm import (
     OsCondition,
 )
 from core.persona import build_system_prompt
-
-if TYPE_CHECKING:
-    pass
 
 logger = get_logger(__name__)
 
@@ -45,10 +41,10 @@ class AssembledContext:
 
 
 # 每层的 token 预算（字符数，~3 字符/token）
-# 角色层预算 300 → 600：人格 system prompt（common_rules + 人格规则）实测约 430-470 字符，
-# 300 会把末尾的人格规则截掉；600 容纳完整人格并留 V2 自定义人格余量。
+# 角色层预算 600 → 1000：2026-08-20 人格文案升级（Emoji 排版规范 + 称呼规范）实测约 915 字符，
+# 600 会把 Emoji 排版规范截掉；1000 容纳完整文案并留自定义人格余量。
 # 角色层是每个 prompt 的固定前缀，DeepSeek 前缀缓存命中后成本可忽略。
-BUDGET_ROLE = 600
+BUDGET_ROLE = 1000
 BUDGET_TEAM_EXP = 1500
 BUDGET_CASE_BRAIN = 1800
 BUDGET_LIVE_DATA = 3000
@@ -126,7 +122,7 @@ def _build_team_experience(
             essentials = KnowledgeService().get_lender_policy_essentials(lender)
             if essentials:
                 experiences.append(essentials)
-        except Exception:  # noqa: BLE001 — 政策注入失败不影响上下文组装
+        except Exception:
             logger.warning("lender policy injection failed for %s", lender, exc_info=True)
 
     # 2. 按任务类型筛选通用经验
@@ -176,7 +172,7 @@ def _build_case_brain(case: Case, db: Session) -> str:
 
     # 4. 关键时间线
     if case.finance_deadline:
-        days_left = (case.finance_deadline - datetime.utcnow()).days
+        days_left = (case.finance_deadline - datetime.utcnow()).days  # noqa: DTZ003 — naive 与 DB 一致
         parts.append(f"📅 Finance Clause: {case.finance_deadline.strftime('%Y-%m-%d')} (还剩 {days_left} 天)")
 
     # 5. 特殊情况
@@ -291,10 +287,10 @@ def prefill_case_brain_from_text(case_id: str, raw_text: str, db: Session) -> No
     if not raw_text or not raw_text.strip():
         return
 
-    from core.config import get_config
-    from core.pii.gateway import desensitize, rehydrate
     from core.ai.gateway import ApiGateway
+    from core.config import get_config
     from core.models.types import DesensitizedText
+    from core.pii.gateway import desensitize, rehydrate
 
     try:
         safe_text = desensitize(raw_text, case_id, db)
@@ -328,5 +324,5 @@ def prefill_case_brain_from_text(case_id: str, raw_text: str, db: Session) -> No
                 case.special_circumstances = rehydrate(data["special_circumstances"], case_id, db)
             db.commit()
             logger.info("prefill_case_brain_from_text succeeded for case %s", case_id)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 — 预填失败降级，不阻断对话
         logger.warning("prefill_case_brain_from_text failed for case %s: %s (non-fatal)", case_id, exc)

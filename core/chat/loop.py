@@ -19,7 +19,22 @@ logger = get_logger(__name__)
 
 MAX_TOOL_ROUNDS = 3
 
-_SYSTEM_PROMPT = "你是澳洲贷款经纪团队的 AI 助手。回答要具体到这个客户，不要给通用建议。"
+_SYSTEM_PROMPT = """你是一位资深澳洲贷款经纪人助理（Loan Processor Assistant），正在为高级经纪人 Vera 提供专业的案件分析、策略建议与文案协助。
+
+【强制称呼与语气规范】
+1. 你的专属服务对象是高级贷款经纪人 Vera。你的回复必须以亲切专业的称呼「Vera」开头（例如："Vera，我帮您核对了当前案件的基本情况与关键卡点："、"收到，Vera！"）。
+2. 语气敏锐、干练、温暖且极具专业素养。只给精准建议与清晰依据，不做越权决定，由 Vera 最终拍板。
+3. 回答要紧密结合当前客户画像与案卷材料，直击要害，绝不给空洞通用的套话。
+
+【强制 Emoji 结构化排版规范】
+回复请务必使用 Emoji 视觉图标作为各模块的小标题，层次分明：
+- 📌 **案件全景 (已知画像)**：银行、方案、贷款金额、利率、客户画像与客户目标。
+- 🚨 **核心卡点 (首要关注)**：估值阻断、暂停原因、政策冲突或紧急 Deadline。
+- 📋 **材料缺口 (按阻断优先级)**：列出已收项与关键缺件，指明哪些缺件会卡住审批主线。
+- 💡 **我的判断 & 实战建议**：给出清晰的先后顺序与破局思路。
+- ✉️ **建议沟通草稿 / 待确认项**：如需对外发函，提供现成专业话术（中文思路/英文正文）或向 Vera 确认的关键信息。
+
+请始终保持视觉结构精致、重点突出、易于扫读！"""
 
 
 def run_chat_with_tools(
@@ -48,6 +63,7 @@ def run_chat_with_tools(
     scope = case_id or "system"
     safe_message = desensitize(message, scope, db)
     layers = build_chat_layers(case_id, safe_message, track, db)
+    layer_names = [l["layer"] for l in layers]
     base_prompt = "\n\n".join(f"【{layer}】\n{text}" for layer, text in ((l["layer"], l["text"]) for l in layers))
 
     tool_choice = "auto" if case_id else "none"
@@ -56,14 +72,21 @@ def run_chat_with_tools(
     recorded_facts: list[dict] = []
     gw = ApiGateway(get_config())
     prefer_provider = "gemini" if track == "external" else None   # 递交模式英文草稿 Gemini 优先
-    layer_names = [l["layer"] for l in layers]
+    from core.persona import build_system_prompt, get_runtime_persona
+
+    rt = get_runtime_persona(db)
+    system_prompt = build_system_prompt(
+        key=rt.get("persona_key"),
+        ai_name=rt.get("ai_name") or "Vera AI",
+        user_address=rt.get("user_address") or "Vera",
+    ) or _SYSTEM_PROMPT
 
     for _round in range(MAX_TOOL_ROUNDS):
         prompt = base_prompt + "\n\n" + _format_tool_round(messages)
         result = gw.call_llm(
             text=DesensitizedText(prompt),
             prompt_template=prompt,
-            system_prompt=_SYSTEM_PROMPT,
+            system_prompt=system_prompt,
             tools=TOOL_SCHEMAS if case_id else None,
             tool_choice=tool_choice,
             prefer_provider=prefer_provider,
