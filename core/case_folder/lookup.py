@@ -42,7 +42,8 @@ def lookup_files(
     Raises:
         ValueError: 案件无 folder_path 或 query 包含 '..' 路径穿越。
     """
-    if case is None or not case.folder_path or not str(case.folder_path).strip():
+    folder_val = getattr(case, "folder_path", None) or getattr(case, "case_folder_name", None)
+    if case is None or not folder_val or not str(folder_val).strip():
         raise ValueError("案件未关联文件夹")
 
     raw_q = query or ""
@@ -50,12 +51,26 @@ def lookup_files(
         raise ValueError(f"路径穿越拒绝：query '{query}' 包含 '..' 字符")
 
     # 2026-08-17 无总根模式：folder_path 即案件文件夹绝对路径（Vera 手动选择）
-    case_dir = validate_path_safety(case.folder_path, client_root)
+    case_dir = validate_path_safety(str(folder_val), client_root)
+
+    if not case_dir.is_dir():
+        # 尝试查找客户同名总目录
+        if getattr(case, "client_name", None):
+            alt_parent = case_dir.parent
+            if alt_parent.is_dir():
+                case_dir = alt_parent
 
     if not case_dir.is_dir():
         return []
 
     q = raw_q.strip().lower()
+    # 智能同义词映射
+    q_tokens = [q]
+    if any(k in q for k in ["对账", "账单", "贷款", "负债", "liability", "statement", "hl"]):
+        q_tokens.extend(["liability", "statement", "hl", "loan", "cba", "zank"])
+    if any(k in q for k in ["工资", "payslip", "pay", "income", "收入"]):
+        q_tokens.extend(["payslip", "pay", "income", "salary"])
+
     results: list[dict[str, Any]] = []
 
     for f in sorted(case_dir.rglob("*")):
@@ -66,10 +81,16 @@ def lookup_files(
         doc_type, _confidence = classify_file(f.name)
 
         if q:
-            name_match = q in f.name.lower()
-            rel_match = q in rel_to_case.lower()
-            type_match = bool(doc_type and q in doc_type.lower())
-            if not (name_match or rel_match or type_match):
+            name_l = f.name.lower()
+            rel_l = rel_to_case.lower()
+            type_l = (doc_type or "").lower()
+
+            matched = False
+            for tok in q_tokens:
+                if tok and (tok in name_l or tok in rel_l or tok in type_l):
+                    matched = True
+                    break
+            if not matched:
                 continue
 
         stat = f.stat()
@@ -104,13 +125,19 @@ def parse_one(
     Raises:
         ValueError: 案件无 folder_path、rel_path 越界/包含 '..' 或文件不存在。
     """
-    if case is None or not case.folder_path or not str(case.folder_path).strip():
+    folder_val = getattr(case, "folder_path", None) or getattr(case, "case_folder_name", None)
+    if case is None or not folder_val or not str(folder_val).strip():
         raise ValueError("案件未关联文件夹")
 
     if not rel_path or ".." in rel_path:
         raise ValueError(f"路径穿越拒绝：rel_path '{rel_path}' 包含 '..' 字符")
 
-    case_dir = validate_path_safety(case.folder_path, client_root)
+    case_dir = validate_path_safety(str(folder_val), client_root)
+    if not case_dir.is_dir() and getattr(case, "client_name", None):
+        alt_parent = case_dir.parent
+        if alt_parent.is_dir():
+            case_dir = alt_parent
+
     raw = Path(rel_path)
     if ".." in raw.parts:
         raise ValueError(f"路径穿越拒绝：rel_path '{rel_path}' 包含 '..' 字符")

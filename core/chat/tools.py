@@ -100,6 +100,26 @@ TOOL_SCHEMAS: list[dict] = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "folder_lookup",
+            "description": (
+                "当 Vera 要求查阅、扫描或总结案卷本地文件夹中的实际文件（如对账单、工资单、流水、税单、护照等）时调用。"
+                "会自动检索本地客户目录并解析提取文件真实的文本内容与数据。"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "要检索的文件类型或关键词（如 '对账单'、'statement'、'工资单'、'payslip'、'流水' 等）",
+                    },
+                },
+                "required": ["query"],
+            },
+        },
+    },
 ]
 
 
@@ -113,7 +133,7 @@ def execute_tool(
     """白名单工具执行（V1 只允许 TOOL_SCHEMAS 内名称）。
 
     Args:
-        name: 工具名（record_fact | suggest_submission）。
+        name: 工具名（record_fact | suggest_submission | folder_lookup 等）。
         arguments: 工具参数（LLM 生成，已处脱敏环境）。
         case_id: 案件 ID（全局对话为空串）。
         track: internal | external。
@@ -132,7 +152,85 @@ def execute_tool(
         return _create_task(arguments, case_id, db)
     if name == "checklist_query":
         return _checklist_query(arguments, case_id, db)
+    if name == "folder_lookup":
+        return _folder_lookup(arguments, case_id, db)
     return {"ok": False, "error": f"unknown tool: {name}"}
+
+
+def _folder_lookup(arguments: dict, case_id: str, db: Session) -> dict:
+    """folder_lookup：扫描本地案卷文件夹并解析提取指定文件的文本内容。"""
+    if not case_id:
+        return {"ok": False, "error": "需要案件 ID"}
+
+    from core.models.orm import Case
+    from core.case_folder.lookup import lookup_files, parse_one
+
+    case = db.query(Case).filter(Case.id == case_id).first()
+    if not case:
+        return {"ok": False, "error": "案件不存在"}
+
+    query = (arguments.get("query") or "").strip()
+    if not case.folder_path:
+        return {
+            "ok": False,
+            "folder_connected": False,
+            "message": "当前案卷尚未关联本地文件夹路径，请先在案卷全景中关联文件夹。",
+        }
+
+    try:
+        # 1. 检索匹配文件
+        matched_files = lookup_files(case, query)
+        if not matched_files:
+            # 宽泛重试常见的英文词根
+            synonyms = {
+                "对账单": "statement",
+                "贷款": "loan",
+                "工资单": "payslip",
+                "流水": "statement",
+                "税单": "noa",
+            }
+            alt_q = synonyms.get(query, "")
+            if alt_q:
+                matched_files = lookup_files(case, alt_q)
+
+        if not matched_files:
+            return {
+                "ok": True,
+                "folder_connected": True,
+                "folder_path": case.folder_path,
+                "query": query,
+                "files_count": 0,
+                "message": f"在本地文件夹中未检索到与「{query}」匹配的文件。",
+            }
+
+        # 2. 对匹配到的首个/关键文件执行深度解析
+        parsed_contents = []
+        for f_meta in matched_files[:3]:
+            try:
+                p_res = parse_one(case, f_meta["rel_path"], db)
+                parsed_contents.append({
+                    "rel_path": f_meta["rel_path"],
+                    "doc_type": f_meta.get("doc_type"),
+                    "summary": p_res.get("summary", "")[:1500],
+                })
+            except Exception as pe:
+                parsed_contents.append({
+                    "rel_path": f_meta["rel_path"],
+                    "doc_type": f_meta.get("doc_type"),
+                    "error": str(pe),
+                })
+
+        return {
+            "ok": True,
+            "folder_connected": True,
+            "folder_path": case.folder_path,
+            "query": query,
+            "files_found": matched_files,
+            "parsed_documents": parsed_contents,
+        }
+    except Exception as e:
+        logger.warning("folder_lookup failed for case %s: %s", case_id, e)
+        return {"ok": False, "error": str(e)}
 
 
 def _escalate_to_boss(arguments: dict, case_id: str, db: Session) -> dict:

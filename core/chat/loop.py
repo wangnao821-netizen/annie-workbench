@@ -170,6 +170,23 @@ def run_chat_with_tools_stream(
     recorded_facts: list[dict] = []
     full_reply_parts: list[str] = []
 
+    # JIT 文件夹穿透预提取：若用户提到查文件夹、对账单、工资单、流水等，自动扫描提取本地文件内容
+    folder_keywords = ("对账单", "工资单", "流水", "statement", "payslip", "文件夹", "查材料", "查一下文件", "找文件")
+    if case_id and any(kw in message.lower() for kw in folder_keywords):
+        from core.chat.tools import _folder_lookup
+        lookup_res = _folder_lookup({"query": message}, case_id, db)
+        if lookup_res.get("ok") and lookup_res.get("files_found"):
+            yield {"event": "tool_start", "data": {"tool": "folder_lookup", "label": f"正在扫描本地文件夹并提取 {len(lookup_res['files_found'])} 份文件内容..."}}
+            parsed_docs = lookup_res.get("parsed_documents", [])
+            docs_summary_blocks = []
+            for doc in parsed_docs:
+                if doc.get("summary"):
+                    docs_summary_blocks.append(f"【文件路径: {doc['rel_path']} (类型: {doc.get('doc_type', '未知')})】\n{doc['summary']}")
+            if docs_summary_blocks:
+                injected_docs_text = "\n\n".join(docs_summary_blocks)
+                base_prompt += f"\n\n【JIT 案卷本地文件扫描与内容提取结果】\n{injected_docs_text}\n(请直接基于上述提取出的白纸黑字真实数据进行总结和风险点分析，无需再说明未提取数据)"
+            _collect_cards(lookup_res, tool_cards, recorded_facts)
+
     yield {"event": "step", "data": {"label": "Vera AI 正在生成实战建议与分析...", "status": "generating"}}
 
     try:
@@ -270,6 +287,17 @@ def _collect_cards(out: dict, tool_cards: list[dict], recorded_facts: list[dict]
                 "matched_lender": attr.get("matched_lender", ""),
                 "matched_case_id": attr.get("matched_case_id", ""),
                 "track": out.get("track", "internal"),
+            },
+        })
+        return
+    if out.get("files_found") is not None:
+        tool_cards.append({
+            "type": "folder_lookup",
+            "title": f"案卷文件夹检索: {out.get('query', '')}",
+            "payload": {
+                "files": out.get("files_found", []),
+                "folder_path": out.get("folder_path", ""),
+                "query": out.get("query", ""),
             },
         })
         return
