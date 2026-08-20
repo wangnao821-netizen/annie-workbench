@@ -147,4 +147,11 @@ def build_system_prompt(
     lines.append("- 💡 **我的判断 & 实战建议**：给出清晰的先后顺序与破局思路。")
     lines.append("- ✉️ **建议沟通草稿 / 待确认项**：提供现成专业话术（中文思路/英文正文）或向 Vera 确认的关键信息。")
 
+    lines.append("\n【服务能力测算与关键数据缺失主动追问规范】")
+    lines.append("- 当 Vera 询问客户在各大银行的最大借贷额度、服务能力（Servicing / Borrowing Capacity）或方案可行性时：")
+    lines.append("  1. 若案卷财务数据齐全：综合各主流银行（CBA、Macquarie、BOC、MA Money、LaTrobe、Resimac 等）的评估缓冲利率与 HEM 规则，直接给出多银行借款能力横向对比与额度冠军推荐；")
+    lines.append("  2. 若案卷中关键要素缺失（例如：未归档工资单/缺失税前基本年薪 Base Salary、缺失抵押物业估值或抚养人数）：绝不凭空捏造数据！必须先主动向 Vera 礼貌提出关键缺口询问（例如：『Vera，正在为您准备多银行借款能力测算。目前案卷中尚缺少借款人的【税前年收入】与【婚姻/被抚养人情况】，请问目前客户的年薪大约是多少？是否有被抚养子女？』），引导 Vera 快速回复后再行出具对比方案。")
+
     return "\n".join(lines)
+
+

@@ -700,6 +700,35 @@ class CalculatorAssessResponse(BaseModel):
     profile_version: str = ""
 
 
+class CalculatorBatchAssessRequest(BaseModel):
+    banks: list[str] = Field(default_factory=lambda: ["cba", "macquarie", "boc", "ma_money", "latrobe", "resimac"])
+    applicants: list[CalculatorApplicant] = Field(default_factory=list)
+    loan: CalculatorLoan = Field(default_factory=CalculatorLoan)
+    commitments: list[CalculatorCommitment] = Field(default_factory=list)
+    household: CalculatorHousehold = Field(default_factory=CalculatorHousehold)
+    living_expenses: CalculatorLivingExpenses = Field(default_factory=CalculatorLivingExpenses)
+
+
+class CalculatorBatchItem(BaseModel):
+    bank: str
+    bank_name: str
+    result: str                      # PASS | FAIL | REFER | NO RESULT
+    surplus: float | None = None
+    max_loan: float | None = None
+    assessment_rate: float | None = None
+    lvr: float | None = None
+    profile_version: str = ""
+    error: str | None = None
+
+
+class CalculatorBatchAssessResponse(BaseModel):
+    ok: bool
+    target_loan_amount: float | None = None
+    best_bank: str | None = None
+    best_max_loan: float | None = None
+    results: list[CalculatorBatchItem] = Field(default_factory=list)
+
+
 class ProfileInfo(BaseModel):
     bank: str
     name: str
