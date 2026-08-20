@@ -146,6 +146,9 @@ def _build_team_experience(
             from core.knowledge.precedent import build_precedent_block, find_precedents
 
             precs = find_precedents(case_id, db)
+
+
+
             block = build_precedent_block(precs)
             if block:
                 experiences.append(f"\n【决策先例】\n{block}")
@@ -201,7 +204,6 @@ def _build_case_brain(case: Case, db: Session) -> str:
         KnowledgeEntry.case_id == case.id,
         KnowledgeEntry.source == "vera_manual"
     ).order_by(KnowledgeEntry.created_at.desc()).limit(3).all()
-
     if notes:
         notes_text = "; ".join(n.content[:100] for n in notes)
         parts.append(f"📝 Vera备忘: {notes_text}")
@@ -210,17 +212,30 @@ def _build_case_brain(case: Case, db: Session) -> str:
 
 
 def _build_live_data(case_id: str, task_type: str, db: Session) -> str:
-    """按任务类型选择性加载实时数据。"""
+    """按任务类型选择性加载实时数据与事实账本。"""
     parts: list[str] = []
 
     if task_type in ("case_chat", "case_advisor", "brief_generate", "strategy_report"):
         items = db.query(CaseChecklist).filter(CaseChecklist.case_id == case_id).all()
         if items:
             collected = [i for i in items if i.status in ("received", "collected", "deferred")]
-            parts.append(f"清单状态: {len(collected)}/{len(items)} 已收")
+            parts.append(f"【材料清单归档现状】已收 {len(collected)}/{len(items)} 项:")
             for i in items:
                 mark = "✅" if i.status in ("received", "collected", "deferred") else "⬜"
                 parts.append(f"  {mark} {i.item_name} ({i.status})")
+
+        from core.models.orm import CaseContextEvent
+        events = (
+            db.query(CaseContextEvent)
+            .filter(CaseContextEvent.case_id == case_id, CaseContextEvent.status == "confirmed")
+            .order_by(CaseContextEvent.created_at.desc())
+            .limit(8)
+            .all()
+        )
+        if events:
+            parts.append("【案件事实账本（已确认数据）】:")
+            for ev in events:
+                parts.append(f"  • {ev.content}")
 
     if task_type in ("os_reply", "case_chat", "case_advisor"):
         conditions = db.query(OsCondition).filter(OsCondition.case_id == case_id).all()
@@ -240,11 +255,11 @@ def assemble_context(
     db: Session,
     extra_data: str = "",
 ) -> AssembledContext:
-    """所有 AI 调用的统一上下文组装入口。
+    """组装上下文，供 AI 调用。
 
     Args:
         case_id: 案件 ID
-        task_type: 任务类型（见 TASK_TYPES）
+        task_type: 任务类型
         db: SQLAlchemy session
         extra_data: 调用方额外补充的数据（如文件文本、邮件正文等）
 
@@ -266,7 +281,6 @@ def assemble_context(
     team_exp = _build_team_experience(case.lender, task_type, db, case_id=case.id)[:BUDGET_TEAM_EXP]
     brain = _build_case_brain(case, db)[:BUDGET_CASE_BRAIN]
     live = _build_live_data(case_id, task_type, db)[:BUDGET_LIVE_DATA]
-
     total = len(role) + len(team_exp) + len(brain) + len(live) + len(extra_data)
 
     return AssembledContext(
@@ -287,6 +301,7 @@ def prefill_case_brain_from_text(case_id: str, raw_text: str, db: Session) -> No
     if not raw_text or not raw_text.strip():
         return
 
+    import json
     from core.ai.gateway import ApiGateway
     from core.config import get_config
     from core.models.types import DesensitizedText
