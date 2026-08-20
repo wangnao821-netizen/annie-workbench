@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import UTC
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -63,7 +65,9 @@ def chat_stream(
 ):
     """流式发送消息给 AI — 实时下发 step, tool_start, text_chunk, tool_cards, done 事件。"""
     import json
+
     from fastapi.responses import StreamingResponse
+
     from core.chat.loop import run_chat_with_tools_stream
 
     case_id = req.case_id or ""
@@ -119,13 +123,14 @@ def chat_history(
     db: Session = Depends(get_db),  # noqa: B008
 ):
     """对话历史。"""
+
     case = db.query(Case).filter(Case.id == case_id).first()
     if not case:
         raise HTTPException(status_code=404, detail=f"案件 {case_id} 不存在")
     messages = (
         db.query(CaseChatMessage)
         .filter(CaseChatMessage.case_id == case_id)
-        .order_by(CaseChatMessage.created_at.desc())
+        .order_by(CaseChatMessage.created_at.desc(), CaseChatMessage.id.desc())
         .limit(min(limit, 200))
         .all()
     )
@@ -135,7 +140,7 @@ def chat_history(
             case_id=m.case_id,
             role=m.role,
             content=m.content,
-            created_at=m.created_at,
+            created_at=m.created_at.replace(tzinfo=UTC) if m.created_at and m.created_at.tzinfo is None else m.created_at,
         )
         for m in reversed(messages)
     ]
