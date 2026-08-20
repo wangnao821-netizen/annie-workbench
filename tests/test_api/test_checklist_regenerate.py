@@ -34,12 +34,12 @@ def test_regenerate_replaces_items(test_db):
         r = client.post("/api/cases/RG-1/checklist/regenerate")
         assert r.status_code == 200
         body = r.json()
-        assert body["case_id"] == "RG-1"
-        assert body["count"] >= 10
-        assert body["generated_by"] in ("ai", "rule_fallback")
+        assert isinstance(body, list) and len(body) >= 10
+        assert all(it.get("item_name") for it in body)
+        assert all(it.get("status") == "pending" for it in body)
 
         rows = test_db.query(CaseChecklist).filter(CaseChecklist.case_id == "RG-1").all()
-        assert len(rows) == body["count"]
+        assert len(rows) == len(body)
         assert all("旧项" != it.item_name for it in rows)
         assert all(it.master_id for it in rows), "重新生成后 master_id 必须全部非空"
     finally:

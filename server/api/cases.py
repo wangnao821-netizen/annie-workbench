@@ -76,8 +76,8 @@ from server.api.schemas import (
     CaseScaffoldResponse,
     CaseSnapshotResponse,
     CaseTimelineResponse,
+    ChecklistItemResponse,
     ChecklistMatchFilesResponse,
-    ChecklistRegenerateResponse,
     ContextEventRequest,
     ContextEventResponse,
     DeclarationCheckRequest,
@@ -1162,24 +1162,32 @@ def match_case_checklist_files(
     )
 
 
-@router.post("/{case_id}/checklist/regenerate", response_model=ChecklistRegenerateResponse)
+@router.post("/{case_id}/checklist/regenerate", response_model=list[ChecklistItemResponse])
 def regenerate_case_checklist(
     case_id: str,
     db: Session = Depends(get_db),  # noqa: B008
-) -> ChecklistRegenerateResponse:
+) -> list[ChecklistItemResponse]:
     """重新生成材料清单：AI 推荐 + master_id 落库；LLM 失败回退规则预选。"""
     _get_case_or_404(case_id, db)
-    from core.checklist.generator import classify_generated_by, regenerate_checklist
+    from core.checklist.generator import regenerate_checklist
 
     try:
         items = regenerate_checklist(case_id, db)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    return ChecklistRegenerateResponse(
-        case_id=case_id,
-        count=len(items),
-        generated_by=classify_generated_by(items),
-    )
+    return [
+        ChecklistItemResponse(
+            id=0,
+            case_id=case_id,
+            item_name=it.get("item_name", ""),
+            category=it.get("category", "other"),
+            is_required=bool(it.get("is_required", True)),
+            status="pending",
+            ai_suggestion=it.get("ai_suggestion"),
+            updated_at=None,
+        )
+        for it in items
+    ]
 
 
 @router.get("/{case_id}/timeline", response_model=CaseTimelineResponse)
