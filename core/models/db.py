@@ -31,8 +31,37 @@ from core.models.orm import Base
 
 logger = get_logger(__name__)
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DB_PATH = PROJECT_ROOT / "data" / "assistant.db"
+
+def _get_default_db_path() -> Path:
+    """获取全局稳定的持久化数据库路径，避免被代码同步脚本覆盖。"""
+    env_dir = os.environ.get("DATA_DIR")
+    if env_dir:
+        p = Path(env_dir)
+        p.mkdir(parents=True, exist_ok=True)
+        return p / "assistant.db"
+
+    # 固定定位到 d:/vera-workbench/data
+    std_root = Path("d:/vera-workbench/data")
+    if std_root.parent.exists():
+        std_root.mkdir(parents=True, exist_ok=True)
+        return std_root / "assistant.db"
+
+    # 兜底：向上寻找到非 core/backend 的工程根目录
+    cur = Path(__file__).resolve().parent
+    while cur.parent != cur:
+        if (cur / "server").exists() or (cur / "core").exists():
+            data_dir = cur / "data"
+            data_dir.mkdir(parents=True, exist_ok=True)
+            return data_dir / "assistant.db"
+        cur = cur.parent
+
+    fallback = Path(__file__).resolve().parent.parent / "data"
+    fallback.mkdir(parents=True, exist_ok=True)
+    return fallback / "assistant.db"
+
+
+DB_PATH = _get_default_db_path()
+PROJECT_ROOT = DB_PATH.parent.parent
 
 # 测试隔离：pytest 会话通过该环境变量把默认库指向临时文件，
 # 确保任何未显式传 db_path 的 get_session()/TestClient 都不会触碰真实库。
