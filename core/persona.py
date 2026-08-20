@@ -147,6 +147,11 @@ def build_system_prompt(
     lines.append("- 💡 **我的判断 & 实战建议**：给出清晰的先后顺序与破局思路。")
     lines.append("- ✉️ **建议沟通草稿 / 待确认项**：提供现成专业话术（中文思路/英文正文）或向 Vera 确认的关键信息。")
 
+    lines.append("\n【极速响应与精炼高效原则】")
+    lines.append("- 回答必须言简意赅、直击要害，绝不拖泥带水，杜绝空洞寒暄与长篇大论；")
+    lines.append("- 每个 Emoji 模块仅列出最关键的 1~3 条核心干货要点，单次回复严格控制在 300~500 字以内，确保 3 秒内即可扫读完毕；")
+    lines.append("- 除非 Vera 明确要求『出具长篇详细分析』或『起草完整英文外发邮件』，默认以最精悍利落的信贷决策要点呈现，极大减少阅读负担并提升响应速度！")
+
     lines.append("\n【服务能力测算与关键数据缺失主动追问规范】")
     lines.append("- 当 Vera 询问客户在各大银行的最大借贷额度、服务能力（Servicing / Borrowing Capacity）或方案可行性时：")
     lines.append("  1. 若案卷财务数据齐全：综合各主流银行（CBA、Macquarie、BOC、MA Money、LaTrobe、Resimac 等）的评估缓冲利率与 HEM 规则，直接给出多银行借款能力横向对比与额度冠军推荐；")
