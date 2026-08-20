@@ -76,39 +76,29 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
 
       {/* Empty State */}
       {messages.length === 0 && !loading && (
-        <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-4 text-xs opacity-75">
-          <div className="p-3 rounded-full bg-[var(--purple-soft)] text-[var(--purple)]">
-            <Brain className="w-8 h-8" />
+        !caseId ? (
+          <div className="h-full flex flex-col items-center justify-center p-6 text-center space-y-5 max-w-lg mx-auto">
+            <div className="relative">
+              <div className="w-16 h-16 rounded-3xl bg-[var(--purple-soft)] flex items-center justify-center border border-[var(--purple-soft)] shadow-lg">
+                <Sparkles className="w-8 h-8 text-[var(--purple)]" />
+              </div>
+              <div className="absolute -bottom-1 -right-1 p-1 rounded-full bg-[var(--purple)] text-[var(--on-purple)] shadow-xs">
+                <Brain className="w-3.5 h-3.5" />
+              </div>
+            </div>
+            <div className="space-y-1.5 max-w-sm">
+              <h3 className="font-extrabold text-base tracking-tight" style={{ color: 'var(--text-primary)' }}>全局咨询模式</h3>
+              <p className="text-xs text-muted leading-relaxed">选择左侧案件开始深入对话，或直接向 Vera AI 询问金融业务、政策与计算方案。</p>
+            </div>
           </div>
-          <div className="space-y-1">
-            <h3 className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
-              {caseId ? '案卷智能决策大脑已就绪' : '全局 AI 助手已就绪'}
-            </h3>
-            <p style={{ color: 'var(--text-secondary)' }}>
-              {caseId
-                ? '支持秒级借贷能力精算、银行政策对比、材料缺口拆解与破局建言'
-                : '我是你的信贷智能智囊，随时支持案卷策略研判与业务提效'}
-            </p>
+        ) : (
+          <div className="h-full flex flex-col items-center justify-center p-6 text-center space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-[var(--purple-soft)] flex items-center justify-center border border-[var(--purple-soft)]">
+              <Brain className="w-6 h-6 text-[var(--purple)]" />
+            </div>
+            <p className="text-xs text-muted font-medium">向 Vera 提问关于此案件的任何细节或补充说明...</p>
           </div>
-          <div className="flex flex-wrap justify-center gap-1.5 pt-2 max-w-md">
-            {[
-              '查一下 ORDE 的政策与利率',
-              '当前案件下一步做什么？',
-              '这个案件缺什么材料？',
-              '帮我算一下借贷能力能不能通过？',
-            ].map((s, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => onSelectQuickAsk(s)}
-                className="px-2.5 py-1 rounded-lg border text-[11px] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors cursor-pointer"
-                style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-card)' }}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        </div>
+        )
       )}
 
       {/* Messages */}
