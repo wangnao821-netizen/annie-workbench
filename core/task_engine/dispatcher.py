@@ -18,7 +18,7 @@ from core.events.sse import sse_manager
 from core.models.orm import Action, Case
 
 # 有效派单动作
-VALID_DISPATCH_ACTIONS = frozenset({"approve", "reject", "defer", "delegate"})
+VALID_DISPATCH_ACTIONS = frozenset({"approve", "reject", "defer", "delegate", "claim"})
 
 # 有效优先级（WO-41 create_task 校验枚举）
 VALID_PRIORITIES = frozenset({"urgent", "high", "normal", "low"})
@@ -164,6 +164,9 @@ def dispatch_task(
         task = db.get(Action, task_id)
         if task is None:
             raise ValueError(f"任务不存在: task_id={task_id}")
+    elif action == "claim":
+        # Vera 认领跟进：任务保持进行中并归属 Vera，绝不提前完结
+        task.status = "in_progress"
     else:
         status_map = {
             "approve": "completed",

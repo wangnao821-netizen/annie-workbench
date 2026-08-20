@@ -101,6 +101,13 @@ class TestDispatchTask:
         result = dispatch_task(task.id, action="defer", db=test_db)
         assert result.status == "deferred"
 
+    def test_claim_keeps_in_progress(self, test_db):
+        """Vera 认领跟进：任务保持 in_progress 并归属 vera，绝不提前完结。"""
+        task = _make_task(test_db)
+        result = dispatch_task(task.id, action="claim", operator="vera", db=test_db)
+        assert result.status == "in_progress"
+        assert result.assignee == "vera"
+
     def test_invalid_action_raises(self, test_db):
         task = _make_task(test_db)
         with pytest.raises(ValueError):
@@ -113,7 +120,7 @@ class TestDelegation:
     def test_delegate_to_sets_fields(self, test_db):
         """delegate_to 必须写 delegated_to 和 delegated_at。"""
         task = _make_task(test_db)
-        deadline = datetime.utcnow() + timedelta(days=2)
+        deadline = datetime.utcnow() + timedelta(days=2)  # noqa: DTZ003 — naive 与 DB 一致
         result = delegate_to(task.id, "Brandon", deadline=deadline, db=test_db)
         assert result.delegated_to == "Brandon"
         assert result.delegated_at is not None
@@ -142,14 +149,14 @@ class TestDelegation:
         delegate_to(
             overdue.id,
             "Brandon",
-            deadline=datetime.utcnow() - timedelta(days=1),
+            deadline=datetime.utcnow() - timedelta(days=1),  # noqa: DTZ003
             db=test_db,
         )
         not_overdue = _make_task(test_db, case_id="CASE-NOT-OVERDUE")
         delegate_to(
             not_overdue.id,
             "Brandon",
-            deadline=datetime.utcnow() + timedelta(days=1),
+            deadline=datetime.utcnow() + timedelta(days=1),  # noqa: DTZ003
             db=test_db,
         )
 
@@ -164,7 +171,7 @@ class TestDelegation:
         delegate_to(
             task.id,
             "Brandon",
-            deadline=datetime.utcnow() - timedelta(days=1),
+            deadline=datetime.utcnow() - timedelta(days=1),  # noqa: DTZ003
             db=test_db,
         )
         record_feedback(task.id, "已完成", db=test_db)
