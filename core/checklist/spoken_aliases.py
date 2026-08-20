@@ -6,7 +6,6 @@
 
 from __future__ import annotations
 
-import re
 from typing import Any
 
 from core.checklist.matcher import CHECKLIST_ALIAS_MAP
@@ -19,6 +18,8 @@ SPOKEN_PHRASE_TO_MASTER_KEY: dict[str, str] = {
     "贷款对账单": "existing_loan_statement",
     "负债对账单": "existing_loan_statement",
     "负债单": "existing_loan_statement",
+    "对账单": "existing_loan_statement",
+    "账单": "existing_loan_statement",
     "供楼单": "existing_loan_statement",
     "还款单": "existing_loan_statement",
     "房贷对账单": "existing_loan_statement",
@@ -95,6 +96,7 @@ SPOKEN_PHRASE_TO_MASTER_KEY: dict[str, str] = {
     "存款证明": "personal_bank_statement",
     "3个月流水": "personal_bank_statement",
     "流水单": "personal_bank_statement",
+    "流水": "personal_bank_statement",
     "护照": "passport",
     "驾照": "driver_license",
     "驾照复印件": "driver_license",

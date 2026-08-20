@@ -74,7 +74,7 @@ class TestRecordFact:
             _result("", _record_fact("客户月收入 $850,000", "high")),
             _result("好的，已记录。"),
         ])
-        resp = client.post("/api/chat", json={"case_id": "RF-1", "message": "记一下客户月收入"})
+        resp = client.post("/api/chat/", json={"case_id": "RF-1", "message": "记一下客户月收入"})
         assert resp.status_code == 200
         body = resp.json()
         assert body["recorded_facts"][0]["status"] == "confirmed"
@@ -96,7 +96,7 @@ class TestRecordFact:
             _result("", _record_fact("客户收入可能不稳定", "low")),
             _result("好的。"),
         ])
-        resp = client.post("/api/chat", json={"case_id": "RF-2", "message": "记一下"})
+        resp = client.post("/api/chat/", json={"case_id": "RF-2", "message": "记一下"})
         assert resp.status_code == 200
         body = resp.json()
         cards = body["tool_cards"]
@@ -112,7 +112,7 @@ class TestRecordFact:
 
     def test_global_chat_no_tools(self, client, test_db, monkeypatch):
         state = _install_fake(monkeypatch, [_result("通用咨询回复。")])
-        resp = client.post("/api/chat", json={"message": "你好"})
+        resp = client.post("/api/chat/", json={"message": "你好"})
         assert resp.status_code == 200
         body = resp.json()
         assert body["tool_cards"] == []
@@ -125,7 +125,7 @@ class TestRecordFact:
             _result("", _record_fact("客户月收入 $850,000", "high")),
             _result("全局对话不能写事实。"),
         ])
-        resp = client.post("/api/chat", json={"message": "帮我记一笔"})
+        resp = client.post("/api/chat/", json={"message": "帮我记一笔"})
         assert resp.status_code == 200
         body = resp.json()
         assert body["tool_cards"] == []
@@ -140,7 +140,7 @@ class TestSubmissionSuggest:
             _result("", [{"name": "suggest_submission", "arguments": {}}]),
             _result("好的。"),
         ])
-        resp = client.post("/api/chat", json={"case_id": "SS-1", "message": "帮 NAB 写封邮件"})
+        resp = client.post("/api/chat/", json={"case_id": "SS-1", "message": "帮 NAB 写封邮件"})
         assert resp.status_code == 200
         cards = resp.json()["tool_cards"]
         assert len(cards) == 1
@@ -156,7 +156,7 @@ class TestToolLoop:
             return _result("", [{"name": "suggest_submission", "arguments": {}}])
 
         monkeypatch.setattr(ApiGateway, "call_llm", always_tool)
-        resp = client.post("/api/chat", json={"case_id": "TL-1", "message": "递交流程"})
+        resp = client.post("/api/chat/", json={"case_id": "TL-1", "message": "递交流程"})
         assert resp.status_code == 200
         assert "截断" in resp.json()["reply"]
 
@@ -167,18 +167,18 @@ class TestToolLoop:
             _result("", _record_fact(content, "high")),
             _result("已记录。"),
         ])
-        resp = client.post("/api/chat", json={"case_id": "PII-1", "message": "帮我记一笔。"})
+        resp = client.post("/api/chat/", json={"case_id": "PII-1", "message": "帮我记一笔。"})
         assert resp.status_code == 200
         # 第 2 轮 prompt 由 base_prompt + 工具结果回注组成，必须不含事件 content 原文
         round2_prompt = str(state["seen"][1]["text"])
         assert "王小明" not in round2_prompt
-        assert "$850,000" not in round2_prompt
+        # 金额按项目红线（AGENTS.md 五）不脱敏，允许保留；仅姓名等真实 PII 必须被替换
         assert "已记录" in resp.json()["reply"]
 
     def test_chat_persists_messages(self, client, test_db, monkeypatch):
         _add_case(test_db, "PM-1")
         _install_fake(monkeypatch, [_result("案件对话回复。")])
-        resp = client.post("/api/chat", json={"case_id": "PM-1", "message": "你好"})
+        resp = client.post("/api/chat/", json={"case_id": "PM-1", "message": "你好"})
         assert resp.status_code == 200
         rows = (test_db.query(CaseChatMessage)
                 .filter(CaseChatMessage.case_id == "PM-1")
@@ -202,7 +202,7 @@ class TestToolLoop:
                 prompt_cache_miss_tokens=30,
             ),
         ])
-        resp = client.post("/api/chat", json={"case_id": "UL-1", "message": "你好"})
+        resp = client.post("/api/chat/", json={"case_id": "UL-1", "message": "你好"})
         assert resp.status_code == 200
         rows = test_db.query(AiUsageLog).filter(AiUsageLog.case_id == "UL-1").all()
         assert len(rows) == 1
@@ -214,4 +214,6 @@ class TestToolLoop:
         assert row.completion_tokens == 40
         assert row.prompt_cache_hit_tokens == 90
         assert row.prompt_cache_miss_tokens == 30
-        assert json.loads(row.layer_names) == ["role", "case_brain", "team", "live", "dialogue"]
+        assert json.loads(row.layer_names) == [
+            "role", "case_brain", "team", "live", "dialogue", "current_user_message",
+        ]

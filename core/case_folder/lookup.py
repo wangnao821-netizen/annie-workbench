@@ -53,12 +53,10 @@ def lookup_files(
     # 2026-08-17 无总根模式：folder_path 即案件文件夹绝对路径（Vera 手动选择）
     case_dir = validate_path_safety(str(folder_val), client_root)
 
-    if not case_dir.is_dir():
-        # 尝试查找客户同名总目录
-        if getattr(case, "client_name", None):
-            alt_parent = case_dir.parent
-            if alt_parent.is_dir():
-                case_dir = alt_parent
+    if not case_dir.is_dir() and getattr(case, "client_name", None):
+        alt_parent = case_dir.parent
+        if alt_parent.is_dir():
+            case_dir = alt_parent
 
     if not case_dir.is_dir():
         return []
@@ -79,6 +77,10 @@ def lookup_files(
 
         rel_to_case = f.relative_to(case_dir).as_posix()
         doc_type, _confidence = classify_file(f.name)
+
+        # WO-64：当命中材料类查询时，过滤 .msg/.eml 邮件文件，优先呈现纯正文单据
+        if resolved.get("matched_master_key") and f.suffix.lower() in (".msg", ".eml"):
+            continue
 
         if raw_q:
             name_l = f.name.lower()

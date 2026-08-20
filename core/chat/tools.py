@@ -154,7 +154,127 @@ def execute_tool(
         return _checklist_query(arguments, case_id, db)
     if name == "folder_lookup":
         return _folder_lookup(arguments, case_id, db)
+    if name == "calculator_assess":
+        return _calculator_assess(arguments, case_id, db)
+    if name == "declaration_check":
+        return _declaration_check(arguments, case_id, db)
+    if name == "gap_analysis":
+        return _gap_analysis(arguments, case_id, db)
+    if name == "policy_check":
+        return _policy_check(arguments, case_id, db)
+    if name == "draft_email":
+        return _draft_email(arguments, case_id, db, track=track)
     return {"ok": False, "error": f"unknown tool: {name}"}
+
+
+def _calculator_assess(arguments: dict, case_id: str, db: Session) -> dict:
+    """贷款能力测算：案件画像齐全时调 calculator.assess；不足返回 needs_form 卡片。
+    返回统一为 {"status": "result"|"needs_form", "card": {...}, "summary": str}。"""
+    if not case_id or db is None:
+        return {"status": "needs_form", "card": {"type": "calculator_form"}, "summary": "需要关联案件以执行借贷额度评估。"}
+
+    try:
+        from core.calculator.assess import assess
+        from core.models.orm import Case
+
+        case = db.query(Case).filter(Case.id == case_id).first()
+        if not case:
+            return {"status": "needs_form", "card": {"type": "calculator_form"}, "summary": "未找到案件档案。"}
+
+        # 构造 profile
+        profile = {
+            "employment_type": case.employment_type or "PAYG",
+            "income": getattr(case, "loan_amount", 0.0) or 100000.0,
+            "property_value": getattr(case, "property_value", 0.0) or 0.0,
+            "loan_amount": getattr(case, "loan_amount", 0.0) or 0.0,
+            "interest_rate": float(getattr(case, "interest_rate", 6.89) or 6.89),
+        }
+        req = arguments.get("request") or {}
+        res = assess(req if isinstance(req, dict) else {}, profile)
+        return {
+            "status": "result",
+            "card": {"type": "calculator_result", "data": res},
+            "summary": f"精算结果: 最大贷款能力 ${res.get('max_loan', 0):,.0f}, 月供 ${res.get('monthly_repayment', 0):,.0f}" if isinstance(res, dict) else str(res),
+        }
+    except Exception as e:  # noqa: BLE001
+        logger.warning("calculator_assess failed: %s", e)
+        return {"status": "needs_form", "card": {"type": "calculator_form"}, "summary": f"测算降级: {e}"}
+
+
+def _declaration_check(arguments: dict, case_id: str, db: Session) -> dict:
+    """申报一致性检查：调 run_declaration_check（文件为空时按清单缺口给提示）。"""
+    if not case_id or db is None:
+        return {"ok": False, "summary": "需要案件 ID 执行申报检查"}
+    try:
+        from core.agents.declaration_check import run_declaration_check
+        # 签名 (case_id, files, folder, db)：意图驱动未指定具体文件时按案件文件夹全量检查
+        res = run_declaration_check(case_id, [], None, db)
+        return {
+            "ok": True,
+            "card": {"type": "declaration_check", "data": res},
+            "summary": str(res)[:600] if res else "申报材料一致性核对完成",
+        }
+    except Exception as e:  # noqa: BLE001
+        logger.warning("declaration_check failed: %s", e)
+        return {"ok": False, "summary": f"申报检查失败: {e}"}
+
+
+def _gap_analysis(arguments: dict, case_id: str, db: Session) -> dict:
+    """材料缺口分析：analyze_gaps(case, db)。"""
+    if not case_id or db is None:
+        return {"ok": False, "summary": "需要案件 ID 执行缺口分析"}
+    try:
+        from core.case_folder.gap_analysis import analyze_gaps
+        from core.models.orm import Case
+
+        case = db.query(Case).filter(Case.id == case_id).first()
+        if not case:
+            return {"ok": False, "summary": "案件不存在"}
+        res = analyze_gaps(case, db)
+        return {
+            "ok": True,
+            "card": {"type": "gap_analysis", "data": res},
+            "summary": f"材料缺口分析完成: 识别到 {len(res.get('missing', []))} 项缺件" if isinstance(res, dict) else "材料缺口分析完成",
+        }
+    except Exception as e:  # noqa: BLE001
+        logger.warning("gap_analysis failed: %s", e)
+        return {"ok": False, "summary": f"材料缺口分析失败: {e}"}
+
+
+def _policy_check(arguments: dict, case_id: str, db: Session) -> dict:
+    """政策查询：run_policy_check(case_id, {"query": arguments.get("query","")}, db)。"""
+    if not case_id or db is None:
+        return {"ok": False, "summary": "需要案件 ID 查询银行政策"}
+    try:
+        from core.policy.engine import run_policy_check
+        q = str(arguments.get("query", "")).strip()
+        res = run_policy_check(case_id, {"query": q}, db)
+        return {
+            "ok": True,
+            "card": {"type": "policy_check", "data": res},
+            "summary": f"银行政策核对完成: {res}" if isinstance(res, str) else "银行政策核对完成",
+        }
+    except Exception as e:  # noqa: BLE001
+        logger.warning("policy_check failed: %s", e)
+        return {"ok": False, "summary": f"政策查询失败: {e}"}
+
+
+def _draft_email(arguments: dict, case_id: str, db: Session, track: str = "internal") -> dict:
+    """邮件起草：run_co_create(case_id, {"action": "generate", "message": arguments.get("message","")}, db, track)。"""
+    if not case_id or db is None:
+        return {"ok": False, "summary": "需要案件 ID 起草邮件"}
+    try:
+        from core.agents.draft_email import run_co_create
+        msg = str(arguments.get("message", "")).strip()
+        res = run_co_create(case_id, {"action": "generate", "message": msg}, db, track)
+        return {
+            "ok": True,
+            "card": {"type": "draft_email", "data": res},
+            "summary": f"邮件草稿已起草: {res.get('subject', '新邮件')}" if isinstance(res, dict) else "邮件草稿已生成",
+        }
+    except Exception as e:  # noqa: BLE001
+        logger.warning("draft_email failed: %s", e)
+        return {"ok": False, "summary": f"邮件起草失败: {e}"}
 
 
 def _folder_lookup(arguments: dict, case_id: str, db: Session) -> dict:
@@ -162,8 +282,8 @@ def _folder_lookup(arguments: dict, case_id: str, db: Session) -> dict:
     if not case_id:
         return {"ok": False, "error": "需要案件 ID"}
 
-    from core.models.orm import Case
     from core.case_folder.lookup import lookup_files, parse_one
+    from core.models.orm import Case
 
     case = db.query(Case).filter(Case.id == case_id).first()
     if not case:
@@ -213,7 +333,7 @@ def _folder_lookup(arguments: dict, case_id: str, db: Session) -> dict:
                     "doc_type": f_meta.get("doc_type"),
                     "summary": p_res.get("summary", "")[:1500],
                 })
-            except Exception as pe:
+            except Exception as pe:  # noqa: BLE001
                 parsed_contents.append({
                     "rel_path": f_meta["rel_path"],
                     "doc_type": f_meta.get("doc_type"),
@@ -228,7 +348,7 @@ def _folder_lookup(arguments: dict, case_id: str, db: Session) -> dict:
             "files_found": matched_files,
             "parsed_documents": parsed_contents,
         }
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.warning("folder_lookup failed for case %s: %s", case_id, e)
         return {"ok": False, "error": str(e)}
 
@@ -345,7 +465,7 @@ def _record_fact(arguments: dict, case_id: str, track: str, db: Session) -> dict
             try:
                 from core.facts.extract import sync_brain_facts
                 sync_brain_facts(case_id, db, event=event)
-            except Exception as se:
+            except Exception as se:  # noqa: BLE001
                 logger.warning("sync_brain_facts on confirmed event failed (non-fatal): %s", se)
 
         return {

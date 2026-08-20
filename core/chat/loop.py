@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 
 from sqlalchemy.orm import Session
 
@@ -97,9 +98,11 @@ def run_chat_with_tools(
     tool_choice = "auto" if case_id else "none"
     messages: list[dict] = []          # 追加轮次的对话消息（tool 回注）
     tool_cards: list[dict] = []
+    recorded_facts: list[dict] = []
     prefer_provider = "gemini" if track == "external" else None
     from core.persona import build_system_prompt, get_runtime_persona
 
+    gw = ApiGateway(get_config())
     rt = get_runtime_persona(db)
     system_prompt = build_system_prompt(
         key=rt.get("persona_key"),
@@ -152,7 +155,6 @@ def run_chat_with_tools_stream(
     scope = case_id or "system"
     safe_message = desensitize(message, scope, db)
     layers = build_chat_layers(case_id, safe_message, track, db)
-    layer_names = [l["layer"] for l in layers]
     base_prompt = "\n\n".join(f"【{layer}】\n{text}" for layer, text in ((l["layer"], l["text"]) for l in layers))
 
     gw = ApiGateway(get_config())
@@ -178,10 +180,9 @@ def run_chat_with_tools_stream(
 
     # 1. 若为查阅文件夹/材料意图：触发 JIT 文件穿透扫描与内容提取
     if intent == ChatIntent.FOLDER_LOOKUP and case_id:
-        from core.chat.tools import _folder_lookup
-        lookup_res = _folder_lookup({"query": message}, case_id, db)
+        yield {"event": "tool_start", "data": {"tool": "folder_lookup", "label": _TOOL_LABELS.get("folder_lookup", "正在检索案件文件夹")}}
+        lookup_res = execute_tool("folder_lookup", {"query": message}, case_id, track, db)
         if lookup_res.get("ok") and lookup_res.get("files_found"):
-            yield {"event": "tool_start", "data": {"tool": "folder_lookup", "label": f"正在扫描本地文件夹并提取 {len(lookup_res['files_found'])} 份文件内容..."}}
             parsed_docs = lookup_res.get("parsed_documents", [])
             docs_summary_blocks = []
             for doc in parsed_docs:
@@ -190,7 +191,106 @@ def run_chat_with_tools_stream(
             if docs_summary_blocks:
                 injected_docs_text = "\n\n".join(docs_summary_blocks)
                 base_prompt += f"\n\n【JIT 案卷本地文件扫描与内容提取结果】\n{injected_docs_text}\n(请直接基于上述提取出的白纸黑字真实数据进行总结和风险点分析，无需再说明未提取数据)"
-            _collect_cards(lookup_res, tool_cards, recorded_facts)
+        _collect_cards(lookup_res, tool_cards, recorded_facts)
+        if tool_cards:
+            yield {"event": "tool_cards", "data": tool_cards}
+
+    elif intent == ChatIntent.CALCULATOR_ASSESS and case_id:
+        try:
+            from core.chat.tools import _calculator_assess
+            res = _calculator_assess({"request": message}, case_id, db)
+            if res.get("card"):
+                tool_cards.append(res["card"])
+                yield {"event": "tool_cards", "data": [res["card"]]}
+            if res.get("summary"):
+                base_prompt += f"\n\n【贷款额度测算结果】\n{res['summary']}"
+        except Exception as te:  # noqa: BLE001
+            logger.warning("calculator_assess branch failed (non-fatal): %s", te)
+            base_prompt += f"\n\n【贷款额度测算提示】工具调用暂不可用: {te}"
+
+    elif intent == ChatIntent.TASK_CREATE and case_id:
+        try:
+            from core.chat.tools import _create_task
+            title = _extract_task_title(message)
+            res = _create_task({"title": title, "context": {"source": "chat"}}, case_id, db)
+            if res.get("ok"):
+                tool_cards.append({
+                    "type": "task_created",
+                    "title": f"📋 任务已创建：{res.get('title', title)}",
+                    "payload": {"task_id": res.get("task_id"), "priority": res.get("priority")},
+                })
+            else:
+                tool_cards.append({
+                    "type": "task_create_failed",
+                    "title": "⚠️ 任务创建失败",
+                    "payload": {"reason": res.get("error") or res.get("summary") or "未知原因"},
+                })
+            if tool_cards:
+                yield {"event": "tool_cards", "data": tool_cards}
+            if res.get("summary"):
+                base_prompt += f"\n\n【任务创建结果】\n{res['summary']}"
+        except Exception as te:  # noqa: BLE001
+            logger.warning("task_create branch failed (non-fatal): %s", te)
+            base_prompt += f"\n\n【任务创建提示】工具调用暂不可用: {te}"
+
+    elif intent == ChatIntent.CHECKLIST_GAP and case_id:
+        try:
+            from core.chat.tools import _checklist_query, _gap_analysis
+            q = _checklist_query({"query": "missing"}, case_id, db)
+            g = _gap_analysis({}, case_id, db)
+            cards = []
+            if q.get("card"):
+                cards.append(q["card"])
+            if g.get("card"):
+                cards.append(g["card"])
+            if cards:
+                tool_cards.extend(cards)
+                yield {"event": "tool_cards", "data": cards}
+            summary_parts = [p for p in [q.get("summary"), g.get("summary")] if p]
+            if summary_parts:
+                base_prompt += "\n\n【材料缺口与清单现状】\n" + "\n".join(summary_parts)
+        except Exception as te:  # noqa: BLE001
+            logger.warning("checklist_gap branch failed (non-fatal): %s", te)
+            base_prompt += f"\n\n【材料缺口核对提示】工具调用暂不可用: {te}"
+
+    elif intent == ChatIntent.DECLARATION_CHECK and case_id:
+        try:
+            from core.chat.tools import _declaration_check
+            res = _declaration_check({}, case_id, db)
+            if res.get("card"):
+                tool_cards.append(res["card"])
+                yield {"event": "tool_cards", "data": [res["card"]]}
+            if res.get("summary"):
+                base_prompt += f"\n\n【申报材料一致性比对结果】\n{res['summary']}"
+        except Exception as te:  # noqa: BLE001
+            logger.warning("declaration_check branch failed (non-fatal): %s", te)
+            base_prompt += f"\n\n【申报一致性核对提示】工具调用暂不可用: {te}"
+
+    elif intent == ChatIntent.DRAFT_EMAIL and case_id:
+        try:
+            from core.chat.tools import _draft_email
+            res = _draft_email({"message": message}, case_id, db, track=track)
+            if res.get("card"):
+                tool_cards.append(res["card"])
+                yield {"event": "tool_cards", "data": [res["card"]]}
+            if res.get("summary"):
+                base_prompt += f"\n\n【邮件起草草稿】\n{res['summary']}"
+        except Exception as te:  # noqa: BLE001
+            logger.warning("draft_email branch failed (non-fatal): %s", te)
+            base_prompt += f"\n\n【邮件起草提示】工具调用暂不可用: {te}"
+
+    elif intent == ChatIntent.POLICY_QUERY and case_id:
+        try:
+            from core.chat.tools import _policy_check
+            res = _policy_check({"query": message}, case_id, db)
+            if res.get("card"):
+                tool_cards.append(res["card"])
+                yield {"event": "tool_cards", "data": [res["card"]]}
+            if res.get("summary"):
+                base_prompt += f"\n\n【银行政策核对结果】\n{res['summary']}"
+        except Exception as te:  # noqa: BLE001
+            logger.warning("policy_query branch failed (non-fatal): %s", te)
+            base_prompt += f"\n\n【政策查询提示】工具调用暂不可用: {te}"
 
     # 2. 若为能力问答/闲聊状态意图：注入针对性极简响应指引
     elif intent == ChatIntent.META_HELP:
@@ -211,7 +311,7 @@ def run_chat_with_tools_stream(
             safe_token = rehydrate(token_chunk, scope, db)
             full_reply_parts.append(safe_token)
             yield {"event": "text_chunk", "data": {"chunk": safe_token}}
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error("Live streaming failed, fallback to call_llm: %s", e)
         res = gw.call_llm(
             text=DesensitizedText(base_prompt),
@@ -301,12 +401,13 @@ def _collect_cards(out: dict, tool_cards: list[dict], recorded_facts: list[dict]
             },
         })
         return
-    if out.get("files_found") is not None:
+    if out.get("files_found") is not None or out.get("files") is not None:
+        files = out.get("files_found") if out.get("files_found") is not None else out.get("files", [])
         tool_cards.append({
             "type": "folder_lookup",
             "title": f"案卷文件夹检索: {out.get('query', '')}",
             "payload": {
-                "files": out.get("files_found", []),
+                "files": files,
                 "folder_path": out.get("folder_path", ""),
                 "query": out.get("query", ""),
             },
@@ -332,3 +433,11 @@ def _collect_cards(out: dict, tool_cards: list[dict], recorded_facts: list[dict]
             "content": out.get("content", ""),
             "status": "confirmed",
         })
+
+
+def _extract_task_title(message: str) -> str:
+    """从口语中提取任务标题：去前缀（帮我记一下/建一个任务/创建任务/提醒我/记一笔等），
+    去尾标点，长度 ≤ 40 字；剩余为空时用整句。"""
+    cleaned = re.sub(r"^(帮我|请)?(记一下|记一笔|帮我记|建(一个)?任务|创建任务|安排一下|提醒我|设一个提醒)[:：\s]*", "", message.strip(), flags=re.IGNORECASE)
+    cleaned = re.sub(r"[!！。.\s]+$", "", cleaned)
+    return cleaned[:40] if cleaned else message[:40]
