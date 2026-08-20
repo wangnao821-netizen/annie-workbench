@@ -107,6 +107,7 @@ export function ChecklistDeck({ caseId }: ChecklistDeckProps) {
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [isMatching, setIsMatching] = useState(false);
   const [previewFile, setPreviewFile] = useState<{ fileId?: string; filename: string } | null>(null);
+  const [showMissingOnly, setShowMissingOnly] = useState(false);
 
   // Chaser Box states
   const [showChaserBox, setShowChaserBox] = useState(false);
@@ -406,6 +407,18 @@ export function ChecklistDeck({ caseId }: ChecklistDeckProps) {
           }`}>
             {missingRequiredItems.length} 项
           </span>
+          <button
+            type="button"
+            onClick={() => setShowMissingOnly(!showMissingOnly)}
+            className={`ml-1 px-1.5 py-0.5 rounded-full text-[11px] font-bold border transition-colors cursor-pointer ${
+              showMissingOnly
+                ? 'bg-[var(--red-soft)] text-[var(--red)] border-[var(--red-soft)]'
+                : 'bg-[var(--bg-subtle)] text-muted border-[var(--border)]/40 hover:text-[var(--text-primary)]'
+            }`}
+            id="checklist-deck-missing-toggle"
+          >
+            {showMissingOnly ? '全部' : '只看缺件'}
+          </button>
         </div>
 
         <motion.button
@@ -663,16 +676,24 @@ export function ChecklistDeck({ caseId }: ChecklistDeckProps) {
           </div>
         ) : (
           MASTER_CATEGORIES.map((cat) => {
-            const groupItems = grouped[cat] || [];
+            let groupItems = grouped[cat] || [];
+            if (showMissingOnly) {
+              groupItems = groupItems.filter(
+                (i) => i.status !== 'received' && i.status !== 'confirmed'
+              );
+            }
             if (groupItems.length === 0) return null;
 
             const sortedItems = [...groupItems].sort((a, b) => {
+              const aDone = a.status === 'received' || a.status === 'confirmed' ? 1 : 0;
+              const bDone = b.status === 'received' || b.status === 'confirmed' ? 1 : 0;
+              if (aDone !== bDone) return aDone - bDone; // 缺件优先置顶
               const reqA = a.is_required || a.category === 'required' ? 1 : 0;
               const reqB = b.is_required || b.category === 'required' ? 1 : 0;
               return reqB - reqA;
             });
 
-            const receivedCount = groupItems.filter(
+            const receivedCount = (grouped[cat] || []).filter(
               (i) => i.status === 'received' || i.status === 'confirmed'
             ).length;
 
@@ -706,7 +727,18 @@ export function ChecklistDeck({ caseId }: ChecklistDeckProps) {
                     return (
                       <div
                         key={item.id}
-                        onClick={() => handleToggleStatus(item)}
+                        onClick={() => {
+                          // 防误触：整卡点击只看已匹配文件预览，状态切换只走 checkbox
+                          if (hasMatchedFile) {
+                            const filename =
+                              item.matched_file_name ||
+                              (item.file_ids && item.file_ids[0]) ||
+                              '附件';
+                            const fileId =
+                              item.matched_file_id || (item.file_ids && item.file_ids[0]);
+                            setPreviewFile({ fileId, filename });
+                          }
+                        }}
                         className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-start space-x-2.5 ${
                           isDone
                             ? 'bg-[var(--green-soft)] border-[var(--green-soft)] text-muted'

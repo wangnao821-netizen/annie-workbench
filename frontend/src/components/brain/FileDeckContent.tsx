@@ -344,14 +344,25 @@ export function FileDeckContent({ caseId }: FileDeckContentProps) {
             <span>正在读取文件夹数据...</span>
           </div>
         ) : files.length === 0 ? (
-          <div
-            className="py-10 text-center text-xs text-muted border border-dashed rounded-xl p-4"
-            style={{ borderColor: 'var(--border)' }}
-          >
-            <Folder className="w-6 h-6 mx-auto text-muted/40 mb-1.5" />
-            <p>当前目录下无任何文件或子文件夹</p>
-            <p className="text-[11px] mt-0.5 text-muted/70">点击右上角「放入文件」添加材料到此案件目录</p>
-          </div>
+          !currentCase?.folderPath ? (
+            <div
+              className="py-10 text-center text-xs text-muted border border-dashed rounded-xl p-4"
+              style={{ borderColor: 'var(--border)' }}
+            >
+              <Folder className="w-6 h-6 mx-auto text-muted/40 mb-1.5" />
+              <p>本案件尚未关联本地文件夹</p>
+              <p className="text-[11px] mt-0.5 text-muted/70">请先在案件详情中关联/创建案件文件夹，即可在这里浏览案卷资料</p>
+            </div>
+          ) : (
+            <div
+              className="py-10 text-center text-xs text-muted border border-dashed rounded-xl p-4"
+              style={{ borderColor: 'var(--border)' }}
+            >
+              <Folder className="w-6 h-6 mx-auto text-muted/40 mb-1.5" />
+              <p>当前目录下无任何文件或子文件夹</p>
+              <p className="text-[11px] mt-0.5 text-muted/70">点击右上角「放入文件」添加材料到此案件目录</p>
+            </div>
+          )
         ) : (
           <div className="space-y-1.5">
             {/* Subdirectories First */}
@@ -382,7 +393,7 @@ export function FileDeckContent({ caseId }: FileDeckContentProps) {
               .map((fileItem, idx) => (
                 <div
                   key={`file-${idx}`}
-                  className="p-2.5 rounded-xl border space-y-1.5 transition-all hover:border-[var(--accent)]"
+                  className="group p-2.5 rounded-xl border space-y-1.5 transition-all hover:border-[var(--accent)]"
                   style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}
                   id={`deck-file-item-${idx}`}
                 >
@@ -421,7 +432,7 @@ export function FileDeckContent({ caseId }: FileDeckContentProps) {
                       <button
                         type="button"
                         onClick={() => handleStartRename(fileItem)}
-                        className="px-2 py-0.5 rounded-lg text-xs font-bold border border-[var(--purple-soft)] bg-[var(--purple-soft)] text-[var(--purple)] hover:opacity-85 cursor-pointer flex items-center space-x-1 transition-colors"
+                        className="px-2 py-0.5 rounded-lg text-xs font-bold border border-[var(--purple-soft)] bg-[var(--purple-soft)] text-[var(--purple)] hover:opacity-85 cursor-pointer flex items-center space-x-1 transition-colors opacity-0 group-hover:opacity-100"
                         id={`deck-btn-rename-${idx}`}
                       >
                         <Edit3 className="w-3 h-3" />
@@ -431,7 +442,7 @@ export function FileDeckContent({ caseId }: FileDeckContentProps) {
                       <button
                         type="button"
                         onClick={() => handleStartMove(fileItem)}
-                        className="px-2 py-0.5 rounded-lg text-xs font-bold border border-[var(--yellow-soft)] bg-[var(--yellow-soft)] text-[var(--yellow)] hover:opacity-85 cursor-pointer flex items-center space-x-1 transition-colors"
+                        className="px-2 py-0.5 rounded-lg text-xs font-bold border border-[var(--yellow-soft)] bg-[var(--yellow-soft)] text-[var(--yellow)] hover:opacity-85 cursor-pointer flex items-center space-x-1 transition-colors opacity-0 group-hover:opacity-100"
                         id={`deck-btn-move-${idx}`}
                       >
                         <FolderInput className="w-3 h-3" />

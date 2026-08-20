@@ -43,7 +43,7 @@ export function TaskDeckContent({ caseId }: TaskDeckContentProps) {
   const [newTitle, setNewTitle] = useState('');
   const [newDeadline, setNewDeadline] = useState('');
   const [newPriority, setNewPriority] = useState<TaskPriority>('normal');
-  const [newAssignee, setNewAssignee] = useState<'vera' | 'brandon'>('vera');
+  const [newAssignee, setNewAssignee] = useState<'vera' | 'brandon' | 'boss'>('vera');
 
   // Inline Delegate state
   const [delegatingTaskId, setDelegatingTaskId] = useState<number | null>(null);
@@ -147,6 +147,17 @@ export function TaskDeckContent({ caseId }: TaskDeckContentProps) {
       Icon: Settings,
       colorClass: 'bg-[var(--bg-subtle)] text-[var(--text-secondary)] border-[var(--border)]/30',
     };
+  };
+
+  const getSourceLabel = (task: TaskItem): string | null => {
+    const s = (task.sourceChannel || '').toLowerCase();
+    if (!s) return null;
+    if (s.includes('email') || s.includes('mail')) return '邮件';
+    if (s.includes('file')) return '文件';
+    if (s.includes('wechat') || s.includes('chat')) return '对话';
+    if (s.includes('followup') || s.includes('chaser')) return '催件';
+    if (s.includes('manual')) return '手动';
+    return s;
   };
 
   const handleCreateTask = async () => {
@@ -327,6 +338,7 @@ export function TaskDeckContent({ caseId }: TaskDeckContentProps) {
               >
                 <option value="vera">Vera (AI 助理)</option>
                 <option value="brandon">Brandon (贷款顾问)</option>
+                <option value="boss">老板（拍板）</option>
               </select>
             </div>
           </div>
@@ -363,14 +375,23 @@ export function TaskDeckContent({ caseId }: TaskDeckContentProps) {
           filteredTasks.map((task) => {
             const deadlineBadge = getDeadlineBadge(task.deadline);
             const categoryBadge = getCategoryBadge(task);
+            const sourceLabel = getSourceLabel(task);
             const isDelegating = delegatingTaskId === task.id;
             const isEditingDeadline = editingDeadlineTaskId === task.id;
+            const isOverdue = isTaskOverdue(task);
+            const isBossTask = task.escalatedToBoss || task.type === 'BOSS_DECISION';
 
             return (
               <div
                 key={task.id}
-                className="group p-2.5 rounded-xl border transition-all hover:border-[var(--accent)] flex flex-col space-y-2 bg-[var(--bg-card)]"
-                style={{ borderColor: 'var(--border)' }}
+                className={`group p-2.5 rounded-xl border transition-all hover:border-[var(--accent)] flex flex-col space-y-2 bg-[var(--bg-card)] ${
+                  isOverdue ? 'border-l-[3px]' : isBossTask ? 'border-l-[3px]' : ''
+                }`}
+                style={{
+                  borderColor: 'var(--border)',
+                  ...(isOverdue ? { borderLeftColor: 'var(--red)' } : {}),
+                  ...(isBossTask && !isOverdue ? { borderLeftColor: 'var(--yellow)' } : {}),
+                }}
                 id={`task-deck-item-${task.id}`}
               >
                 {/* Top Row */}
@@ -406,6 +427,11 @@ export function TaskDeckContent({ caseId }: TaskDeckContentProps) {
 
                   {/* Right Meta */}
                   <div className="flex items-center space-x-1.5 flex-shrink-0 text-[11px]">
+                    {sourceLabel && (
+                      <span className="px-1.5 py-0.5 rounded bg-[var(--bg-subtle)] text-muted border border-[var(--border)]/30">
+                        {sourceLabel}
+                      </span>
+                    )}
                     <span className={`px-1.5 py-0.5 rounded border font-medium flex items-center space-x-1 ${categoryBadge.colorClass}`}>
                       <categoryBadge.Icon className="w-3 h-3" />
                       <span>{categoryBadge.label}</span>
