@@ -227,7 +227,8 @@ def list_tasks(filter: str = "today", db: Session = ...) -> list[dict[str, Any]]
     elif filter == "urgent":
         query = query.filter(Action.priority.in_(["urgent", "high"]))
     elif filter == "today":
-        query = query.filter(Action.status == "pending")
+        # 今日待办 = 待处理 + Vera 已认领跟进（in_progress 不因认领而移出）
+        query = query.filter(Action.status.in_(["pending", "in_progress"]))
     actions = query.order_by(Action.created_at.desc()).all()
 
     result: list[dict[str, Any]] = []

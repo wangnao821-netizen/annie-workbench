@@ -24,7 +24,12 @@ from core.task_engine.delegation import (
     recall_delegation,
     record_feedback,
 )
-from core.task_engine.dispatcher import create_task, dispatch_task, to_task_response
+from core.task_engine.dispatcher import (
+    create_task,
+    dispatch_task,
+    list_tasks,
+    to_task_response,
+)
 
 
 def _make_task(db, **overrides) -> Action:
@@ -107,6 +112,13 @@ class TestDispatchTask:
         result = dispatch_task(task.id, action="claim", operator="vera", db=test_db)
         assert result.status == "in_progress"
         assert result.assignee == "vera"
+
+    def test_claimed_task_stays_in_today_list(self, test_db):
+        """认领后任务仍出现在今日待办（today 过滤含 in_progress）。"""
+        task = _make_task(test_db)
+        dispatch_task(task.id, action="claim", db=test_db)
+        today = list_tasks(filter="today", db=test_db)
+        assert any(item["id"] == task.id for item in today)
 
     def test_invalid_action_raises(self, test_db):
         task = _make_task(test_db)
