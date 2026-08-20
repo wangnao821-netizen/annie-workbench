@@ -62,6 +62,8 @@ export function CasePanorama({ caseId, collapsed, onToggle, hideOuterHeader }: C
   const caseInfo = useCaseStore((s) =>
     caseId ? s.cases.find((c) => c.caseId === caseId) : undefined
   );
+  // WO-66：阶段变更版本号，拖拽落库成功后触发本组件重载 context
+  const stageVersion = useCaseStore((s) => s.stageVersion);
 
   const loadData = useCallback(async () => {
     if (!caseId) {
@@ -96,7 +98,7 @@ export function CasePanorama({ caseId, collapsed, onToggle, hideOuterHeader }: C
 
   useEffect(() => {
     loadData();
-  }, [loadData]);
+  }, [loadData, stageVersion]);
 
   // Navigate to CaseDetail (Memo Board)
   const handleGoToMaintenance = () => {

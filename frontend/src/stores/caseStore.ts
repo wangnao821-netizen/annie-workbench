@@ -33,8 +33,10 @@ interface CaseState {
   casesError: string | null;
   currentCase: CaseInfo | null;
   contextExpanded: boolean;   // L0 / L1 progressive disclosure toggle
+  stageVersion: number;       // WO-66：阶段变更版本号，右栏/相关组件据此重载
   fetchCases: () => Promise<void>;
   setCurrentCase: (c: CaseInfo | null) => void;
+  bumpStageVersion: () => void;
   toggleContext: () => void;
   setContextExpanded: (expanded: boolean) => void;
 }
@@ -45,6 +47,7 @@ export const useCaseStore = create<CaseState>((set) => ({
   casesError: null,
   currentCase: null,
   contextExpanded: false,
+  stageVersion: 0,
   fetchCases: async () => {
     set({ casesLoading: true, casesError: null });
     const useMock = import.meta.env.VITE_USE_MOCK !== 'false';
@@ -90,6 +93,7 @@ export const useCaseStore = create<CaseState>((set) => ({
     }
   },
   setCurrentCase: (c) => set({ currentCase: c }),
+  bumpStageVersion: () => set((state) => ({ stageVersion: state.stageVersion + 1 })),
   toggleContext: () => set((state) => ({ contextExpanded: !state.contextExpanded })),
   setContextExpanded: (expanded) => set({ contextExpanded: expanded }),
 }));

@@ -111,6 +111,16 @@ export function listCases(stage?: string): Promise<CaseResponse[]> {
   return request<CaseResponse[]>(`/api/cases/${query}`);
 }
 
+export function updateCaseStage(
+  caseId: string,
+  stage: string
+): Promise<{ case_id: string; stage: string; stage_key: string }> {
+  return request(`/api/cases/${encodeURIComponent(caseId)}/stage`, {
+    method: 'PATCH',
+    body: JSON.stringify({ stage }),
+  });
+}
+
 export function listArchivedCases(limit = 100): Promise<ArchivedCase[]> {
   if (import.meta.env.VITE_USE_MOCK !== 'false') {
     return Promise.resolve([...MOCK_DYNAMIC_ARCHIVED_CASES].slice(0, limit));
@@ -2531,7 +2541,6 @@ export async function getCaseMailPreview(caseId: string, filename: string): Prom
     `/api/cases/${encodeURIComponent(caseId)}/mail-preview?filename=${encodeURIComponent(filename)}`
   );
 }
-
 
 
 

@@ -1,6 +1,12 @@
 import { useState, useRef } from 'react';
 import { CaseInfo, useCaseStore } from '../../stores/caseStore';
-import { CaseStageCategory, stageCategoryFromStage } from '../../services/caseMapper';
+import {
+  CaseStageCategory,
+  KANBAN_COLUMN_STAGE,
+  STAGE_KEY_LABEL,
+  stageCategoryFromStage,
+} from '../../services/caseMapper';
+import { updateCaseStage } from '../../services/api/cases';
 import { KanbanColumn } from './KanbanColumn';
 import { useToastStore } from '../../stores/toastStore';
 
@@ -47,6 +53,7 @@ export function KanbanBoard({ cases, onCardClick }: KanbanBoardProps) {
 
   const [draggingCaseId, setDraggingCaseId] = useState<string | null>(null);
   const [dragTargetStage, setDragTargetStage] = useState<CaseStageCategory | null>(null);
+  const savingRef = useRef(false);
 
   const dragInfoRef = useRef<{
     caseItem: CaseInfo | null;
@@ -104,24 +111,58 @@ export function KanbanBoard({ cases, onCardClick }: KanbanBoardProps) {
 
     if (dragInfoRef.current.isMoved && dragTargetStage) {
       const origStage = stageCategoryFromStage(dragItem.stage);
-      if (dragTargetStage !== origStage) {
-        // Move case to new stage
-        const newStageStr = STAGE_DEFAULT_STRINGS[dragTargetStage] || '进度推进';
+      if (dragTargetStage !== origStage && !savingRef.current) {
+        const origStageStr = dragItem.stage;
+        const newStageKey = KANBAN_COLUMN_STAGE[dragTargetStage as Exclude<CaseStageCategory, 'all'>];
+        const newStageStr = STAGE_KEY_LABEL[newStageKey] || STAGE_DEFAULT_STRINGS[dragTargetStage] || '进度推进';
+        savingRef.current = true;
+
+        // 乐观更新：本地 + 全局 store（含 currentCase）
         setLocalCases((prev) =>
           prev.map((c) =>
             c.caseId === dragItem.caseId ? { ...c, stage: newStageStr } : c
           )
         );
-
-        // Update global store if possible
-        const { cases: globalCases } = useCaseStore.getState();
+        const { cases: globalCases, currentCase } = useCaseStore.getState();
         const updatedGlobal = globalCases.map((c) =>
           c.caseId === dragItem.caseId ? { ...c, stage: newStageStr } : c
         );
-        useCaseStore.setState({ cases: updatedGlobal });
+        const updatedCurrent =
+          currentCase && currentCase.caseId === dragItem.caseId
+            ? { ...currentCase, stage: newStageStr }
+            : currentCase;
+        useCaseStore.setState({ cases: updatedGlobal, currentCase: updatedCurrent });
 
-        showToast('success', `案件 "${dragItem.clientName}" 已推进到 ${STAGE_NAMES[dragTargetStage]}（演示）`);
-        // TODO(WO-03): POST /api/cases/{id}/stage-advance
+        showToast('success', `案件 "${dragItem.clientName}" 已推进到 ${STAGE_NAMES[dragTargetStage]}`);
+
+        if (import.meta.env.VITE_USE_MOCK === 'true') {
+          savingRef.current = false; // 演示模式不调后端
+        } else {
+          updateCaseStage(dragItem.caseId, newStageKey)
+            .then((res) => {
+              useCaseStore.getState().bumpStageVersion();
+              const { currentCase: cc } = useCaseStore.getState();
+              if (cc && cc.caseId === dragItem.caseId) {
+                useCaseStore.setState({ currentCase: { ...cc, stage: res.stage } });
+              }
+            })
+            .catch((err) => {
+              // 失败回滚：本地 + 全局 store 恢复原阶段
+              setLocalCases((prev) =>
+                prev.map((c) => (c.caseId === dragItem.caseId ? { ...c, stage: origStageStr } : c))
+              );
+              const { cases: gc, currentCase: cc2 } = useCaseStore.getState();
+              useCaseStore.setState({
+                cases: gc.map((c) => (c.caseId === dragItem.caseId ? { ...c, stage: origStageStr } : c)),
+                currentCase:
+                  cc2 && cc2.caseId === dragItem.caseId ? { ...cc2, stage: origStageStr } : cc2,
+              });
+              showToast('error', `阶段更新失败：${err?.message || '请重试'}`);
+            })
+            .finally(() => {
+              savingRef.current = false;
+            });
+        }
       }
     } else if (!dragInfoRef.current.isMoved) {
       // It was a click!
@@ -160,9 +201,6 @@ export function KanbanBoard({ cases, onCardClick }: KanbanBoardProps) {
           );
         })}
       </div>
-      <p className="text-[11px] font-mono text-muted text-right">
-        TODO(WO-03): POST /api/cases/&#123;id&#125;/stage-advance
-      </p>
     </div>
   );
 }

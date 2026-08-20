@@ -27,6 +27,12 @@ from core.case_engine.folder import (
     link_existing,
     scaffold_case_directories,
 )
+from core.case_engine.milestones import (
+    MILESTONE_SEQUENCE,
+    MILESTONE_STAGE_MAP,
+    get_stage_key,
+    update_case_stage_and_milestones,
+)
 from core.case_engine.progression import evaluate_stage_signal
 from core.case_engine.snapshot import build_case_snapshot
 from core.case_folder.legacy_import import build_legacy_import_preview
@@ -88,16 +94,17 @@ from server.api.schemas import (
     FolderTopologyScanResponse,
     LegacyImportPreviewRequest,
     LegacyImportPreviewResponse,
+    MailPreviewResponse,
     ParseFileResponse,
     ParseTextRequest,
     PolicyCheckResponse,
     PreFillResponse,
     StageAdvanceRequest,
+    StageUpdateRequest,
     SubmissionCheckResponse,
     SupersedeEventRequest,
     TimelineEventItem,
     TimelineExtractResponse,
-    MailPreviewResponse,
 )
 from server.deps import get_db, get_settings
 
@@ -703,6 +710,45 @@ def stage_advance(
         )
     mark_case_summary_dirty(case_id, db)
     return {"status": "pending_confirmation", "action_id": action.id, "title": action.title}
+
+
+@router.patch("/{case_id}/stage")
+def update_stage(
+    case_id: str,
+    req: StageUpdateRequest,
+    db: Session = Depends(get_db),  # noqa: B008
+):
+    """Vera 手动设置案件阶段（看板拖拽落库，WO-66）。
+
+    Vera 拍板动作（人拖拽），与 AI 信号链路 stage-advance 分工：
+    复用 MILESTONE 单一真源落库 + 里程碑联动 + 生命周期事件 + 摘要脏标记。
+    终态案件禁止变更；阶段值必须为 MILESTONE_SEQUENCE 合法 key/中文。
+    """
+    case = _get_case_or_404(case_id, db)
+    stage_key = get_stage_key(req.stage)
+    if stage_key not in MILESTONE_SEQUENCE:
+        raise HTTPException(status_code=422, detail=f"非法阶段: {req.stage}")
+
+    current_key = get_stage_key(case.stage or "")
+    if (case.stage or "") in TERMINAL_STAGES or (current_key or "") in TERMINAL_STAGES:
+        raise HTTPException(status_code=409, detail="案件处于终态，不可变更阶段")
+
+    if current_key == stage_key:
+        # 幂等：同值直接返回，不重复写事件
+        return {"case_id": case_id, "stage": MILESTONE_STAGE_MAP[stage_key], "stage_key": stage_key}
+
+    old_label = MILESTONE_STAGE_MAP.get(current_key) or (case.stage or "未知")
+    new_label = MILESTONE_STAGE_MAP[stage_key]
+    update_case_stage_and_milestones(case_id, stage_key, db)
+    append_context_event(
+        case_id,
+        "flow:stage_manual",
+        f"阶段由『{old_label}』变更为『{new_label}』（Vera 手动调整）",
+        db,
+    )
+    mark_case_summary_dirty(case_id, db)
+    db.commit()
+    return {"case_id": case_id, "stage": new_label, "stage_key": stage_key}
 
 
 @router.delete("/{case_id}")

@@ -7,6 +7,7 @@ import {
 import { ViewId } from '../../types/navigation';
 import { useCaseStore } from '../../stores/caseStore';
 import { useUiStore } from '../../stores/uiStore';
+import { STAGE_INDEX_MAP } from '../../services/caseMapper';
 
 interface CaseListSidebarProps {
   activeView: ViewId;
@@ -26,10 +27,13 @@ const SYSTEM_TABS = [
 const STAGE_NODES = ['建档', '收集', '递交', '补件', '批准', '结算'];
 
 function getStageIndex(stageStr: string): number {
-  const st = stageStr || '';
+  const st = (stageStr || '').trim();
+  const exact = STAGE_INDEX_MAP[st];
+  if (exact !== undefined) return exact;
+  // 兼容历史脏数据：子串兜底（WO-66 对照表）
   if (st.includes('结算') || st.includes('交割') || st.includes('放款')) return 5;
   if (st.includes('批准') || st.includes('批复') || st.includes('预批') || st.includes('通过')) return 4;
-  if (st.includes('补件') || st.includes('补交')) return 3;
+  if (st.includes('补件') || st.includes('补交') || st.includes('估值')) return 3;
   if (st.includes('递交') || st.includes('审贷') || st.includes('评估')) return 2;
   if (st.includes('收集') || st.includes('准备') || st.includes('意向') || st.includes('资料') || st.includes('文档')) return 1;
   return 0; // 默认建档
@@ -296,8 +300,8 @@ export function CaseListSidebar({ activeView, onNavigate }: CaseListSidebarProps
                         <div className="mt-2 space-y-1 w-full">
                           <div className="flex items-center gap-0.5 w-full">
                             {STAGE_NODES.map((nodeLabel, idx) => {
-                              const isPassed = idx < stageIdx;
-                              const isCurrent = idx === stageIdx;
+                              const isPassed = idx === 0 || idx < stageIdx; // 建档恒亮（案件存在即建档完成）
+                              const isCurrent = idx === stageIdx && idx !== 0;
                               return (
                                 <div 
                                   key={idx}

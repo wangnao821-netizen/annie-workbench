@@ -1576,3 +1576,11 @@ class ChecklistRegenerateResponse(BaseModel):
     count: int
     generated_by: str  # "ai" | "rule_fallback"
 
+
+# ── WO-66 阶段手动调整（看板拖拽落库）Schema ─────────────────────────
+
+class StageUpdateRequest(BaseModel):
+    """Vera 手动设置案件阶段（看板拖拽）。stage 为 MILESTONE 合法 key/中文。"""
+
+    stage: str = Field(..., min_length=1)
+
