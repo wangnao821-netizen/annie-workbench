@@ -228,7 +228,7 @@ def run_chat_with_tools_stream(
             safe_token = rehydrate(token_chunk, scope, db)
             full_reply_parts.append(safe_token)
             yield {"event": "text_chunk", "data": {"chunk": safe_token}}
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — 流式失败降级为一次性文本
         logger.error("Live streaming failed, fallback to call_llm: %s", e)
         res = gw.call_llm(
             text=DesensitizedText(final_prompt),
