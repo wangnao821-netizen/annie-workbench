@@ -7,10 +7,13 @@
   "scripts": {
     "start": "electron .",
     "dev": "cross-env VERA_DEV=1 VERA_DEV_URL=http://localhost:3000 electron .",
-    "build-web": "cd \"../ui/vera-工作台 (11)\" && npm run build -- --base=./ --mode production",
+    "build-web": "cd \"../ui/vera-工作台 (14)\" && npm run build -- --base=./ --mode production",
     "prepare": "powershell -NoProfile -ExecutionPolicy Bypass -File prepare-package.ps1",
     "dist": "npm run prepare && electron-builder",
-    "dist:dir": "npm run prepare && electron-builder --dir"
+    "dist:dir": "npm run prepare && electron-builder --dir",
+    "build": "npm run build-web && electron-builder --win --x64",
+    "pack": "npm run build-web && electron-builder --win --x64 --dir",
+    "postinstall": "electron-builder install-app-deps"
   },
   "devDependencies": {
     "cross-env": "^7.0.3",
@@ -18,17 +21,18 @@
     "electron-builder": "^24.13.3"
   },
   "build": {
-    "appId": "com.everstones.veraworkbench",
+    "appId": "com.vera.workbench",
     "productName": "Vera 工作台",
     "afterPack": "after-pack.js",
+    "asar": false,
     "directories": {
       "output": "release",
       "buildResources": "build"
     },
     "files": [
       "main.js",
-      "preload.cjs",
-      "config.json"
+      "preload.js",
+      "package.json"
     ],
     "extraResources": [
       {
@@ -42,7 +46,7 @@
         "filter": ["**/*"]
       },
       {
-        "from": "../ui/vera-工作台 (11)/dist",
+        "from": "../ui/vera-工作台 (14)/dist",
         "to": "web",
         "filter": ["**/*"]
       }
