@@ -78,6 +78,25 @@ def record_event(
         metadata_json=metadata_json,
     )
     db.add(event)
+
+    # 同步写入 CaseContextEvent，打通全景多源时序
+    try:
+        from core.models.orm import CaseContextEvent
+
+        ctx_content = f"[{event_type}] {title}\n{description or ''}".strip()
+        db.add(
+            CaseContextEvent(
+                case_id=case_id,
+                source_type="stage_progression" if "stage" in event_type else "milestone",
+                content=ctx_content,
+                track="internal",
+                source_ref=f"timeline:{event_type}:{source_ref or ''}",
+                status="confirmed",
+            )
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("同步 CaseContextEvent 失败: %s", exc)
+
     db.commit()
 
     logger.debug(

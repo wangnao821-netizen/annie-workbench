@@ -1320,6 +1320,18 @@ class TimelineExtractResponse(BaseModel):
     active_blocker: str | None = None
 
 
+class MailPreviewResponse(BaseModel):
+    ok: bool
+    filename: str
+    subject: str = ""
+    sender: str | None = None
+    to: str | None = None
+    date: str | None = None
+    body_text: str = ""
+    body_html: str | None = None
+    attachments: list[str] = Field(default_factory=list)
+
+
 # ── WO-56 新建案件标准目录脚手架 Schemas ─────────────────────────────
 
 class CaseScaffoldRequest(BaseModel):

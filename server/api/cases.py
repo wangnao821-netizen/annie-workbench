@@ -97,6 +97,7 @@ from server.api.schemas import (
     SupersedeEventRequest,
     TimelineEventItem,
     TimelineExtractResponse,
+    MailPreviewResponse,
 )
 from server.deps import get_db, get_settings
 
@@ -1234,6 +1235,60 @@ def extract_case_emails_timeline(
         lender_ref=res.get("lender_ref"),
         active_blocker=res.get("active_blocker"),
     )
+
+
+@router.get("/{case_id}/mail-preview", response_model=MailPreviewResponse)
+def get_case_mail_preview(
+    case_id: str,
+    filename: str = Query(..., description="邮件文件名或相对路径"),
+    db: Session = Depends(get_db),  # noqa: B008
+) -> MailPreviewResponse:
+    """就地解析并直接预览 .msg 邮件（发件人、收件人、时间、正文与附件），杜绝外部下载。"""
+    case = db.query(Case).filter(Case.id == case_id).first()
+    if not case or not case.folder_path:
+        raise HTTPException(status_code=404, detail="案件或目录不存在")
+
+    folder = Path(case.folder_path)
+    target_file = None
+
+    # 1. 直接按相对路径
+    candidate = folder / filename
+    if candidate.is_file():
+        target_file = candidate
+    else:
+        # 2. 递归查找同名文件
+        for f in folder.rglob(filename):
+            if f.is_file():
+                target_file = f
+                break
+
+    if not target_file:
+        raise HTTPException(status_code=404, detail=f"邮件文件 {filename} 未找到")
+
+    try:
+        from extract_msg import Message
+
+        with Message(target_file) as msg:
+            date_str = ""
+            if msg.date:
+                date_str = msg.date.isoformat() if hasattr(msg.date, "isoformat") else str(msg.date)
+
+            att_names = [att.longFilename or att.shortFilename or "附件" for att in (msg.attachments or [])]
+
+            return MailPreviewResponse(
+                ok=True,
+                filename=target_file.name,
+                subject=msg.subject or target_file.stem,
+                sender=msg.sender or "未知发件人",
+                to=msg.to or "",
+                date=date_str,
+                body_text=(msg.body or "").strip(),
+                body_html=getattr(msg, "htmlBody", None) if isinstance(getattr(msg, "htmlBody", None), str) else None,
+                attachments=att_names,
+            )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"邮件解析失败: {exc}") from exc
+
 
 
 @router.get("/{case_id}/recommended-precedents", response_model=CaseRecommendedPrecedentsResponse)

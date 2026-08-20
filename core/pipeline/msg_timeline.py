@@ -74,6 +74,46 @@ def _classify_event(subject: str, body: str) -> tuple[str, bool, str | None]:
     return "note", False, None
 
 
+def _generate_chinese_summary(
+    event_type: str,
+    subject: str,
+    body: str,
+    is_blocker: bool,
+    blocker_reason: str | None,
+    assessor: str | None = None,
+) -> str:
+    """根据邮件特征生成高质量、易读的中文核心业务摘要。"""
+    sub_low = subject.lower()
+    body_low = body.lower()
+    full_low = f"{sub_low}\n{body_low}"
+
+    if "preliminary assessment" in full_low or "preliminary" in sub_low:
+        return "贷款方案初步预审完成，整理并向客户索要第一批审贷材料清单。"
+    if "ready for signing" in full_low or "loan documents" in full_low or "signing" in sub_low:
+        return "银行已下发正式贷款合同 (Loan Documents)，需提示客户完成打印签署与公证回传。"
+    if event_type == "valuation_shortfall" or "valuation" in full_low and is_blocker:
+        return blocker_reason or "银行房产评估结果偏低，已触发估价卡点，正组织同街区成交对比证据申请复议。"
+    if event_type == "reassessment_submitted" or "reassessment" in full_low or "appeal" in full_low:
+        return "已向评估部门递交最新成交案例与申诉信，正式申请重新核定房产估价。"
+    if event_type == "approval_issued" or "unconditional" in full_low or "formal approval" in full_low:
+        return "银行全套审查通过，正式下发贷款批复通知书 (Unconditional Approval)。"
+    if "conditional" in full_low and "approval" in full_low:
+        return "银行下发有条件批复通知书 (Conditional Approval)，正核对剩余前置满足条件。"
+    if event_type == "mir_requested" or "mir" in full_low or "missing information" in full_low:
+        return blocker_reason or "银行审贷官下发补件通知 (MIR)，需针对性补充借款人收入与负债凭据。"
+    if event_type == "assessor_assigned" or "assigned to" in full_low:
+        assessor_name = assessor or "信贷审查官"
+        return f"银行已正式分配审贷经理（{assessor_name}），案卷进入实质性合规审理队列。"
+    if event_type == "submission_lodged" or "lodged" in full_low or "lodgement" in full_low:
+        return "贷款申请已通过审贷系统正式递交至目标银行，等待系统分流与初审。"
+    if "settlement" in full_low:
+        return "贷款案卷已进入交割结算阶段，正与过户律师对齐款项划拨与放款时限。"
+
+    # Fallback: clean up clean sentences
+    clean_body = re.sub(r"\s+", " ", body).strip()
+    return clean_body[:180] + ("..." if len(clean_body) > 180 else "")
+
+
 def _parse_msg_file(msg_path: Path) -> dict[str, Any] | None:
     """解析单个 .msg 邮件并定性为一条时间线事件；解析失败跳过。"""
     try:
@@ -92,12 +132,18 @@ def _parse_msg_file(msg_path: Path) -> dict[str, Any] | None:
             assessor = _extract_assessor(text)
             lender_ref = _extract_lender_ref(text)
             event_type, is_blocker, blocker_reason = _classify_event(subject, body)
+            
+            # Generate actionable Chinese summary
+            chinese_summary = _generate_chinese_summary(
+                event_type, subject, body, is_blocker, blocker_reason, assessor
+            )
+
             return {
                 "id": None,
                 "event_time": event_time,
                 "event_type": event_type,
                 "title": (subject.strip() or msg_path.stem)[:120],
-                "summary": re.sub(r"\s+", " ", body).strip()[:200],
+                "summary": chinese_summary,
                 "sender": msg.sender or None,
                 "assessor": assessor,
                 "lender_ref": lender_ref,
@@ -192,11 +238,19 @@ def sync_timeline_for_case(case_id: str, db: Session) -> dict[str, Any]:
 
 
 def _query_timeline_rows(case_id: str, db: Session) -> list[CaseContextEvent]:
+    """查询指定案件的多源时序事件（邮件、手动手记、阶段推进、关键里程碑）。"""
+    allowed_sources = (
+        "email_timeline",
+        "manual_note",
+        "stage_advanced",
+        "stage_progression",
+        "milestone",
+    )
     return (
         db.query(CaseContextEvent)
         .filter(
             CaseContextEvent.case_id == case_id,
-            CaseContextEvent.source_type == "email_timeline",
+            CaseContextEvent.source_type.in_(allowed_sources),
         )
         .order_by(CaseContextEvent.created_at.asc(), CaseContextEvent.id.asc())
         .all()
@@ -205,10 +259,27 @@ def _query_timeline_rows(case_id: str, db: Session) -> list[CaseContextEvent]:
 
 def _event_from_row(row: CaseContextEvent) -> dict[str, Any]:
     content = row.content or ""
-    event_type, title = "note", ""
+    source_type = row.source_type or "note"
+
+    # Default mappings based on source_type
+    if source_type == "manual_note":
+        event_type = "manual_note"
+        default_title = "经办人沟通手记"
+    elif source_type in ("stage_advanced", "stage_progression"):
+        event_type = "submission_lodged"
+        default_title = "案件阶段流转推进"
+    elif source_type == "milestone":
+        event_type = "submission_lodged"
+        default_title = "业务关键里程碑"
+    else:
+        event_type = "note"
+        default_title = "邮件时序事件"
+
+    title = ""
     summary_lines: list[str] = []
     assessor = lender_ref = blocker_reason = None
     is_blocker = False
+
     for line in content.splitlines():
         m = re.match(r"\[([a-z_]+)\]\s*(.*)", line)
         if m:
@@ -222,16 +293,18 @@ def _event_from_row(row: CaseContextEvent) -> dict[str, Any]:
             blocker_reason = line.split("：", 1)[1].strip() or None
         else:
             summary_lines.append(line)
+
     source_file = None
-    if row.source_ref:
+    if row.source_ref and row.source_ref.startswith("email_timeline:"):
         source_file = row.source_ref.replace("email_timeline:", "").split(":", 1)[0] or None
+
     return {
         "id": str(row.id),
         "event_time": row.created_at.isoformat() if row.created_at else "",
         "event_type": event_type,
-        "title": title or "邮件事件",
-        "summary": "\n".join(summary_lines).strip(),
-        "sender": None,
+        "title": title or default_title,
+        "summary": "\n".join(summary_lines).strip() or content,
+        "sender": "经办人 (Vera)" if source_type == "manual_note" else None,
         "assessor": assessor,
         "lender_ref": lender_ref,
         "source_file": source_file,
