@@ -55,26 +55,31 @@ def _extract_shortfall_reason(text: str) -> str:
         re.IGNORECASE,
     )
     m_est = re.search(
-        r"(?:estimated value|expected value|est\.? value|期望(?:估值)?)\s*(?:is|at|for|:)?\s*\$\s*([0-9][0-9,]*\.?[0-9]*\s*(?:mil|m|k|b)?)",
+        r"(?:estimated value|expected value|expected|est\.? value|期望(?:估值)?)\s*(?:is|at|for|:|the)?\s*\$\s*([0-9][0-9,]*\.?[0-9]*\s*(?:mil|m|k|b)?)",
         text,
         re.IGNORECASE,
     )
     m_val = re.search(
-        r"(?:valuation|val|mv|market value|估价|评估)\s*(?:is|at|of|came in at|:)?\s*\$\s*([0-9][0-9,]*\.?[0-9]*\s*(?:mil|m|k|b)?)",
+        r"(?:valuation|val|mv|market value|估价|评估)\s*(?:is|at|of|came in at|came back at|was|:)?\s*\$\s*([0-9][0-9,]*\.?[0-9]*\s*(?:mil|m|k|b)?)",
         text,
         re.IGNORECASE,
     )
 
+    if m_val and m_est:
+        return f"估价过低：实际 ${m_val.group(1)} vs 期望 ${m_est.group(1)}"
     if m_threshold and m_est:
         return f"估价门槛预期：门槛 ${m_threshold.group(1)} vs 期望 ${m_est.group(1)}"
     if m_threshold:
         return f"估价低于门槛：低于 ${m_threshold.group(1)} 触发转贷方案"
-    if m_val and m_est:
-        return f"估价过低：实际 ${m_val.group(1)} vs 期望 ${m_est.group(1)}"
     if m_val:
-        return f"估价结果：${m_val.group(1)}"
+        return f"估价过低：${m_val.group(1)}"
     if m_est:
         return f"估价期望值：${m_est.group(1)}"
+
+    # 智能兜底：若包含 valuation 与 shortfall/below 且有金额
+    amounts = re.findall(r"\$\s*([0-9][0-9,]*\.?[0-9]*\s*(?:mil|m|k|b)?)", text, re.IGNORECASE)
+    if amounts and not any(k in text.lower() for k in ("remaining balance", "loan balance")):
+        return f"估价过低：${amounts[0].strip()}" + (f" vs 期望 ${amounts[1].strip()}" if len(amounts) >= 2 else "")
 
     return "银行估价低于预期，形成价值缺口（valuation shortfall）"
 

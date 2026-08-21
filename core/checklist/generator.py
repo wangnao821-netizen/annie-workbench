@@ -210,17 +210,27 @@ JSON 格式要求：
         category = item.get("category", "other")
         is_req = item.get("is_required", True)
         sugg = item.get("ai_suggestion", "")
+        raw_mid = item.get("master_id")
 
         # Rehydrate both name and suggestion
         rehydrated_name = rehydrate(name, case_id, db)
         rehydrated_sugg = rehydrate(sugg, case_id, db)
+
+        norm_name = _norm_checklist_name(rehydrated_name)
+        resolved_mid = master_map.get(norm_name) or raw_mid
+        if not resolved_mid:
+            # 模糊子串匹配
+            for m_key, m_val in master_map.items():
+                if len(m_key) >= 2 and (m_key in norm_name or norm_name in m_key):
+                    resolved_mid = m_val
+                    break
 
         rehydrated_items.append({
             "item_name": rehydrated_name,
             "category": category,
             "is_required": is_req,
             "ai_suggestion": rehydrated_sugg,
-            "master_id": master_map.get(_norm_checklist_name(rehydrated_name)),
+            "master_id": resolved_mid or "other",
         })
 
     return rehydrated_items
