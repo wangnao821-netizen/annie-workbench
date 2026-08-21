@@ -2,12 +2,13 @@ import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { 
   Search, Bell, SunMoon, X, Clock,
-  Brain, Archive, FileText, Settings, MessageSquare,
+  Brain, Archive, FileText, Settings, MessageSquare, Sparkles,
   Minus, Square, Copy
 } from 'lucide-react';
 import { ViewId } from '../../types/navigation';
 import { useCaseStore } from '../../stores/caseStore';
 import { useThemeStore } from '../../stores/themeStore';
+import { useUiStore } from '../../stores/uiStore';
 import { THEMES, ThemeId } from '../../themes';
 import { getVersion } from '../../services/api/system';
 import { AuTimePanel } from './AuTimePanel';
@@ -494,6 +495,18 @@ export function TopNavBar({ onNavigate, activeView: activeViewProp }: TopNavBarP
 
                 {/* Divider */}
                 <div className="border-t my-1" style={{ borderColor: 'var(--border)' }} />
+
+                {/* Onboarding Tour Re-trigger */}
+                <button
+                  onClick={() => {
+                    useUiStore.getState().setOnboardingOpen(true);
+                    setAvatarOpen(false);
+                  }}
+                  className="w-full px-3 py-2 rounded-xl text-xs font-bold flex items-center space-x-2.5 transition-colors cursor-pointer text-[var(--accent)] hover:bg-[var(--accent-soft)]"
+                >
+                  <Sparkles className="w-4 h-4 flex-shrink-0" />
+                  <span>✨ 产品亮点与导览</span>
+                </button>
 
                 {/* Version Info */}
                 <div className="px-3 py-1.5 flex items-center justify-between text-[11px] text-muted font-mono">

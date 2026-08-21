@@ -17,13 +17,14 @@ export const THEMES: ThemeConfig[] = [
 
 export function applyTheme(themeId: ThemeId): void {
   document.documentElement.setAttribute("data-theme", themeId);
-  localStorage.setItem("vera-theme", themeId);
+  localStorage.setItem("annie-theme", themeId);
 }
 
 export function getInitialTheme(): ThemeId {
-  const saved = localStorage.getItem("vera-theme") as ThemeId;
+  const saved = (localStorage.getItem("annie-theme") || localStorage.getItem("vera-theme")) as ThemeId;
   if (saved && ["dark", "light", "ivory", "eyecare", "blush", "sand"].includes(saved)) {
     return saved;
   }
-  return "dark";
+  return "eyecare";
 }
+

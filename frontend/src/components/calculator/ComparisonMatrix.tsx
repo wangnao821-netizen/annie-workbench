@@ -65,7 +65,7 @@ export function ComparisonMatrix({
 
     lines.push('');
     if (topBank) {
-      lines.push(`**💡 Vera 决策建议**：`);
+      lines.push(`**💡 Annie 决策建议**：`);
       lines.push(`优先推荐 **${topBank.bank}**，审贷结果为 **${topBank.result}**，最大借款能力达 **$${(topBank.max_loan || 0).toLocaleString()}**（超出申请额 $${Math.max(0, (topBank.max_loan || 0) - loanAmount).toLocaleString()}），月度偿债盈余达 **+$${(topBank.surplus || 0).toLocaleString()}**，符合审贷缓冲与 DTI 红线。`);
     }
 

@@ -367,7 +367,7 @@ export function BrainPanel({ caseId }: BrainPanelProps) {
               暂无已提取事实
             </p>
             <p className="text-xs text-muted">
-              可点击上方「记一笔」手动补充事实，或在案件对话中与 VERA 聊天时记录
+              可点击上方「记一笔」手动补充事实，或在案件对话中与 Annie 聊天时记录
             </p>
           </div>
         ) : (

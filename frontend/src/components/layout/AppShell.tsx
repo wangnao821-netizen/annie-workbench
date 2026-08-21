@@ -28,6 +28,7 @@ import { RightDeckTabs } from '../brain/RightDeckTabs';
 import { ChecklistDeck } from '../brain/ChecklistDeck';
 import { TaskDeckContent } from '../brain/TaskDeckContent';
 import { FileDeckContent } from '../brain/FileDeckContent';
+import { OnboardingModal } from '../onboarding/OnboardingModal';
 
 export function AppShell() {
   const [view, setView] = useState<ViewId>("home");
@@ -63,6 +64,8 @@ export function AppShell() {
   const taskDetailOpen = useUiStore((s) => s.taskDetailOpen);
   const activeTaskDetailId = useUiStore((s) => s.activeTaskDetailId);
   const closeTaskDetail = useUiStore((s) => s.closeTaskDetail);
+  const onboardingOpen = useUiStore((s) => s.onboardingOpen);
+  const setOnboardingOpen = useUiStore((s) => s.setOnboardingOpen);
   const tasks = useTaskStore((s) => s.tasks);
   const selectedTaskId = useTaskStore((s) => s.selectedTaskId);
 
@@ -234,6 +237,11 @@ export function AppShell() {
           onClose={closeTaskDetail}
         />
       )}
+
+      <OnboardingModal
+        forceOpen={onboardingOpen}
+        onClose={() => setOnboardingOpen(false)}
+      />
     </div>
   );
 }

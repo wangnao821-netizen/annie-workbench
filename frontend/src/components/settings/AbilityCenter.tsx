@@ -232,7 +232,7 @@ export function AbilityCenter() {
           )}
         </div>
         <p className="text-[11px] text-muted">
-          以下触发语已接入对话路由，可直接在全局咨询或案件对话中对 Vera 说出：
+          以下触发语已接入对话路由，可直接在全局咨询或案件对话中对 Annie 说出：
         </p>
 
         <div className="flex flex-wrap gap-2 pt-1">
@@ -386,7 +386,7 @@ export function AbilityCenter() {
                 🛠️ 工具库 (Brain Tools & Integrations)
               </h3>
               <p className="text-[11px] text-muted">
-                供 Vera 底层调用的原子能力，覆盖记忆同步、文件解析、政策库检索与第三方工具集成
+                供 Annie 底层调用的原子能力，覆盖记忆同步、文件解析、政策库检索与第三方工具集成
               </p>
             </div>
           </div>

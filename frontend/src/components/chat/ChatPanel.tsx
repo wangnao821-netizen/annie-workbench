@@ -431,7 +431,7 @@ export function ChatPanel({ caseId, onToggleCollapse }: ChatPanelProps) {
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="向 Vera 指令（例如：'请生成给客户的补件回复草稿'）..."
+            placeholder="向 Annie 指派任务（例如：'请生成给客户的补件回复草稿'）..."
             className="bg-transparent border-none outline-none w-full text-xs"
             style={{ color: 'var(--text-primary)' }}
           />

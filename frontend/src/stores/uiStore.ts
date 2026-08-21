@@ -27,6 +27,8 @@ interface UiState {
   activeTaskDetailId: number | null;
   openTaskDetail: (taskId: number) => void;
   closeTaskDetail: () => void;
+  onboardingOpen: boolean;
+  setOnboardingOpen: (open: boolean) => void;
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -56,4 +58,6 @@ export const useUiStore = create<UiState>((set) => ({
     set({ taskDetailOpen: true, activeTaskDetailId: taskId });
   },
   closeTaskDetail: () => set({ taskDetailOpen: false, activeTaskDetailId: null }),
+  onboardingOpen: false,
+  setOnboardingOpen: (open) => set({ onboardingOpen: open }),
 }));

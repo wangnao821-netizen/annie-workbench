@@ -81,7 +81,7 @@ export function OsStrategyColumn({ initialStrategies, caseName, lender }: OsStra
             <div className="space-y-1">
               <p className="text-xs font-bold text-[var(--text-primary)]">💡 暂无生成的攻坚策略</p>
               <p className="text-[11px] text-muted max-w-sm">
-                点击下方按钮，由 Vera 根据案卷条件与银行政策实时生成 2-3 套攻坚与转案应对方案
+                点击下方按钮，由 Annie 根据案卷条件与银行政策实时生成 2-3 套攻坚与转案应对方案
               </p>
             </div>
             <motion.button
