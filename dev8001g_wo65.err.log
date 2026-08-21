@@ -1,0 +1,938 @@
+INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+2026-08-20 22:09:06 [INFO] core.models.db: Alembic migration completed successfully
+INFO  [core.models.db] Alembic migration completed successfully
+INFO:     Started server process [38192]
+INFO:     Waiting for application startup.
+2026-08-20 22:09:08 [INFO] core.config: Configuration consistency check passed
+INFO  [core.config] Configuration consistency check passed
+2026-08-20 22:09:08 [INFO] core.config: CLIENT_FILES_ROOT validated: D:\EverStones_Test_Clients
+INFO  [core.config] CLIENT_FILES_ROOT validated: D:\EverStones_Test_Clients
+2026-08-20 22:09:08 [WARNING] core.config: AI primary provider key 'DEEPSEEK_API_KEY' is not set (still placeholder or empty)
+WARNI [core.config] AI primary provider key 'DEEPSEEK_API_KEY' is not set (still placeholder or empty)
+2026-08-20 22:09:08 [WARNING] core.config: AI fallback provider key 'GEMINI_API_KEY' is not set (still placeholder or empty)
+WARNI [core.config] AI fallback provider key 'GEMINI_API_KEY' is not set (still placeholder or empty)
+2026-08-20 22:09:08 [WARNING] core.config: AI API keys not set — running in development mode. Set keys in .env before using AI features.
+WARNI [core.config] AI API keys not set — running in development mode. Set keys in .env before using AI features.
+2026-08-20 22:09:08 [INFO] core.config: Configuration loaded and validated successfully
+INFO  [core.config] Configuration loaded and validated successfully
+2026-08-20 22:09:08 [INFO] core.scheduler.jobs: scheduler started: daily_backup / overdue_check / summary_refresh
+INFO  [core.scheduler.jobs] scheduler started: daily_backup / overdue_check / summary_refresh
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+2026-08-20 22:09:21 [INFO] core.case_creation: Created case folder: D:\EverStones_Test_Clients\Brandon\WO65复测客户C\CASE-A1DBEF3D
+INFO  [core.case_creation] Created case folder: D:\EverStones_Test_Clients\Brandon\WO65复测客户C\CASE-A1DBEF3D
+2026-08-20 22:09:21 [INFO] core.checklist.generator: Saving confirmed checklist for case CASE-A1DBEF3D, count=24
+INFO  [core.checklist.generator] Saving confirmed checklist for case CASE-A1DBEF3D, count=24
+2026-08-20 22:09:22 [INFO] core.case_creation: Case created: CASE-A1DBEF3D (source=manual, client=WO65复测客户C, client_id=CLI-FAB9EA6F)
+INFO  [core.case_creation] Case created: CASE-A1DBEF3D (source=manual, client=WO65复测客户C, client_id=CLI-FAB9EA6F)
+2026-08-20 22:09:22 [WARNING] core.ai.gateway: Fallback provider unavailable: Missing API key: GEMINI_API_KEY
+WARNI [core.ai.gateway] Fallback provider unavailable: Missing API key: GEMINI_API_KEY
+2026-08-20 22:09:22 [WARNING] core.ai.gateway: Fallback provider unavailable: Missing API key: GEMINI_API_KEY
+WARNI [core.ai.gateway] Fallback provider unavailable: Missing API key: GEMINI_API_KEY
+2026-08-20 22:09:23 [INFO] core.ai.gateway: API call success: provider=deepseek model=deepseek-chat latency=1321ms tokens=241+9 tool_calls=0
+INFO  [core.ai.gateway] API call success: provider=deepseek model=deepseek-chat latency=1321ms tokens=241+9 tool_calls=0
+2026-08-20 22:09:23 [INFO] core.chat.loop: Chat intent classified: calculator_assess (reason: llm_semantic_route)
+INFO  [core.chat.loop] Chat intent classified: calculator_assess (reason: llm_semantic_route)
+2026-08-20 22:09:23 [INFO] core.facts.slots: BrainFact slot saved: case=CASE-A1DBEF3D key=applicant.spouse_income val=80000.0
+INFO  [core.facts.slots] BrainFact slot saved: case=CASE-A1DBEF3D key=applicant.spouse_income val=80000.0
+2026-08-20 22:09:23 [INFO] core.facts.slots: BrainFact slot saved: case=CASE-A1DBEF3D key=loan.target_amount val=1800000.0
+INFO  [core.facts.slots] BrainFact slot saved: case=CASE-A1DBEF3D key=loan.target_amount val=1800000.0
+2026-08-20 22:09:28 [WARNING] core.ai.gateway: Fallback provider unavailable: Missing API key: GEMINI_API_KEY
+WARNI [core.ai.gateway] Fallback provider unavailable: Missing API key: GEMINI_API_KEY
+2026-08-20 22:09:28 [INFO] core.chat.loop: Chat intent classified: task_create (reason: fast_path_task_create)
+INFO  [core.chat.loop] Chat intent classified: task_create (reason: fast_path_task_create)
+2026-08-20 22:09:28 [CRITICAL] core.pii.leak_detector: PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+CRITI [core.pii.leak_detector] PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+2026-08-20 22:09:28 [CRITICAL] core.ai.gateway: Safety leak detected before streaming API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+CRITI [core.ai.gateway] Safety leak detected before streaming API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+2026-08-20 22:09:28 [ERROR] core.chat.loop: Live streaming failed, fallback to call_llm: Payload contains PII
+ERROR [core.chat.loop] Live streaming failed, fallback to call_llm: Payload contains PII
+2026-08-20 22:09:28 [CRITICAL] core.pii.leak_detector: PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+CRITI [core.pii.leak_detector] PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+2026-08-20 22:09:28 [CRITICAL] core.ai.gateway: Safety leak detected before API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+CRITI [core.ai.gateway] Safety leak detected before API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+2026-08-20 22:09:28 [ERROR] server.api.chat: Streaming chat failed for scope=CASE-A1DBEF3D
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 217, in call_llm_stream
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\chat\loop.py", line 355, in run_chat_with_tools_stream
+    for token_chunk in gw.call_llm_stream(
+  File "D:\vera-workbench\core\ai\gateway.py", line 220, in call_llm_stream
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 165, in call_llm
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\server\api\chat.py", line 74, in event_generator
+    for item in run_chat_with_tools_stream(
+  File "D:\vera-workbench\core\chat\loop.py", line 367, in run_chat_with_tools_stream
+    res = gw.call_llm(
+          ^^^^^^^^^^^^
+  File "D:\vera-workbench\core\ai\gateway.py", line 168, in call_llm
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+ERROR [server.api.chat] Streaming chat failed for scope=CASE-A1DBEF3D
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 217, in call_llm_stream
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\chat\loop.py", line 355, in run_chat_with_tools_stream
+    for token_chunk in gw.call_llm_stream(
+  File "D:\vera-workbench\core\ai\gateway.py", line 220, in call_llm_stream
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 165, in call_llm
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\server\api\chat.py", line 74, in event_generator
+    for item in run_chat_with_tools_stream(
+  File "D:\vera-workbench\core\chat\loop.py", line 367, in run_chat_with_tools_stream
+    res = gw.call_llm(
+          ^^^^^^^^^^^^
+  File "D:\vera-workbench\core\ai\gateway.py", line 168, in call_llm
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+2026-08-20 22:09:28 [WARNING] core.ai.gateway: Fallback provider unavailable: Missing API key: GEMINI_API_KEY
+WARNI [core.ai.gateway] Fallback provider unavailable: Missing API key: GEMINI_API_KEY
+2026-08-20 22:09:28 [INFO] core.chat.loop: Chat intent classified: task_create (reason: fast_path_task_create)
+INFO  [core.chat.loop] Chat intent classified: task_create (reason: fast_path_task_create)
+2026-08-20 22:09:28 [CRITICAL] core.pii.leak_detector: PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+CRITI [core.pii.leak_detector] PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+2026-08-20 22:09:28 [CRITICAL] core.ai.gateway: Safety leak detected before streaming API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+CRITI [core.ai.gateway] Safety leak detected before streaming API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+2026-08-20 22:09:28 [ERROR] core.chat.loop: Live streaming failed, fallback to call_llm: Payload contains PII
+ERROR [core.chat.loop] Live streaming failed, fallback to call_llm: Payload contains PII
+2026-08-20 22:09:28 [CRITICAL] core.pii.leak_detector: PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+CRITI [core.pii.leak_detector] PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+2026-08-20 22:09:28 [CRITICAL] core.ai.gateway: Safety leak detected before API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+CRITI [core.ai.gateway] Safety leak detected before API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+2026-08-20 22:09:28 [ERROR] server.api.chat: Streaming chat failed for scope=CASE-A1DBEF3D
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 217, in call_llm_stream
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\chat\loop.py", line 355, in run_chat_with_tools_stream
+    for token_chunk in gw.call_llm_stream(
+  File "D:\vera-workbench\core\ai\gateway.py", line 220, in call_llm_stream
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 165, in call_llm
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\server\api\chat.py", line 74, in event_generator
+    for item in run_chat_with_tools_stream(
+  File "D:\vera-workbench\core\chat\loop.py", line 367, in run_chat_with_tools_stream
+    res = gw.call_llm(
+          ^^^^^^^^^^^^
+  File "D:\vera-workbench\core\ai\gateway.py", line 168, in call_llm
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+ERROR [server.api.chat] Streaming chat failed for scope=CASE-A1DBEF3D
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 217, in call_llm_stream
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\chat\loop.py", line 355, in run_chat_with_tools_stream
+    for token_chunk in gw.call_llm_stream(
+  File "D:\vera-workbench\core\ai\gateway.py", line 220, in call_llm_stream
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 165, in call_llm
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\server\api\chat.py", line 74, in event_generator
+    for item in run_chat_with_tools_stream(
+  File "D:\vera-workbench\core\chat\loop.py", line 367, in run_chat_with_tools_stream
+    res = gw.call_llm(
+          ^^^^^^^^^^^^
+  File "D:\vera-workbench\core\ai\gateway.py", line 168, in call_llm
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+2026-08-20 22:09:28 [WARNING] core.ai.gateway: Fallback provider unavailable: Missing API key: GEMINI_API_KEY
+WARNI [core.ai.gateway] Fallback provider unavailable: Missing API key: GEMINI_API_KEY
+2026-08-20 22:09:28 [INFO] core.chat.loop: Chat intent classified: task_create (reason: fast_path_task_create)
+INFO  [core.chat.loop] Chat intent classified: task_create (reason: fast_path_task_create)
+2026-08-20 22:09:28 [CRITICAL] core.pii.leak_detector: PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+CRITI [core.pii.leak_detector] PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+2026-08-20 22:09:28 [CRITICAL] core.ai.gateway: Safety leak detected before streaming API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+CRITI [core.ai.gateway] Safety leak detected before streaming API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+2026-08-20 22:09:28 [ERROR] core.chat.loop: Live streaming failed, fallback to call_llm: Payload contains PII
+ERROR [core.chat.loop] Live streaming failed, fallback to call_llm: Payload contains PII
+2026-08-20 22:09:28 [CRITICAL] core.pii.leak_detector: PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+CRITI [core.pii.leak_detector] PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+2026-08-20 22:09:28 [CRITICAL] core.ai.gateway: Safety leak detected before API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+CRITI [core.ai.gateway] Safety leak detected before API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+2026-08-20 22:09:28 [ERROR] server.api.chat: Streaming chat failed for scope=CASE-A1DBEF3D
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 217, in call_llm_stream
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\chat\loop.py", line 355, in run_chat_with_tools_stream
+    for token_chunk in gw.call_llm_stream(
+  File "D:\vera-workbench\core\ai\gateway.py", line 220, in call_llm_stream
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 165, in call_llm
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\server\api\chat.py", line 74, in event_generator
+    for item in run_chat_with_tools_stream(
+  File "D:\vera-workbench\core\chat\loop.py", line 367, in run_chat_with_tools_stream
+    res = gw.call_llm(
+          ^^^^^^^^^^^^
+  File "D:\vera-workbench\core\ai\gateway.py", line 168, in call_llm
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+ERROR [server.api.chat] Streaming chat failed for scope=CASE-A1DBEF3D
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 217, in call_llm_stream
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\chat\loop.py", line 355, in run_chat_with_tools_stream
+    for token_chunk in gw.call_llm_stream(
+  File "D:\vera-workbench\core\ai\gateway.py", line 220, in call_llm_stream
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 165, in call_llm
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\server\api\chat.py", line 74, in event_generator
+    for item in run_chat_with_tools_stream(
+  File "D:\vera-workbench\core\chat\loop.py", line 367, in run_chat_with_tools_stream
+    res = gw.call_llm(
+          ^^^^^^^^^^^^
+  File "D:\vera-workbench\core\ai\gateway.py", line 168, in call_llm
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+2026-08-20 22:09:28 [WARNING] core.ai.gateway: Fallback provider unavailable: Missing API key: GEMINI_API_KEY
+WARNI [core.ai.gateway] Fallback provider unavailable: Missing API key: GEMINI_API_KEY
+2026-08-20 22:09:28 [INFO] core.chat.loop: Chat intent classified: task_create (reason: fast_path_task_create)
+INFO  [core.chat.loop] Chat intent classified: task_create (reason: fast_path_task_create)
+2026-08-20 22:09:28 [CRITICAL] core.pii.leak_detector: PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+CRITI [core.pii.leak_detector] PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+2026-08-20 22:09:28 [CRITICAL] core.ai.gateway: Safety leak detected before streaming API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+CRITI [core.ai.gateway] Safety leak detected before streaming API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+2026-08-20 22:09:28 [ERROR] core.chat.loop: Live streaming failed, fallback to call_llm: Payload contains PII
+ERROR [core.chat.loop] Live streaming failed, fallback to call_llm: Payload contains PII
+2026-08-20 22:09:28 [CRITICAL] core.pii.leak_detector: PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+CRITI [core.pii.leak_detector] PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+2026-08-20 22:09:28 [CRITICAL] core.ai.gateway: Safety leak detected before API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+CRITI [core.ai.gateway] Safety leak detected before API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+2026-08-20 22:09:28 [ERROR] server.api.chat: Streaming chat failed for scope=CASE-A1DBEF3D
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 217, in call_llm_stream
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\chat\loop.py", line 355, in run_chat_with_tools_stream
+    for token_chunk in gw.call_llm_stream(
+  File "D:\vera-workbench\core\ai\gateway.py", line 220, in call_llm_stream
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 165, in call_llm
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\server\api\chat.py", line 74, in event_generator
+    for item in run_chat_with_tools_stream(
+  File "D:\vera-workbench\core\chat\loop.py", line 367, in run_chat_with_tools_stream
+    res = gw.call_llm(
+          ^^^^^^^^^^^^
+  File "D:\vera-workbench\core\ai\gateway.py", line 168, in call_llm
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+ERROR [server.api.chat] Streaming chat failed for scope=CASE-A1DBEF3D
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 217, in call_llm_stream
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\chat\loop.py", line 355, in run_chat_with_tools_stream
+    for token_chunk in gw.call_llm_stream(
+  File "D:\vera-workbench\core\ai\gateway.py", line 220, in call_llm_stream
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 165, in call_llm
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\server\api\chat.py", line 74, in event_generator
+    for item in run_chat_with_tools_stream(
+  File "D:\vera-workbench\core\chat\loop.py", line 367, in run_chat_with_tools_stream
+    res = gw.call_llm(
+          ^^^^^^^^^^^^
+  File "D:\vera-workbench\core\ai\gateway.py", line 168, in call_llm
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+2026-08-20 22:09:28 [WARNING] core.ai.gateway: Fallback provider unavailable: Missing API key: GEMINI_API_KEY
+WARNI [core.ai.gateway] Fallback provider unavailable: Missing API key: GEMINI_API_KEY
+2026-08-20 22:09:28 [INFO] core.chat.loop: Chat intent classified: task_create (reason: fast_path_task_create)
+INFO  [core.chat.loop] Chat intent classified: task_create (reason: fast_path_task_create)
+2026-08-20 22:09:28 [CRITICAL] core.pii.leak_detector: PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+CRITI [core.pii.leak_detector] PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+2026-08-20 22:09:28 [CRITICAL] core.ai.gateway: Safety leak detected before streaming API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+CRITI [core.ai.gateway] Safety leak detected before streaming API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+2026-08-20 22:09:28 [ERROR] core.chat.loop: Live streaming failed, fallback to call_llm: Payload contains PII
+ERROR [core.chat.loop] Live streaming failed, fallback to call_llm: Payload contains PII
+2026-08-20 22:09:28 [CRITICAL] core.pii.leak_detector: PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+CRITI [core.pii.leak_detector] PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+2026-08-20 22:09:28 [CRITICAL] core.ai.gateway: Safety leak detected before API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+CRITI [core.ai.gateway] Safety leak detected before API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+2026-08-20 22:09:28 [ERROR] server.api.chat: Streaming chat failed for scope=CASE-A1DBEF3D
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 217, in call_llm_stream
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\chat\loop.py", line 355, in run_chat_with_tools_stream
+    for token_chunk in gw.call_llm_stream(
+  File "D:\vera-workbench\core\ai\gateway.py", line 220, in call_llm_stream
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 165, in call_llm
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\server\api\chat.py", line 74, in event_generator
+    for item in run_chat_with_tools_stream(
+  File "D:\vera-workbench\core\chat\loop.py", line 367, in run_chat_with_tools_stream
+    res = gw.call_llm(
+          ^^^^^^^^^^^^
+  File "D:\vera-workbench\core\ai\gateway.py", line 168, in call_llm
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+ERROR [server.api.chat] Streaming chat failed for scope=CASE-A1DBEF3D
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 217, in call_llm_stream
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\chat\loop.py", line 355, in run_chat_with_tools_stream
+    for token_chunk in gw.call_llm_stream(
+  File "D:\vera-workbench\core\ai\gateway.py", line 220, in call_llm_stream
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 165, in call_llm
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\server\api\chat.py", line 74, in event_generator
+    for item in run_chat_with_tools_stream(
+  File "D:\vera-workbench\core\chat\loop.py", line 367, in run_chat_with_tools_stream
+    res = gw.call_llm(
+          ^^^^^^^^^^^^
+  File "D:\vera-workbench\core\ai\gateway.py", line 168, in call_llm
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+2026-08-20 22:09:29 [WARNING] core.ai.gateway: Fallback provider unavailable: Missing API key: GEMINI_API_KEY
+WARNI [core.ai.gateway] Fallback provider unavailable: Missing API key: GEMINI_API_KEY
+2026-08-20 22:09:29 [WARNING] core.ai.gateway: Fallback provider unavailable: Missing API key: GEMINI_API_KEY
+WARNI [core.ai.gateway] Fallback provider unavailable: Missing API key: GEMINI_API_KEY
+2026-08-20 22:09:29 [INFO] core.ai.gateway: API call success: provider=deepseek model=deepseek-chat latency=873ms tokens=237+8 tool_calls=0
+INFO  [core.ai.gateway] API call success: provider=deepseek model=deepseek-chat latency=873ms tokens=237+8 tool_calls=0
+2026-08-20 22:09:29 [INFO] core.chat.loop: Chat intent classified: task_create (reason: llm_semantic_route)
+INFO  [core.chat.loop] Chat intent classified: task_create (reason: llm_semantic_route)
+2026-08-20 22:09:29 [CRITICAL] core.pii.leak_detector: PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+CRITI [core.pii.leak_detector] PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+2026-08-20 22:09:29 [CRITICAL] core.ai.gateway: Safety leak detected before streaming API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+CRITI [core.ai.gateway] Safety leak detected before streaming API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+2026-08-20 22:09:29 [ERROR] core.chat.loop: Live streaming failed, fallback to call_llm: Payload contains PII
+ERROR [core.chat.loop] Live streaming failed, fallback to call_llm: Payload contains PII
+2026-08-20 22:09:29 [CRITICAL] core.pii.leak_detector: PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+CRITI [core.pii.leak_detector] PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+2026-08-20 22:09:29 [CRITICAL] core.ai.gateway: Safety leak detected before API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+CRITI [core.ai.gateway] Safety leak detected before API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+2026-08-20 22:09:29 [ERROR] server.api.chat: Streaming chat failed for scope=CASE-A1DBEF3D
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 217, in call_llm_stream
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\chat\loop.py", line 355, in run_chat_with_tools_stream
+    for token_chunk in gw.call_llm_stream(
+  File "D:\vera-workbench\core\ai\gateway.py", line 220, in call_llm_stream
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 165, in call_llm
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\server\api\chat.py", line 74, in event_generator
+    for item in run_chat_with_tools_stream(
+  File "D:\vera-workbench\core\chat\loop.py", line 367, in run_chat_with_tools_stream
+    res = gw.call_llm(
+          ^^^^^^^^^^^^
+  File "D:\vera-workbench\core\ai\gateway.py", line 168, in call_llm
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+ERROR [server.api.chat] Streaming chat failed for scope=CASE-A1DBEF3D
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 217, in call_llm_stream
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\chat\loop.py", line 355, in run_chat_with_tools_stream
+    for token_chunk in gw.call_llm_stream(
+  File "D:\vera-workbench\core\ai\gateway.py", line 220, in call_llm_stream
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 165, in call_llm
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\server\api\chat.py", line 74, in event_generator
+    for item in run_chat_with_tools_stream(
+  File "D:\vera-workbench\core\chat\loop.py", line 367, in run_chat_with_tools_stream
+    res = gw.call_llm(
+          ^^^^^^^^^^^^
+  File "D:\vera-workbench\core\ai\gateway.py", line 168, in call_llm
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+2026-08-20 22:09:29 [WARNING] core.ai.gateway: Fallback provider unavailable: Missing API key: GEMINI_API_KEY
+WARNI [core.ai.gateway] Fallback provider unavailable: Missing API key: GEMINI_API_KEY
+2026-08-20 22:09:29 [INFO] core.chat.loop: Chat intent classified: task_create (reason: fast_path_task_create)
+INFO  [core.chat.loop] Chat intent classified: task_create (reason: fast_path_task_create)
+2026-08-20 22:09:29 [CRITICAL] core.pii.leak_detector: PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+CRITI [core.pii.leak_detector] PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+2026-08-20 22:09:29 [CRITICAL] core.ai.gateway: Safety leak detected before streaming API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+CRITI [core.ai.gateway] Safety leak detected before streaming API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+2026-08-20 22:09:29 [ERROR] core.chat.loop: Live streaming failed, fallback to call_llm: Payload contains PII
+ERROR [core.chat.loop] Live streaming failed, fallback to call_llm: Payload contains PII
+2026-08-20 22:09:29 [CRITICAL] core.pii.leak_detector: PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+CRITI [core.pii.leak_detector] PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+2026-08-20 22:09:29 [CRITICAL] core.ai.gateway: Safety leak detected before API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+CRITI [core.ai.gateway] Safety leak detected before API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+2026-08-20 22:09:29 [ERROR] server.api.chat: Streaming chat failed for scope=CASE-A1DBEF3D
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 217, in call_llm_stream
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\chat\loop.py", line 355, in run_chat_with_tools_stream
+    for token_chunk in gw.call_llm_stream(
+  File "D:\vera-workbench\core\ai\gateway.py", line 220, in call_llm_stream
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 165, in call_llm
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\server\api\chat.py", line 74, in event_generator
+    for item in run_chat_with_tools_stream(
+  File "D:\vera-workbench\core\chat\loop.py", line 367, in run_chat_with_tools_stream
+    res = gw.call_llm(
+          ^^^^^^^^^^^^
+  File "D:\vera-workbench\core\ai\gateway.py", line 168, in call_llm
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+ERROR [server.api.chat] Streaming chat failed for scope=CASE-A1DBEF3D
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 217, in call_llm_stream
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\chat\loop.py", line 355, in run_chat_with_tools_stream
+    for token_chunk in gw.call_llm_stream(
+  File "D:\vera-workbench\core\ai\gateway.py", line 220, in call_llm_stream
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 165, in call_llm
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\server\api\chat.py", line 74, in event_generator
+    for item in run_chat_with_tools_stream(
+  File "D:\vera-workbench\core\chat\loop.py", line 367, in run_chat_with_tools_stream
+    res = gw.call_llm(
+          ^^^^^^^^^^^^
+  File "D:\vera-workbench\core\ai\gateway.py", line 168, in call_llm
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+2026-08-20 22:09:29 [WARNING] core.ai.gateway: Fallback provider unavailable: Missing API key: GEMINI_API_KEY
+WARNI [core.ai.gateway] Fallback provider unavailable: Missing API key: GEMINI_API_KEY
+2026-08-20 22:09:29 [INFO] core.chat.loop: Chat intent classified: task_create (reason: fast_path_task_create)
+INFO  [core.chat.loop] Chat intent classified: task_create (reason: fast_path_task_create)
+2026-08-20 22:09:29 [CRITICAL] core.pii.leak_detector: PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+CRITI [core.pii.leak_detector] PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+2026-08-20 22:09:29 [CRITICAL] core.ai.gateway: Safety leak detected before streaming API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+CRITI [core.ai.gateway] Safety leak detected before streaming API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+2026-08-20 22:09:29 [ERROR] core.chat.loop: Live streaming failed, fallback to call_llm: Payload contains PII
+ERROR [core.chat.loop] Live streaming failed, fallback to call_llm: Payload contains PII
+2026-08-20 22:09:29 [CRITICAL] core.pii.leak_detector: PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+CRITI [core.pii.leak_detector] PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+2026-08-20 22:09:29 [CRITICAL] core.ai.gateway: Safety leak detected before API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+CRITI [core.ai.gateway] Safety leak detected before API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+2026-08-20 22:09:29 [ERROR] server.api.chat: Streaming chat failed for scope=CASE-A1DBEF3D
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 217, in call_llm_stream
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\chat\loop.py", line 355, in run_chat_with_tools_stream
+    for token_chunk in gw.call_llm_stream(
+  File "D:\vera-workbench\core\ai\gateway.py", line 220, in call_llm_stream
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 165, in call_llm
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\server\api\chat.py", line 74, in event_generator
+    for item in run_chat_with_tools_stream(
+  File "D:\vera-workbench\core\chat\loop.py", line 367, in run_chat_with_tools_stream
+    res = gw.call_llm(
+          ^^^^^^^^^^^^
+  File "D:\vera-workbench\core\ai\gateway.py", line 168, in call_llm
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+ERROR [server.api.chat] Streaming chat failed for scope=CASE-A1DBEF3D
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 217, in call_llm_stream
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\chat\loop.py", line 355, in run_chat_with_tools_stream
+    for token_chunk in gw.call_llm_stream(
+  File "D:\vera-workbench\core\ai\gateway.py", line 220, in call_llm_stream
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 165, in call_llm
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\server\api\chat.py", line 74, in event_generator
+    for item in run_chat_with_tools_stream(
+  File "D:\vera-workbench\core\chat\loop.py", line 367, in run_chat_with_tools_stream
+    res = gw.call_llm(
+          ^^^^^^^^^^^^
+  File "D:\vera-workbench\core\ai\gateway.py", line 168, in call_llm
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+2026-08-20 22:09:30 [WARNING] core.ai.gateway: Fallback provider unavailable: Missing API key: GEMINI_API_KEY
+WARNI [core.ai.gateway] Fallback provider unavailable: Missing API key: GEMINI_API_KEY
+2026-08-20 22:09:30 [INFO] core.chat.loop: Chat intent classified: task_create (reason: fast_path_task_create)
+INFO  [core.chat.loop] Chat intent classified: task_create (reason: fast_path_task_create)
+2026-08-20 22:09:30 [CRITICAL] core.pii.leak_detector: PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+CRITI [core.pii.leak_detector] PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+2026-08-20 22:09:30 [CRITICAL] core.ai.gateway: Safety leak detected before streaming API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+CRITI [core.ai.gateway] Safety leak detected before streaming API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+2026-08-20 22:09:30 [ERROR] core.chat.loop: Live streaming failed, fallback to call_llm: Payload contains PII
+ERROR [core.chat.loop] Live streaming failed, fallback to call_llm: Payload contains PII
+2026-08-20 22:09:30 [CRITICAL] core.pii.leak_detector: PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+CRITI [core.pii.leak_detector] PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+2026-08-20 22:09:30 [CRITICAL] core.ai.gateway: Safety leak detected before API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+CRITI [core.ai.gateway] Safety leak detected before API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+2026-08-20 22:09:30 [ERROR] server.api.chat: Streaming chat failed for scope=CASE-A1DBEF3D
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 217, in call_llm_stream
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\chat\loop.py", line 355, in run_chat_with_tools_stream
+    for token_chunk in gw.call_llm_stream(
+  File "D:\vera-workbench\core\ai\gateway.py", line 220, in call_llm_stream
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 165, in call_llm
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\server\api\chat.py", line 74, in event_generator
+    for item in run_chat_with_tools_stream(
+  File "D:\vera-workbench\core\chat\loop.py", line 367, in run_chat_with_tools_stream
+    res = gw.call_llm(
+          ^^^^^^^^^^^^
+  File "D:\vera-workbench\core\ai\gateway.py", line 168, in call_llm
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+ERROR [server.api.chat] Streaming chat failed for scope=CASE-A1DBEF3D
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 217, in call_llm_stream
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\chat\loop.py", line 355, in run_chat_with_tools_stream
+    for token_chunk in gw.call_llm_stream(
+  File "D:\vera-workbench\core\ai\gateway.py", line 220, in call_llm_stream
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 165, in call_llm
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\server\api\chat.py", line 74, in event_generator
+    for item in run_chat_with_tools_stream(
+  File "D:\vera-workbench\core\chat\loop.py", line 367, in run_chat_with_tools_stream
+    res = gw.call_llm(
+          ^^^^^^^^^^^^
+  File "D:\vera-workbench\core\ai\gateway.py", line 168, in call_llm
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+2026-08-20 22:09:30 [WARNING] core.ai.gateway: Fallback provider unavailable: Missing API key: GEMINI_API_KEY
+WARNI [core.ai.gateway] Fallback provider unavailable: Missing API key: GEMINI_API_KEY
+2026-08-20 22:09:30 [INFO] core.chat.loop: Chat intent classified: task_create (reason: fast_path_task_create)
+INFO  [core.chat.loop] Chat intent classified: task_create (reason: fast_path_task_create)
+2026-08-20 22:09:30 [CRITICAL] core.pii.leak_detector: PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+CRITI [core.pii.leak_detector] PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+2026-08-20 22:09:30 [CRITICAL] core.ai.gateway: Safety leak detected before streaming API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+CRITI [core.ai.gateway] Safety leak detected before streaming API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+2026-08-20 22:09:30 [ERROR] core.chat.loop: Live streaming failed, fallback to call_llm: Payload contains PII
+ERROR [core.chat.loop] Live streaming failed, fallback to call_llm: Payload contains PII
+2026-08-20 22:09:30 [CRITICAL] core.pii.leak_detector: PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+CRITI [core.pii.leak_detector] PII leak detected before cloud API call: 1 match(es): bsb(12***30). Operation blocked.
+2026-08-20 22:09:30 [CRITICAL] core.ai.gateway: Safety leak detected before API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+CRITI [core.ai.gateway] Safety leak detected before API transmission! details=PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+2026-08-20 22:09:30 [ERROR] server.api.chat: Streaming chat failed for scope=CASE-A1DBEF3D
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 217, in call_llm_stream
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\chat\loop.py", line 355, in run_chat_with_tools_stream
+    for token_chunk in gw.call_llm_stream(
+  File "D:\vera-workbench\core\ai\gateway.py", line 220, in call_llm_stream
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 165, in call_llm
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\server\api\chat.py", line 74, in event_generator
+    for item in run_chat_with_tools_stream(
+  File "D:\vera-workbench\core\chat\loop.py", line 367, in run_chat_with_tools_stream
+    res = gw.call_llm(
+          ^^^^^^^^^^^^
+  File "D:\vera-workbench\core\ai\gateway.py", line 168, in call_llm
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+ERROR [server.api.chat] Streaming chat failed for scope=CASE-A1DBEF3D
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 217, in call_llm_stream
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\chat\loop.py", line 355, in run_chat_with_tools_stream
+    for token_chunk in gw.call_llm_stream(
+  File "D:\vera-workbench\core\ai\gateway.py", line 220, in call_llm_stream
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\core\ai\gateway.py", line 165, in call_llm
+    self._detector.assert_clean(full_prompt)
+  File "D:\vera-workbench\core\pii\leak_detector.py", line 364, in assert_clean
+    raise PiiLeakError(matches)
+core.pii.leak_detector.PiiLeakError: PII leak detected: 1 match(es) found (bsb). Text must not be sent to cloud API.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\vera-workbench\server\api\chat.py", line 74, in event_generator
+    for item in run_chat_with_tools_stream(
+  File "D:\vera-workbench\core\chat\loop.py", line 367, in run_chat_with_tools_stream
+    res = gw.call_llm(
+          ^^^^^^^^^^^^
+  File "D:\vera-workbench\core\ai\gateway.py", line 168, in call_llm
+    raise SafetyViolationError("Payload contains PII") from e
+core.ai.gateway.SafetyViolationError: Payload contains PII
+2026-08-20 22:09:30 [WARNING] core.ai.gateway: Fallback provider unavailable: Missing API key: GEMINI_API_KEY
+WARNI [core.ai.gateway] Fallback provider unavailable: Missing API key: GEMINI_API_KEY
+2026-08-20 22:09:30 [INFO] core.chat.loop: Chat intent classified: task_create (reason: fast_path_task_create)
+INFO  [core.chat.loop] Chat intent classified: task_create (reason: fast_path_task_create)
+2026-08-21 03:00:00 [INFO] core.scheduler.backup: backup created: d:\vera-workbench\data\backups\assistant_20260820_190000.db
+INFO  [core.scheduler.backup] backup created: d:\vera-workbench\data\backups\assistant_20260820_190000.db
+2026-08-21 15:09:08 [WARNING] core.ai.gateway: Fallback provider unavailable: Missing API key: GEMINI_API_KEY
+WARNI [core.ai.gateway] Fallback provider unavailable: Missing API key: GEMINI_API_KEY
+2026-08-21 15:09:09 [ERROR] core.ai.gateway: Authentication failed for deepseek: Error code: 401 - {'error': {'message': 'Authentication Fails, Your api key: ****df31 is invalid', 'type': 'authentication_error', 'param': None, 'code': 'invalid_request_error'}}
+ERROR [core.ai.gateway] Authentication failed for deepseek: Error code: 401 - {'error': {'message': 'Authentication Fails, Your api key: ****df31 is invalid', 'type': 'authentication_error', 'param': None, 'code': 'invalid_request_error'}}
+2026-08-21 15:09:09 [WARNING] core.ai.case_summary: one-liner LLM failed for CASE-B140DABE, fallback to rules: Authentication failed for deepseek: Error code: 401 - {'error': {'message': 'Authentication Fails, Your api key: ****df31 is invalid', 'type': 'authentication_error', 'param': None, 'code': 'invalid_request_error'}}
+WARNI [core.ai.case_summary] one-liner LLM failed for CASE-B140DABE, fallback to rules: Authentication failed for deepseek: Error code: 401 - {'error': {'message': 'Authentication Fails, Your api key: ****df31 is invalid', 'type': 'authentication_error', 'param': None, 'code': 'invalid_request_error'}}
+2026-08-21 15:09:09 [INFO] core.scheduler.jobs: summary refresh: 1 cases
+INFO  [core.scheduler.jobs] summary refresh: 1 cases

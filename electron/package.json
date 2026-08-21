@@ -60,19 +60,14 @@
       "icon": "build/app.ico"
     },
     "nsis": {
-      "oneClick": false,
+      "oneClick": true,
       "perMachine": false,
-      "allowToChangeInstallationDirectory": true,
-      "installerSidebar": "build/installerSidebar.bmp",
-      "uninstallerSidebar": "build/installerSidebar.bmp",
-      "installerHeader": "build/installerHeader.bmp",
-      "installerHeaderIcon": "build/icon.ico",
+      "allowToChangeInstallationDirectory": false,
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-    "shortcutName": "Annie",
-      "include": "build/installer.nsh",
+      "shortcutName": "Annie",
       "runAfterFinish": true
     }
   }

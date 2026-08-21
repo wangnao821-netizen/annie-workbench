@@ -1,0 +1,16 @@
+[启动] 已从 .env 加载变量: CLIENT_FILES_ROOT, DEEPSEEK_API_KEY, ENV, GEMINI_API_KEY
+[启动] uvicorn http://0.0.0.0:8001 (reload=False)
+INFO:     127.0.0.1:39652 - "POST /api/cases/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39653 - "POST /api/chat/stream HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4043 - "POST /api/chat/stream HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4044 - "POST /api/chat/stream HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4045 - "POST /api/chat/stream HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4046 - "POST /api/chat/stream HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4047 - "POST /api/chat/stream HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4048 - "POST /api/chat/stream HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4052 - "POST /api/chat/stream HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4053 - "POST /api/chat/stream HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4054 - "POST /api/chat/stream HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4055 - "POST /api/chat/stream HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4056 - "POST /api/chat/stream HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38670 - "GET /api/cases/ HTTP/1.1" 200 OK

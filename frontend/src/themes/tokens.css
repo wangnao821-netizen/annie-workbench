@@ -185,40 +185,40 @@
 
 :root[data-theme="eyecare"] {
   color-scheme: light;
-  --bg-app: #f5f1e8;
-  --bg-panel: #efe9dc;
-  --bg-card: #fdfbf7;
-  --bg-card-hover: #efe9dc;
-  --bg-input: #efe9dc;
-  --bg-subtle: rgba(27, 51, 30, 0.04);
-  --bg-subtle-strong: rgba(27, 51, 30, 0.08);
-  --surface-translucent: rgba(239, 233, 220, 0.86);
-  --surface-translucent-card: rgba(253, 251, 247, 0.92);
+  --bg-app: #edf3ec;
+  --bg-panel: #e4eee3;
+  --bg-card: #f8fbf7;
+  --bg-card-hover: #e0ece0;
+  --bg-input: #e2ece1;
+  --bg-subtle: rgba(20, 56, 36, 0.05);
+  --bg-subtle-strong: rgba(20, 56, 36, 0.1);
+  --surface-translucent: rgba(228, 238, 227, 0.88);
+  --surface-translucent-card: rgba(248, 251, 247, 0.94);
   
-  --border: #e0dac8;
-  --border-active: #4a6b2e;
+  --border: #d2ded2;
+  --border-active: #1e5e41;
   
-  --text-primary: #2d2a24;
-  --text-secondary: #5f5949;
-  --text-muted: #6b6557;
+  --text-primary: #15271c;
+  --text-secondary: #405c4a;
+  --text-muted: #60796a;
   
-  --accent: #4a6b2e;
-  --accent-strong: #3f5c26;
-  --accent-soft: rgba(74, 107, 46, 0.12);
+  --accent: #1e5e41;
+  --accent-strong: #154631;
+  --accent-soft: rgba(30, 94, 65, 0.12);
   --on-accent: #ffffff;
   --on-accent-strong: #ffffff;
-  --blue: #4a6b2e;
+  --blue: #1e5e41;
   
-  --green: #16a34a;
-  --green-soft: rgba(22, 163, 74, 0.12);
+  --green: #10b981;
+  --green-soft: rgba(16, 185, 129, 0.14);
   --yellow: #d97706;
   --yellow-soft: rgba(217, 119, 6, 0.12);
   --red: #dc2626;
   --red-soft: rgba(220, 38, 38, 0.12);
   --orange: #ea580c;
   --orange-soft: rgba(234, 88, 12, 0.12);
-  --purple: #a0523f;             /* AI 高亮色（每主题协调，非固定紫） */
-  --purple-soft: rgba(160, 82, 63, 0.14);
+  --purple: #16654f;             /* AI 护眼翡翠高亮 */
+  --purple-soft: rgba(22, 101, 79, 0.14);
   --on-purple: #ffffff;
 
   --mark-act: var(--purple);
