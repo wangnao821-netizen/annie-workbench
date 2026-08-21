@@ -251,6 +251,30 @@ def _build_live_data(case_id: str, task_type: str, db: Session) -> str:
                 raw = c.raw_text or ""
                 parts.append(f"  {'⏳' if c.status == 'pending' else '✅'} {raw[:80]}")
 
+    # ── 邮件时间线叙事注入（WO-71）──
+    if task_type in ("case_chat", "case_advisor", "brief_generate", "strategy_report"):
+        email_events = (
+            db.query(CaseContextEvent)
+            .filter(
+                CaseContextEvent.case_id == case_id,
+                CaseContextEvent.source_type == "email_timeline",
+                CaseContextEvent.status == "confirmed",
+            )
+            .order_by(
+                CaseContextEvent.occurred_at.asc().nullslast(),
+                CaseContextEvent.created_at.asc(),
+            )
+            .limit(15)
+            .all()
+        )
+        if email_events:
+            tl_lines = ["【案件邮件时间线（按真实发生时间正序）】:"]
+            for ev in email_events:
+                real_time = getattr(ev, "occurred_at", None) or ev.created_at
+                time_str = real_time.strftime("%Y-%m-%d %H:%M") if real_time else "未知时间"
+                tl_lines.append(f"  📧 [{time_str}] {ev.content[:150]}")
+            parts.append("\n".join(tl_lines))
+
     return "\n".join(parts) if parts else ""
 
 

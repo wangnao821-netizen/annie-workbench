@@ -109,6 +109,7 @@ from server.api.schemas import (
 from server.deps import get_db, get_settings
 
 router = APIRouter(prefix="/api/cases", tags=["cases"])
+logger = logging.getLogger(__name__)
 _COLLECTED = ("received", "collected", "waived", "deferred")
 
 
@@ -1190,6 +1191,15 @@ def batch_topology_import(
         )
     )
     db.commit()
+    # ── WO-71: 建档完成后自动触发邮件时间线扫描 ──
+    for info in created:
+        try:
+            sync_timeline_for_case(info["case_id"], db)
+        except Exception as exc:  # noqa: BLE001 — 时间线同步失败不阻断建档
+            logger.warning(
+                "auto sync timeline on topology import failed for %s: %s",
+                info["case_id"], exc,
+            )
     return BatchTopologyImportResponse(ok=True, created_cases=created)
 
 

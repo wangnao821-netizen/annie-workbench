@@ -581,6 +581,7 @@ class CaseContextEvent(Base):  # type: ignore[misc]
     superseded_by = Column(Integer, nullable=True)   # 撤销/纠正时指向替代事件 id（审计链）
     supersede_reason = Column(Text, nullable=True)   # 撤销原因（审计）
     created_at = Column(DateTime, default=datetime.utcnow)
+    occurred_at = Column(DateTime, nullable=True)  # 事件真实发生时间（邮件发送时间等外部时间源）
 
 
 class BrainFact(Base):  # type: ignore[misc]
