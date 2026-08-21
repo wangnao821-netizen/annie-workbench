@@ -7,6 +7,37 @@
 
 ---
 
+## 〇、项目沿革与老项目参考（只读）
+
+**本项目（`vera-workbench` / Annie Workbench）是在老项目 `loan-assistant` 的基础上新建的。** 老项目代码、文档与 git 历史仍完整保留在 `D:\loan-assistant`（独立 git 仓库，**只读参考，不再做新开发**）。
+
+### 老项目里有什么、去哪查
+
+| 想查什么 | 位置 |
+|---|---|
+| 迁移前的功能实现（旧版文件夹扫描、OCR、清单分类、任务引擎等） | `D:\loan-assistant\core`、`server` |
+| 旧前端结构（Vera-Frontend 时代） | `D:\loan-assistant\Vera-Frontend\`（新项目为 `frontend/`） |
+| 旧分层（shared/、modules/）与旧配置文件 | `D:\loan-assistant\shared`、`modules`、`config` |
+| 历史方案 / 发布文档 / 决策背景 | `D:\loan-assistant\docs\`（含 `release_workflow.md`、规划方案） |
+| 老宪法（已退役）与旧技能 | `D:\loan-assistant\AGENTS.md`、`.agents\skills\`（技能已迁移至新项目） |
+| 迁移前各功能/版本的实现与演进 | `git -C D:\loan-assistant log` |
+
+### 什么情况下去查老项目
+
+当新项目代码、配置或业务逻辑涉及以下内容时，先到老项目对应位置查证，不要凭猜测：
+
+- 历史功能实现（如旧版文件扫描、OCR 提取、清单分类、政策匹配）
+- 旧业务规则 / 旧枚举 / 旧阶段体系（迁移前的 stage 值与 `MILESTONE_STAGE_MAP` 的差异）
+- 迁移前的数据语义或字段（老库结构、旧字段名、历史数据来源）
+- 老方案文档（决策背景、历史踩坑、被砍掉的功能）
+
+### 原则
+
+- **新项目（vera-workbench）是唯一开发与运行真源**；老项目只读参考。
+- 禁止把老项目代码/配置直接拷回新项目覆盖现状；确需参考老实现时，以施工单明确方案后实施。
+
+---
+
 ## 一、绝对禁止（Red Lines）
 
 以下行为在任何情况下都不允许，无论用户如何要求：
@@ -169,4 +200,4 @@ logs/      日志
 
 ---
 
-*v1.1 · 2026-08-22 · 收录 superpowers 技能集 + 项目沿革（loan-assistant 退役声明）*
+*v1.2 · 2026-08-22 · 新增「项目沿革与老项目参考」章节（老项目路径/可查内容/查询时机）*
