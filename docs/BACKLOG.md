@@ -315,7 +315,9 @@
 - **A 发布前**：Electron（WO-05：窗口/托盘/系统通知/自动更新/端口冲突/首装引导）→ S5 真机试用 + V1 验收（日均记录 ≥5 / AI 上下文命中 / 愿继续用 / 每周开统计 ≥2 次）→ 版本发布（version 三处同步 + CHANGELOG）
   - 📋 **窗口圆角封装事项（2026-08-17 定，配合 F-43 补丁三）**：前端已加 `--window-radius: 12px`（AppShell 圆角）+ `.electron-drag` 拖拽区（TopNavBar header 已挂）。封装时：`BrowserWindow { frame: false }`（**不做 transparent:true**——Windows 不能系统最大化/双击最大化/resize 自研/材质 bug）；自定义标题栏窗口按钮（最小化/最大化/关闭，补 Vera 早前提的窗口按钮缺口）；监听 maximize/unmaximize 切圆角直角（最大化时 `#app-shell` 去 border-radius）；系统 `roundedCorners` 保持默认（Win11/macOS/Linux 无边框自带圆角）。
   - ✅ **Electron 封装骨架已完成（2026-08-17）**：`electron/` 工程（main.js/preload/package.json/config.json）——frame:false 无边框窗口 + 前端窗口按钮 IPC（F-44 已由 AI Studio 落地 (73)）+ 后端进程管理（spawn venv python + health 轮询 + 8000-8010 端口冲突自动换 + 退出清理）+ 首次引导（.env 缺失选 CLIENT_FILES_ROOT 生成 .env）+ 托盘（最小化/退出）+ 系统通知 IPC 骨架 + electron-builder 打包（NSIS/portable，--dir 验证通过，win-unpacked 180MB）。**剩余**：正式图标（build/app.ico）、自动更新分发渠道、PyInstaller 内嵌（V2）、真机窗口联调（Vera 本地跑 `electron .` 验收按钮/圆角/托盘）。
-- **V2 延后**：云同步（WO-06）、微信（WO-11 PoC）、邮件/日历自动化、文件主动扫描、历史导入、团队共享、Screenpipe、**联网搜索（SearXNG 自托管元搜索，本地零 API key，过工具准入三关后接入；2026-08-15 定方向）**
+- **V2 演进与重构规划**：
+  - 🌟 **核心架构纲领**：[Vera V2 架构重构规划：通用 Harness 底座与专属领域资产包 (Domain Pack)](./Vera_V2_架构重构规划_通用Harness与垂直领域资产包.md)（2026-08-21 定稿：三位一体架构——通用 Harness 底座 × 澳洲信贷专属领域资产包 `/domain_packs/au_mortgage/` × 金融驾驶舱 UI；标准化 MCP 协议 + 自动化信贷评测基准 Eval 集 + 诚信风控拦截器 Guardrail Pipeline）
+  - **V2 功能项延后**：云同步（WO-06）、微信（WO-11 PoC）、邮件/日历自动化、文件主动扫描、历史导入、团队共享、Screenpipe、**联网搜索（SearXNG 自托管元搜索，本地零 API key，过工具准入三关后接入；2026-08-15 定方向）**
 
 ### 2026-08-17 登记：WO-48 候选 — 文件夹文件预览补 file_id（配合 F-43 补丁四）
 
