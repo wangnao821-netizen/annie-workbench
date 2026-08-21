@@ -48,10 +48,34 @@ def _extract_lender_ref(text: str) -> str | None:
 
 
 def _extract_shortfall_reason(text: str) -> str:
-    """估价低卡点原因：优先带出估价金额与期望金额。"""
-    amounts = re.findall(r"\$\s*([0-9][0-9,]*\.?[0-9]*\s*[kKmMbB]?)", text)
-    if amounts:
-        return f"估价过低：${amounts[0].strip()}" + (f" vs 期望 ${amounts[1].strip()}" if len(amounts) >= 2 else "")
+    """估价低卡点原因：精确提取估价与门槛金额，过滤房贷余额等无关干扰。"""
+    m_threshold = re.search(
+        r"(?:lower than|below|less than|under)\s*\$\s*([0-9][0-9,]*\.?[0-9]*\s*(?:mil|m|k|b)?)",
+        text,
+        re.IGNORECASE,
+    )
+    m_est = re.search(
+        r"(?:estimated value|expected value|est\.? value|期望(?:估值)?)\s*(?:is|at|for|:)?\s*\$\s*([0-9][0-9,]*\.?[0-9]*\s*(?:mil|m|k|b)?)",
+        text,
+        re.IGNORECASE,
+    )
+    m_val = re.search(
+        r"(?:valuation|val|mv|market value|估价|评估)\s*(?:is|at|of|came in at|:)?\s*\$\s*([0-9][0-9,]*\.?[0-9]*\s*(?:mil|m|k|b)?)",
+        text,
+        re.IGNORECASE,
+    )
+
+    if m_threshold and m_est:
+        return f"估价门槛预期：门槛 ${m_threshold.group(1)} vs 期望 ${m_est.group(1)}"
+    if m_threshold:
+        return f"估价低于门槛：低于 ${m_threshold.group(1)} 触发转贷方案"
+    if m_val and m_est:
+        return f"估价过低：实际 ${m_val.group(1)} vs 期望 ${m_est.group(1)}"
+    if m_val:
+        return f"估价结果：${m_val.group(1)}"
+    if m_est:
+        return f"估价期望值：${m_est.group(1)}"
+
     return "银行估价低于预期，形成价值缺口（valuation shortfall）"
 
 
@@ -128,6 +152,13 @@ def _parse_msg_file(msg_path: Path) -> dict[str, Any] | None:
                     event_time = msg.date.replace(tzinfo=UTC).isoformat() if msg.date.tzinfo is None else msg.date.isoformat()
                 else:
                     event_time = str(msg.date)
+            else:
+                # 针对从未发送过的草稿/模板文件（msg.date is None），回退使用物理文件最后修改时间
+                try:
+                    mtime_dt = datetime.fromtimestamp(msg_path.stat().st_mtime, tz=UTC)
+                    event_time = mtime_dt.isoformat()
+                except Exception:  # noqa: BLE001
+                    event_time = ""
             text = f"{subject}\n{body}"
             assessor = _extract_assessor(text)
             lender_ref = _extract_lender_ref(text)
@@ -138,11 +169,18 @@ def _parse_msg_file(msg_path: Path) -> dict[str, Any] | None:
                 event_type, subject, body, is_blocker, blocker_reason, assessor
             )
 
+            title_str = (
+                (f"[草稿/模板] {subject.strip()}" if (
+                    any(k in str(msg_path).replace("\\", "/").lower() for k in ("/val template/", "/template")) or
+                    any(k in subject for k in ("[Client Name]", "First Name FAMILY NAME", "[Lender]"))
+                ) else subject.strip()) or msg_path.stem
+            )[:120]
+
             return {
                 "id": None,
                 "event_time": event_time,
                 "event_type": event_type,
-                "title": (subject.strip() or msg_path.stem)[:120],
+                "title": title_str,
                 "summary": chinese_summary,
                 "sender": msg.sender or None,
                 "assessor": assessor,
@@ -195,6 +233,20 @@ def _write_event(case_id: str, ev: dict[str, Any], db: Session) -> bool:
     )
     if exists is not None:
         return False
+    # 解析邮件原始发送时间
+    occurred = None
+    raw_time = ev.get("event_time")
+    if raw_time:
+        try:
+            from datetime import datetime as _dt
+            if isinstance(raw_time, str):
+                # 兼容 ISO 格式（含/不含时区）
+                cleaned = raw_time.replace("Z", "+00:00")
+                occurred = _dt.fromisoformat(cleaned)
+            elif isinstance(raw_time, _dt):
+                occurred = raw_time
+        except (ValueError, TypeError):
+            pass
     db.add(
         CaseContextEvent(
             case_id=case_id,
@@ -203,6 +255,7 @@ def _write_event(case_id: str, ev: dict[str, Any], db: Session) -> bool:
             track="internal",
             source_ref=source_ref,
             status="confirmed",
+            occurred_at=occurred,
         )
     )
     db.commit()
@@ -298,9 +351,11 @@ def _event_from_row(row: CaseContextEvent) -> dict[str, Any]:
     if row.source_ref and row.source_ref.startswith("email_timeline:"):
         source_file = row.source_ref.replace("email_timeline:", "").split(":", 1)[0] or None
 
+    # 优先使用事件真实发生时间（occurred_at），若无则回退到入库时间（created_at）
+    real_time = getattr(row, "occurred_at", None) or row.created_at
     return {
         "id": str(row.id),
-        "event_time": row.created_at.isoformat() if row.created_at else "",
+        "event_time": real_time.isoformat() if real_time else "",
         "event_type": event_type,
         "title": title or default_title,
         "summary": "\n".join(summary_lines).strip() or content,
@@ -314,9 +369,12 @@ def _event_from_row(row: CaseContextEvent) -> dict[str, Any]:
 
 
 def get_timeline_for_case(case_id: str, db: Session) -> list[dict[str, Any]]:
-    """查询指定案件的时序事件（优先读取已落库事件，无则尝试即时扫描）。"""
+    """查询指定案件的时序事件（优先读取已落库事件，无邮件事件则自动触发扫描）。"""
     rows = _query_timeline_rows(case_id, db)
-    if not rows:
+    # 修复短路判断：检查是否存在 email_timeline 类型事件，
+    # 若不存在则触发邮件扫描（避免被 manual_note 等事件阻断）
+    has_email_events = any(r.source_type == "email_timeline" for r in rows)
+    if not has_email_events:
         sync_timeline_for_case(case_id, db)
         rows = _query_timeline_rows(case_id, db)
     return [_event_from_row(r) for r in rows]
