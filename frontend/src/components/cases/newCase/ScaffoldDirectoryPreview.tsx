@@ -54,7 +54,7 @@ export function ScaffoldDirectoryPreview({
   const cleanType = (loanType || 'Purchase').trim();
   const cleanLender = (lender || 'CBA').trim();
   const cleanAddr = (propertyAddress || 'Security Property').trim();
-  const normalizedParent = (parentPath || 'D:\\EverStones_Clients').replace(/[\\/]+$/, '');
+  const normalizedParent = (parentPath || 'C:\\Annie_Clients').replace(/[\\/]+$/, '');
 
   const generatedCaseFolderName = `1. ${cleanType} - ${cleanLender} - ${cleanAddr}`;
   const fullPreviewPath = `${normalizedParent}\\${cleanClient}\\${generatedCaseFolderName}`;

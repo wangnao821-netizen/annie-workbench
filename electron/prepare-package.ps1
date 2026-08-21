@@ -27,11 +27,8 @@ param(
 $ErrorActionPreference = "Stop"
 
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
-$uiRoot = Join-Path $root "ui"
 if (-not $WebDir) {
-    $WebDir = Get-ChildItem $uiRoot -Directory -Filter "vera-*" |
-        Sort-Object LastWriteTime -Descending |
-        Select-Object -First 1 -ExpandProperty FullName
+    $WebDir = Join-Path $root "frontend"
 }
 if (-not (Test-Path $WebDir)) { throw "web dir not found: $WebDir" }
 Write-Host "[prepare] web dir: $WebDir"
@@ -68,8 +65,42 @@ Get-ChildItem (Join-Path $staging "backend\core\data") -Recurse -File -ErrorActi
 Get-ChildItem (Join-Path $staging "backend\logs") -Recurse -File -ErrorAction SilentlyContinue | Remove-Item -Force
 Get-ChildItem (Join-Path $staging "backend") -Recurse -Directory -Filter "__pycache__" -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
 # ---- 4. portable python + trimmed site-packages ---------------------------
-Write-Host "[prepare] copying base python..."
-$basePy = "C:\Users\Yaruo\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none"
+Write-Host "[prepare] resolving base python..."
+$basePy = $null
+
+# 1. 尝试从 .venv/pyvenv.cfg 读取 home 目录
+$pyvenvCfg = Join-Path $root ".venv\pyvenv.cfg"
+if (Test-Path $pyvenvCfg) {
+    Get-Content $pyvenvCfg | ForEach-Object {
+        if ($_ -match '^\s*home\s*=\s*(.+)$') {
+            $h = $matches[1].Trim()
+            if (Test-Path (Join-Path $h "python.exe")) {
+                $basePy = $h
+            }
+        }
+    }
+}
+
+# 2. 尝试从 uv 的 Python 缓存目录中动态寻找 3.11
+if (-not $basePy) {
+    $uvPyDir = Join-Path $env:APPDATA "uv\python"
+    if (Test-Path $uvPyDir) {
+        $cpython = Get-ChildItem $uvPyDir -Directory -Filter "cpython-3.11*" | Select-Object -First 1
+        if ($cpython) { $basePy = $cpython.FullName }
+    }
+}
+
+# 3. 兜底：当前系统 PATH 里的 python 目录
+if (-not $basePy) {
+    $sysPy = (Get-Command python.exe -ErrorAction SilentlyContinue).Source
+    if ($sysPy) { $basePy = (Split-Path $sysPy -Parent) }
+}
+
+if (-not $basePy -or -not (Test-Path $basePy)) {
+    throw "Base Python 3.11 directory could not be automatically resolved. Please ensure .venv or Python 3.11 is installed."
+}
+
+Write-Host "[prepare] using base python from: $basePy"
 Copy-Item -LiteralPath $basePy -Destination (Join-Path $staging "runtime\python") -Recurse -Force
 
 # ---- 4b. OCR tessdata (eng + chi_sim; auto-download if missing) -------------

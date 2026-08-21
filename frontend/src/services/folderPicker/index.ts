@@ -45,8 +45,8 @@ export async function pickExistingFolder(options?: PickFolderOptions): Promise<F
   // 2. Web 浏览器环境下轻量 prompt 交互
   if (typeof window !== 'undefined') {
     const input = window.prompt(
-      options?.title || '请输入客户大根目录绝对路径（如 D:\\...）',
-      options?.initialPath || 'D:\\EverStones_Clients_Root'
+      options?.title || '请输入客户案卷目录绝对路径',
+      options?.initialPath || ''
     );
 
     if (input && input.trim()) {

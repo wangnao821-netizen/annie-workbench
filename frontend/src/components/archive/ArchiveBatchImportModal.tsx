@@ -18,7 +18,6 @@ import {
   Loader2,
   ShieldCheck,
   FileText,
-  Zap,
 } from 'lucide-react';
 import { scanArchiveFolder, batchImportArchive } from '../../services/api/cases';
 import { pickNativeDirectory } from '../../services/folderPicker';
@@ -30,8 +29,6 @@ interface ArchiveBatchImportModalProps {
   onClose: () => void;
   onSuccess: () => void;
 }
-
-const TEST_HISTORICAL_PATH = 'D:\\EverStones_Historical_Clients\\Yingkun CHEN';
 
 export function ArchiveBatchImportModal({
   open,
@@ -101,12 +98,6 @@ export function ArchiveBatchImportModal({
     } catch (err) {
       console.warn('Native picker canceled or failed:', err);
     }
-  };
-
-  // 快速载入测试历史客户
-  const handleLoadTestPath = () => {
-    setFolderPath(TEST_HISTORICAL_PATH);
-    handleExecuteScan(TEST_HISTORICAL_PATH);
   };
 
   // 切换单个勾选
@@ -312,22 +303,6 @@ export function ArchiveBatchImportModal({
                 <span>浏览目录</span>
               </motion.button>
 
-              <motion.button
-                type="button"
-                whileTap={{ scale: 0.97 }}
-                onClick={handleLoadTestPath}
-                className="px-3 py-2 rounded-xl border text-xs font-medium flex items-center space-x-1.5 cursor-pointer"
-                style={{
-                  backgroundColor: 'var(--purple-soft, rgba(168, 85, 247, 0.1))',
-                  borderColor: 'var(--purple, #a855f7)',
-                  color: 'var(--purple, #a855f7)',
-                }}
-                title="快速载入测试历史客户案卷"
-                id="archive-load-test-btn"
-              >
-                <Zap className="w-3.5 h-3.5" />
-                <span>⚡ 载入测试历史客户</span>
-              </motion.button>
 
               <motion.button
                 type="button"
@@ -485,22 +460,6 @@ export function ArchiveBatchImportModal({
                   </div>
                 </div>
 
-                <div className="pt-2">
-                  <motion.button
-                    type="button"
-                    whileTap={{ scale: 0.97 }}
-                    onClick={handleLoadTestPath}
-                    className="px-4 py-2 rounded-xl border text-xs font-semibold flex items-center space-x-2 cursor-pointer"
-                    style={{
-                      backgroundColor: 'var(--purple-soft, rgba(168, 85, 247, 0.1))',
-                      borderColor: 'var(--purple, #a855f7)',
-                      color: 'var(--purple, #a855f7)',
-                    }}
-                  >
-                    <Zap className="w-3.5 h-3.5" />
-                    <span>⚡ 一键载入测试客户目录体验 (Yingkun CHEN)</span>
-                  </motion.button>
-                </div>
               </div>
             )}
 

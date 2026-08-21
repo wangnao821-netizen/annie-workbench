@@ -4,7 +4,8 @@
  */
 'use strict';
 
-const { app, BrowserWindow, Tray, Menu, ipcMain, dialog, nativeImage } = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain, dialog, nativeImage, Notification } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const { spawn, execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
@@ -129,6 +130,9 @@ async function ensureBackend() {
   }
 
   const spawnEnv = { ...process.env };
+  if (IS_PACKAGED) {
+    spawnEnv.ANNIE_PACKAGED = '1';
+  }
   if (IS_PACKAGED && RUNTIME_SITE) {
     spawnEnv.PYTHONPATH = RUNTIME_SITE;
     spawnEnv.PYTHONDONTWRITEBYTECODE = '1';
@@ -311,11 +315,72 @@ function registerIpc() {
   });
   // 系统通知骨架（后端/前端通知 → 系统托盘气泡；V1 接口就绪，接真实通知源后续）
   ipcMain.handle('notify:show', (_e, { title, body }) => {
-    const { Notification } = require('electron');
     if (Notification.isSupported()) {
-    new Notification({ title: title || 'Annie', body: body || '' }).show();
+      new Notification({ title: title || 'Annie', body: body || '' }).show();
     }
   });
+
+  // 自动更新通道 IPC
+  ipcMain.handle('updater:check', async () => {
+    if (!IS_PACKAGED) {
+      return { status: 'dev_mode', message: '开发模式下跳过自动更新检查' };
+    }
+    try {
+      const res = await autoUpdater.checkForUpdates();
+      return { status: 'ok', updateInfo: res?.updateInfo };
+    } catch (err) {
+      return { status: 'error', message: err.message };
+    }
+  });
+  ipcMain.handle('updater:download', async () => {
+    try {
+      await autoUpdater.downloadUpdate();
+      return { status: 'ok' };
+    } catch (err) {
+      return { status: 'error', message: err.message };
+    }
+  });
+  ipcMain.handle('updater:install', () => {
+    autoUpdater.quitAndInstall(false, true);
+  });
+}
+
+function initAutoUpdater() {
+  if (!IS_PACKAGED) return;
+
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  autoUpdater.on('update-available', (info) => {
+    mainWindow?.webContents.send('updater:available', info);
+    if (Notification.isSupported()) {
+      new Notification({
+        title: 'Annie 发现新版本',
+        body: `新版本 v${info.version} 已就绪，点击可在设置中更新。`,
+      }).show();
+    }
+  });
+
+  autoUpdater.on('update-downloaded', (info) => {
+    mainWindow?.webContents.send('updater:downloaded', info);
+    if (Notification.isSupported()) {
+      new Notification({
+        title: 'Annie 更新已下载',
+        body: `v${info.version} 下载完成，下次启动或重启后生效。`,
+      }).show();
+    }
+  });
+
+  autoUpdater.on('error', (err) => {
+    console.warn('[AutoUpdater] Update check error (silent fallback):', err?.message);
+  });
+
+  // 启动后延迟 8 秒静默检查一次
+  setTimeout(() => {
+    autoUpdater.checkForUpdates().catch((err) => {
+      console.warn('[AutoUpdater] Initial update check failed:', err?.message);
+    });
+  }, 8000);
 }
 
 /* ── 生命周期 ──────────────────────────────────────────── */
@@ -325,6 +390,7 @@ app.whenReady().then(async () => {
   await ensureBackend();
   createWindow();
   createTray();
+  initAutoUpdater();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

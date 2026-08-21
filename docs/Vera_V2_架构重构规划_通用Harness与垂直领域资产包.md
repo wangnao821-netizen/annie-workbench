@@ -1,6 +1,6 @@
 # Vera Workbench V2 架构重构规划：通用 Harness 底座 + 全栈可插拔资产包（Plugin-First）
 
-> **版本**：2.1.0-PROPOSAL（修订版：从「领域资产包」扩展为「全栈插件化」，对齐 DeepSeek Harness 一切皆插件理念）
+> **版本**：2.1.1-PROPOSAL（修订版：从「领域资产包」扩展为「全栈插件化」，对齐 DeepSeek Harness 一切皆插件理念；2026-08-22 补充范式转移评估与底座/自建盘点）
 > **更新时间**：2026-08-22
 > **定位**：指导 Annie Workbench 从 V1（混合硬编码/单体业务脚本 + 已有插件雏形）向 V2（Universal Agent Harness + 全栈资产包 + Domain Cockpit）演进的总体技术纲领。
 > **宪法关系**：本规划落实项目宪法 v1.3「项目理念」第 4 条（一切皆插件 Plugin-First）。
@@ -157,4 +157,51 @@ asset:
 
 ---
 
-*v2.1.0-PROPOSAL · 2026-08-22 · 全栈插件化修订（对齐宪法 v1.3 Plugin-First 理念）*
+## 七、范式转移评估：通用底座 vs 自建盘点（2026-08-22）
+
+> 本节回答：软件范式是否正从"人操作界面"转向"AI 作为运行时"，以及在本项目里哪些能力本可直接用通用底座、哪些必须自建。结论用于校准 V2 各模块的投入优先级。
+
+### 1. 范式转移判断（表述修正）
+
+范式转移是**真实发生**的，但"以人为中心 → 以 AI 为中心"需要修正为更准确的表述：**未来软件不是"以 AI 为中心"，而是 AI 成为运行时（Runtime），人仍然是委托方与治理者**。
+
+- 变化的是操作范式：从"人操作界面"变为"人用自然语言指挥 AI，AI 操作工具，人拍板"；UI 从产品本身降级为驾驶舱（Domain Cockpit）。本产品的"她说、它记、它答、它建议、她拍板"即此范式。
+- 底座商品化的证据已在发生：MCP（工具协议）、各家 Agent SDK/Harness（Pydantic AI / OpenAI Agents SDK / LangGraph / DeepSeek Harness）、SKILL 化（superpowers / apple-design）。本产品已在复用其中一部分（Pydantic AI、Vercel AI SDK、sqlite-vec、LiteParse、APScheduler）。
+- **"标准 Harness + 领域包即可快速建软件"只在水平型/工具型场景成立**（Dify/Coze 已验证）。在合规垂直软件中，Harness 只解决约 10-20% 的 agent 运行时，其余 80% 是领域资产包 + 合规护栏 + 驾驶舱。
+- 因此 V2 公式保持不变：**垂直软件 = 通用底座 × 领域资产包 × 驾驶舱**。底座商品化后，价值沉淀在资产与护栏上，而非 harness 本身。
+
+### 2. 本软件"底座 vs 自建"盘点
+
+| 层 | 我们自建 | 底座本可提供 | 判断 |
+|---|---|---|---|
+| 意图路由 / 工具分发 | `core/chat/loop.py`、`intent_router.py`、`tools.py` 自研 TOOL_SCHEMAS、`flows.py`/`runner.py`/`pai.py` 三分发 | Pydantic AI tool calling、MCP 协议 | ⚠️ 部分重复造轮子——这层正是底座会商品化的部分 |
+| 任务槽位提取 | `core/chat/slot_extractor.py` 正则清洗 | LLM tool calling / structured output | ❌ 反模式（WO-70 已证明并纠正方向） |
+| 流程包 | `config/agent_flows/*.yaml`（12 个）+ 自研 schema | dsh profile、SKILL、MCP | ✅ 形态正确，但协议私有、无法与生态互通 |
+| 记忆 L0-L6 | 事件账本 + BrainFact + 蒸馏 + sqlite-vec | Mem0 / Zep / Letta | ✅ 自建正确——确认闸门、内外双线、"账本为王"是合规要求，底座给不了 |
+| 工具协议 | 自研 TOOL_SCHEMAS | MCP | ⚠️ 应对齐（模块 B-2） |
+| 评测 | `evals/` 尚未建立 | promptfoo / DeepEval 等现成底座 | ❌ 最该用底座的地方反而还没建（模块 C） |
+| 调度 / OCR / 流式 | — | APScheduler / LiteParse / Vercel AI SDK | ✅ 已正确复用 |
+
+### 3. 自建的优势与劣势（诚实盘点）
+
+**自建优势（为什么不算白干）：**
+1. **合规是护城河，底座给不了**：脱敏闸门、PiiLeakDetector、只出草稿、内外双线、PathGuard——宪法级能力必须长在内核里；
+2. **确定性与可测性**：1177 条测试、Fast-Path 0.8s 直出、工具白名单——行为可钉死；通用 Harness 是黑盒且版本漂移严重（dsh v0.1 官方明示会有破坏性变更，2026-08-14 调研结论"借鉴 3 点、不引入"正确）；
+3. **领域资产已大部分声明式**：12 个流程包、`agents.yaml`、`checklist_master`、银行政策、技能库都已是"插件形态"，V2 是"收编统一"而非推倒重来；
+4. **模型已解耦**：routing 即资产，DeepSeek/Gemini/本地量化可切换，天然符合"模型即插件"。
+
+**自建劣势（要承认）：**
+1. **内核胶水花掉了本可省下的预算**：意图路由、槽位提取、工具分发正是会被底座免费商品化的部分（WO-70 即案例：系统已有 `create_task` tool schema，TASK_CREATE 分支却绕道自研正则）；
+2. **生态孤岛**：工具协议不对齐 MCP，社区现成的日历/搜索/邮件工具接不进来；flow schema 私有，跨项目复用难；
+3. **评测欠账**：没有 Eval 底座，"修 A 不坏 B"只能靠人工回归；
+4. **内核不够薄**：每加一个工具要动 `flows.py`/`runner.py`/`pai.py` + 测试，成本高于"只加一个资产 yaml"。
+
+### 4. 对 V2 的落地含义（行动优先级）
+
+- 姿势：**薄内核 + 厚资产 + 合规驾驶舱**；持续把"内核胶水"让位给商品化底座；
+- 优先级：B-1 资产注册表 → B-2 工具协议对齐 MCP → C 模块 Eval 用现成底座搭建 → 自研槽位提取替换为 tool calling / structured output（WO-70 已定方向）；
+- 重仓自建领域资产（政策/清单/模板/评测集）与合规护栏；未来竞争不取决于谁 harness 写得好，而取决于**领域资产深度、合规护栏可信度、驾驶舱体验**——这正是本产品的定位。
+
+---
+
+*v2.1.1-PROPOSAL · 2026-08-22 · 全栈插件化修订（对齐宪法 v1.3 Plugin-First 理念）+ 范式转移评估补充（底座 vs 自建盘点）*

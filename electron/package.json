@@ -8,12 +8,15 @@
     "start": "electron .",
     "dev": "cross-env VERA_DEV=1 VERA_DEV_URL=http://localhost:3000 electron .",
     "build-web": "cd \"../frontend\" && npm run build -- --base=./ --mode production",
-    "prepare": "powershell -NoProfile -ExecutionPolicy Bypass -File prepare-package.ps1",
-    "dist": "npm run prepare && electron-builder",
-    "dist:dir": "npm run prepare && electron-builder --dir",
-    "build": "npm run build-web && electron-builder --win --x64",
-    "pack": "npm run build-web && electron-builder --win --x64 --dir",
+    "prepare:pkg": "powershell -NoProfile -ExecutionPolicy Bypass -File prepare-package.ps1",
+    "dist": "npm run prepare:pkg && electron-builder",
+    "dist:dir": "npm run prepare:pkg && electron-builder --dir",
+    "build": "npm run build-web && npm run prepare:pkg && electron-builder --win --x64",
+    "pack": "npm run build-web && npm run prepare:pkg && electron-builder --win --x64 --dir",
     "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
   },
   "devDependencies": {
     "cross-env": "^7.0.3",
@@ -23,6 +26,13 @@
   "build": {
     "appId": "com.vera.workbench",
     "productName": "Annie",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "everstones",
+        "repo": "annie-workbench"
+      }
+    ],
     "afterPack": "after-pack.js",
     "asar": false,
     "directories": {
@@ -60,9 +70,9 @@
       "icon": "build/app.ico"
     },
     "nsis": {
-      "oneClick": true,
+      "oneClick": false,
       "perMachine": false,
-      "allowToChangeInstallationDirectory": false,
+      "allowToChangeInstallationDirectory": true,
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
       "createDesktopShortcut": true,

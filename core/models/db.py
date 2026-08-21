@@ -33,31 +33,46 @@ logger = get_logger(__name__)
 
 
 def _get_default_db_path() -> Path:
-    """获取全局稳定的持久化数据库路径，避免被代码同步脚本覆盖。"""
+    """获取全局稳定的持久化数据库路径。
+    
+    规则：
+    1. 优先读取环境变量 DATA_DIR。
+    2. 如果处于开发环境（存在开发特征且非打包环境），使用项目工程下的 data/assistant.db。
+    3. 生产/安装包运行环境下，统一存放在当前用户的系统标准 AppData 目录：%APPDATA%/Annie/data/assistant.db。
+    """
     env_dir = os.environ.get("DATA_DIR")
     if env_dir:
         p = Path(env_dir)
         p.mkdir(parents=True, exist_ok=True)
         return p / "assistant.db"
 
-    # 固定定位到 d:/vera-workbench/data
-    std_root = Path("d:/vera-workbench/data")
-    if std_root.parent.exists():
-        std_root.mkdir(parents=True, exist_ok=True)
-        return std_root / "assistant.db"
-
-    # 兜底：向上寻找到非 core/backend 的工程根目录
+    # 开发态检测：如果源码工程根目录下存在 pyproject.toml 且非打包运行态
     cur = Path(__file__).resolve().parent
-    while cur.parent != cur:
-        if (cur / "server").exists() or (cur / "core").exists():
-            data_dir = cur / "data"
-            data_dir.mkdir(parents=True, exist_ok=True)
-            return data_dir / "assistant.db"
-        cur = cur.parent
+    dev_root = None
+    probe = cur
+    while probe.parent != probe:
+        if (probe / "pyproject.toml").exists() and (probe / "frontend").exists():
+            dev_root = probe
+            break
+        probe = probe.parent
 
-    fallback = Path(__file__).resolve().parent.parent / "data"
-    fallback.mkdir(parents=True, exist_ok=True)
-    return fallback / "assistant.db"
+    # 如果确认为本地源码开发环境且未处于 packaged 运行时
+    if dev_root and os.environ.get("ANNIE_PACKAGED") != "1" and not os.environ.get("IS_PACKAGED"):
+        dev_data = dev_root / "data"
+        dev_data.mkdir(parents=True, exist_ok=True)
+        return dev_data / "assistant.db"
+
+    # 生产/打包/全新电脑环境：标准 Windows APPDATA 路径
+    appdata = os.environ.get("APPDATA")
+    if appdata:
+        prod_data = Path(appdata) / "Annie" / "data"
+        prod_data.mkdir(parents=True, exist_ok=True)
+        return prod_data / "assistant.db"
+
+    # 非 Windows 或兜底：用户家目录 ~/.annie/data
+    home_data = Path.home() / ".annie" / "data"
+    home_data.mkdir(parents=True, exist_ok=True)
+    return home_data / "assistant.db"
 
 
 DB_PATH = _get_default_db_path()

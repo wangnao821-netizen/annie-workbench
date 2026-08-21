@@ -45,7 +45,7 @@ const INITIAL_FORM_VALUES: BrandNewCaseFormValues = {
   propertyValue: '1100000',
 
   autoScaffold: true,
-  parentPath: 'D:\\EverStones_Clients',
+  parentPath: typeof window !== 'undefined' ? (localStorage.getItem(LOCAL_STORAGE_PARENT_PATH_KEY) || '') : '',
 };
 
 export function NewCaseSheet({ open, onClose, onCreated }: NewCaseSheetProps) {
