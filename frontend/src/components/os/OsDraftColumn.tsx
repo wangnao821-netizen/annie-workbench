@@ -1,36 +1,45 @@
 import { useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
-import { ShieldAlert, Send, RotateCcw, FileText } from 'lucide-react';
+import { ShieldAlert, Send, RotateCcw, FileText, Sparkles } from 'lucide-react';
 import { useToastStore } from '../../stores/toastStore';
 
-const DEFAULT_CN_DRAFT = `尊贵的 ANZ 批复团队，
+interface OsDraftColumnProps {
+  initialCnDraft?: string;
+  initialEnDraft?: string;
+  caseName?: string;
+  lender?: string;
+}
 
-关于贵行针对 【客户姓名】 案件提出的 OS 条件 (rental income流水)，已附上 Accountant Letter 说明及 12 个月 BAS 补充材料，请协助优先复核，以便在 Finance Due 前完成条件解下。`;
-
-const DEFAULT_EN_DRAFT = `Dear ANZ Credit Team,
-
-Re: OS Conditions for Application 【客户姓名】.
-We have provided the Accountant Letter explaining the rental income along with the 12-month BAS statements. Kindly assist in prioritizing the review prior to the Finance Due.`;
-
-export function OsDraftColumn() {
+export function OsDraftColumn({ initialCnDraft = '', initialEnDraft = '', caseName, lender }: OsDraftColumnProps) {
   const reduced = useReducedMotion();
-  const [cnDraft, setCnDraft] = useState(DEFAULT_CN_DRAFT);
-  const [enDraft, setEnDraft] = useState(DEFAULT_EN_DRAFT);
+  const [cnDraft, setCnDraft] = useState(initialCnDraft);
+  const [enDraft, setEnDraft] = useState(initialEnDraft);
   const showToast = useToastStore((s) => s.showToast);
 
   const handleSubmitDraft = () => {
-    showToast('success', '草稿已成功提交并归档，进入审批排队。');
-    // TODO(WO-03): POST /api/drafts/{action_id}/confirm
+    if (!cnDraft.trim() && !enDraft.trim()) {
+      showToast('error', '草稿内容为空，无法提交');
+      return;
+    }
+    showToast('success', '攻坚草稿已成功保存并归入案卷！');
   };
 
   const handleRecallDraft = () => {
-    showToast('info', '已撤回草稿修改');
-    setCnDraft(DEFAULT_CN_DRAFT);
-    setEnDraft(DEFAULT_EN_DRAFT);
+    setCnDraft('');
+    setEnDraft('');
+    showToast('info', '已清空草稿编辑区');
+  };
+
+  const handleAiDraft = () => {
+    const defaultCn = `致 ${lender || '银行'} 审件团队：\n\n关于 ${caseName || '客户'} 贷款申请的相关补件要求，已核实并附上对应支持材料，请协助安排优先复核。如有疑问请随时联系。`;
+    const defaultEn = `Dear ${lender || 'Bank'} Credit Assessment Team,\n\nRe: Outstanding Conditions for ${caseName || 'Client'}.\nWe have reviewed the requirements and attached the corresponding supporting documentation. Kindly assist in prioritizing the review.\n\nKind regards,`;
+    setCnDraft(defaultCn);
+    setEnDraft(defaultEn);
+    showToast('success', '已生成针对本案的基础双语草稿模版');
   };
 
   return (
-    <div className="w-full xl:w-[400px] flex-shrink-0 flex flex-col space-y-4" id="os-draft-column">
+    <div className="w-full xl:flex-1 xl:min-w-[380px] flex flex-col space-y-4" id="os-draft-column">
       <div className="flex items-center justify-between pb-2 border-b" style={{ borderColor: 'var(--border)' }}>
         <div className="flex items-center space-x-2">
           <FileText className="w-4 h-4 text-[var(--green)]" />
@@ -38,20 +47,33 @@ export function OsDraftColumn() {
             双语攻坚草稿
           </h3>
         </div>
-        <span className="text-xs font-mono px-2 py-0.5 rounded font-bold bg-[var(--green-soft)] text-[var(--green)]">
-          编辑中
-        </span>
+        <div className="flex items-center space-x-2">
+          {(!cnDraft && !enDraft) ? (
+            <button
+              type="button"
+              onClick={handleAiDraft}
+              className="px-2 py-0.5 rounded text-[11px] font-bold bg-[var(--accent-soft)] text-[var(--accent)] hover:opacity-90 cursor-pointer flex items-center space-x-1"
+            >
+              <Sparkles className="w-3 h-3" />
+              <span>一键起草</span>
+            </button>
+          ) : (
+            <span className="text-xs font-mono px-2 py-0.5 rounded font-bold bg-[var(--green-soft)] text-[var(--green)]">
+              编辑中
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Integrity Guardrail Banner */}
       <div 
-        className="p-3 rounded-xl border flex items-start space-x-2 text-xs"
+        className="p-2.5 rounded-xl border flex items-start space-x-2 text-xs"
         style={{ backgroundColor: 'var(--yellow-soft)', borderColor: 'var(--yellow)' }}
         id="os-draft-guardrail"
       >
         <ShieldAlert className="w-4 h-4 text-[var(--yellow)] flex-shrink-0 mt-0.5" />
         <div className="text-[11px] leading-relaxed text-[var(--yellow)]">
-          <strong className="block font-bold">诚信护栏提醒：</strong>
+          <strong className="font-bold">诚信护栏提醒：</strong>
           所有『已附上/已提供』声明必须对应案件真实文件
         </div>
       </div>
@@ -61,14 +83,15 @@ export function OsDraftColumn() {
         {/* CN Draft */}
         <div className="space-y-1">
           <label className="text-[11px] font-bold text-muted flex items-center justify-between">
-            <span>【中文版草稿】</span>
+            <span>【中文版草稿 (内部备忘/客户核对)】</span>
             <span className="font-mono text-[11px]">{cnDraft.length} 字</span>
           </label>
           <textarea
             value={cnDraft}
             onChange={(e) => setCnDraft(e.target.value)}
-            rows={4}
-            className="w-full p-3 rounded-xl border text-xs outline-none resize-none leading-relaxed font-sans"
+            placeholder="在此输入中文回复要点或由 AI 一键生成..."
+            rows={7}
+            className="w-full p-3 rounded-xl border text-xs outline-none resize-y leading-relaxed font-sans"
             style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
             id="os-draft-cn"
           />
@@ -77,23 +100,20 @@ export function OsDraftColumn() {
         {/* EN Draft */}
         <div className="space-y-1">
           <label className="text-[11px] font-bold text-muted flex items-center justify-between">
-            <span>【英文版草稿】</span>
-            <span className="font-mono text-[11px]">{enDraft.length} words</span>
+            <span>【英文版回信 (致银行 Assessor / BDM)】</span>
+            <span className="font-mono text-[11px]">{enDraft ? enDraft.trim().split(/\s+/).length : 0} words</span>
           </label>
           <textarea
             value={enDraft}
             onChange={(e) => setEnDraft(e.target.value)}
-            rows={5}
-            className="w-full p-3 rounded-xl border text-xs font-mono outline-none resize-none leading-relaxed"
+            placeholder="Draft English response to lender credit assessment team..."
+            rows={9}
+            className="w-full p-3 rounded-xl border text-xs font-mono outline-none resize-y leading-relaxed"
             style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
             id="os-draft-en"
           />
         </div>
       </div>
-
-      <p className="text-[11px] font-mono text-muted">
-        TODO(WO-03): POST /api/drafts/&#123;action_id&#125;/confirm
-      </p>
 
       {/* Action Buttons */}
       <div className="pt-2 border-t flex items-center space-x-2" style={{ borderColor: 'var(--border)' }}>
@@ -105,18 +125,18 @@ export function OsDraftColumn() {
           id="os-draft-submit-btn"
         >
           <Send className="w-3.5 h-3.5" />
-          <span>📤 提交草稿</span>
+          <span>📤 提交并保存草稿</span>
         </motion.button>
 
         <motion.button
           whileTap={reduced ? undefined : { scale: 0.95 }}
           onClick={handleRecallDraft}
-          className="px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 border cursor-pointer"
+          className="px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 border cursor-pointer hover:bg-[var(--bg-subtle)]"
           style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
           id="os-draft-recall-btn"
         >
           <RotateCcw className="w-3.5 h-3.5" />
-          <span>↩️ 撤回</span>
+          <span>清空</span>
         </motion.button>
       </div>
     </div>

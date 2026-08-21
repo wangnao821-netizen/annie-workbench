@@ -69,6 +69,17 @@ def test_task_slots_cleaning_and_priority():
     assert "给律师发邮件" in r3["title"]
     assert r3["deadline"] is not None
 
+    # WO-70 补充：口语应答词与调度废话清洗测试
+    r4 = extract_task_slots("好的把下周一的催收电话也排到这个时间", ref_time=ref)
+    assert "催收电话" in r4["title"]
+    assert "好的把" not in r4["title"]
+    assert "也排到" not in r4["title"]
+    assert r4["deadline"] == "2026-08-24T17:00:00+10:00"
+
+    r5 = extract_task_slots("嗯安排一下明天下午跟客户打电话确认材料", ref_time=ref)
+    assert "跟客户打电话确认材料" in r5["title"]
+    assert "安排一下" not in r5["title"]
+
 
 def test_financial_slots_extraction(db_session):
     s1 = extract_financial_slots("算一下如果加配偶收入8万能不能借180万", db_session)

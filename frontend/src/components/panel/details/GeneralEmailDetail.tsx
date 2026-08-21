@@ -17,11 +17,6 @@ const CATEGORY_MAP: Record<string, string> = {
   lender_bdm: '银行BDM/产品', newsletter_marketing: '利率/营销', colleague_internal: '内部/同事', personal_junk: '个人/垃圾',
 };
 
-const MOCK_ATTACHMENTS = [
-  { id: 'att-1', name: 'Liabilities_Clarification.pdf', size: '1.8 MB' },
-  { id: 'att-2', name: 'Bank_Statement_Q2.pdf', size: '2.5 MB' },
-];
-
 export function GeneralEmailDetail({ task }: GeneralEmailDetailProps) {
   const { dispatchTaskAction, delegateTaskAction } = useTaskStore();
   const [delegateDialogOpen, setDelegateDialogOpen] = useState(false);
@@ -30,6 +25,7 @@ export function GeneralEmailDetail({ task }: GeneralEmailDetailProps) {
   const [previewFile, setPreviewFile] = useState<{ name: string; docType: string } | null>(null);
   const reduced = useReducedMotion();
   const showToast = useToastStore((s) => s.showToast);
+  const attachments = task.emailAttachments ?? [];
 
   // AI Analysis state
   const [analysis, setAnalysis] = useState<EmailAnalyzeResponse | null>(null);
@@ -100,107 +96,79 @@ export function GeneralEmailDetail({ task }: GeneralEmailDetailProps) {
   };
 
   return (
-    <div className="space-y-5" id="general-email-detail">
-      {/* 1. AI Analysis Result Section */}
-      <div className="rounded-2xl p-4 border space-y-3 shadow-2xs" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }} id="email-ai-analysis">
+    <div className="space-y-4 text-xs select-none" id="general-email-detail">
+      {/* 1. 核心材料与客户诉求事实 (Why & Request) */}
+      <div className="rounded-2xl p-4 border space-y-3 shadow-2xs bg-[var(--bg-card)]" style={{ borderColor: 'var(--border)' }}>
         <div className="flex items-center justify-between pb-2 border-b" style={{ borderColor: 'var(--border)' }}>
           <div className="flex items-center space-x-2">
-            <Sparkles className="w-4 h-4 text-[var(--purple)]" />
-            <span className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>AI 邮件智能分析结果</span>
-            {analysis?.is_fallback && (
-              <span className="px-2 py-0.5 rounded text-xs font-mono font-bold bg-[var(--yellow-soft)] text-[var(--yellow)]">
-                规则兜底结果
-              </span>
-            )}
+            <Sparkles className="w-4 h-4 text-[var(--accent)]" />
+            <span className="font-bold text-xs" style={{ color: 'var(--text-primary)' }}>
+              客户补充材料与诉求
+            </span>
           </div>
 
-          <div className="flex items-center space-x-2">
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={triggerAnalyze}
-              disabled={analyzing}
-              className="px-2.5 py-1 rounded-lg border text-[11px] font-semibold text-[var(--purple)] border-[var(--purple-soft)] hover:bg-[var(--purple-soft)] flex items-center space-x-1 cursor-pointer disabled:opacity-50"
-              id="reanalyze-email-btn"
-            >
-              <RefreshCw className={`w-3 h-3 ${analyzing ? 'animate-spin' : ''}`} />
-              <span>重新分析</span>
-            </motion.button>
-            <span className="px-2 py-0.5 rounded text-xs font-bold bg-[var(--purple-soft)] text-[var(--purple)]" id="email-category-tag">
+          <div className="flex items-center space-x-1.5">
+            <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-[var(--green-soft)] text-[var(--green)]">
+              已归入案卷
+            </span>
+            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-[var(--accent-soft)] text-[var(--accent)]">
               {categoryText}
             </span>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 text-xs">
-          <div className="col-span-2 md:col-span-3 p-3 rounded-xl border space-y-1" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border)' }}>
-            <span className="text-[11px] text-muted font-semibold">AI 核心摘要</span>
-            <p className="font-medium text-xs leading-relaxed" style={{ color: 'var(--text-primary)' }}>
-              {summary}
-            </p>
+        {/* 摘要与说明 */}
+        <div className="p-3 rounded-xl border space-y-1.5 leading-relaxed" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border)' }}>
+          <div className="font-semibold text-xs text-[var(--text-primary)]">
+            {summary}
+          </div>
+          {conditionsStr && (
+            <div className="text-[11.5px] font-mono text-[var(--accent)] pt-1 border-t border-[var(--border)]/40 flex items-start space-x-1">
+              <span className="font-bold flex-shrink-0">📋 涉及材料:</span>
+              <span>{conditionsStr}</span>
+            </div>
+          )}
+        </div>
+
+        {/* 邮件正文/原始对话摘录 */}
+        <div className="space-y-1">
+          <div className="flex items-center justify-between text-[11px] text-muted">
+            <span className="flex items-center space-x-1">
+              <Mail className="w-3.5 h-3.5 text-muted" />
+              <span>来源: {task.emailFrom || task.title} · {task.createdAt || '最新'}</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setExpanded(!expanded)}
+              className="hover:underline cursor-pointer font-semibold text-[var(--accent)]"
+            >
+              {expanded ? '收起原文 ▴' : '展开邮件原文 ▾'}
+            </button>
           </div>
 
-          <div className="p-2.5 rounded-xl border space-y-1" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border)' }}>
-            <span className="text-[11px] text-muted font-semibold">动作类型 / 阶段信号</span>
-            <p className="font-bold text-xs truncate text-[var(--accent)]">{actionType}</p>
-            <p className="text-[11px] text-muted truncate">{stageSignal}</p>
-          </div>
-
-          <div className="p-2.5 rounded-xl border space-y-1" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border)' }}>
-            <span className="text-[11px] text-muted font-semibold">截止时间 / 紧急度</span>
-            <p className="font-mono font-bold text-xs text-[var(--yellow)]">{deadlineStr}</p>
-            <p className="text-[11px] font-mono text-muted">评分: {urgencyScore} / 100 ({prioText}) · {channelText} ({confidence})</p>
-          </div>
-
-          <div className="p-2.5 rounded-xl border space-y-1 col-span-2 md:col-span-1" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border)' }}>
-            <span className="text-[11px] text-muted font-semibold">条件及关联说明</span>
-            <p className="font-medium text-[11px] leading-tight line-clamp-2" style={{ color: 'var(--text-primary)' }}>
-              {conditionsStr}
-            </p>
-          </div>
+          {expanded && (
+            <div className="p-3 rounded-xl border text-[11.5px] leading-relaxed font-mono whitespace-pre-wrap max-h-56 overflow-y-auto" style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
+              {task.emailBodyText || task.subtitle || "无原始长正文（已提取为结构化记录）"}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* 2. Email Body Card & Attachments */}
-      <div className="rounded-2xl p-4 border space-y-3 shadow-2xs" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-        <div className="flex items-center justify-between pb-2 border-b text-xs" style={{ borderColor: 'var(--border)' }}>
-          <div className="flex items-center space-x-2">
-            <Mail className="w-4 h-4" style={{ color: 'var(--accent)' }} />
-            <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>From: servicing.team@cba.com.au</span>
-            <span style={{ color: 'var(--text-muted)' }}>· {task.createdAt}</span>
+      {/* 2. 关联材料与附件 (Evidence) */}
+      <div className="rounded-2xl p-4 border space-y-2.5 shadow-2xs bg-[var(--bg-card)]" style={{ borderColor: 'var(--border)' }}>
+        <div className="flex items-center justify-between pb-1.5 border-b" style={{ borderColor: 'var(--border)' }}>
+          <div className="flex items-center space-x-1.5 font-bold text-xs" style={{ color: 'var(--text-primary)' }}>
+            <Paperclip className="w-3.5 h-3.5 text-[var(--accent)]" />
+            <span>材料附件 ({attachments.length})</span>
           </div>
-          <span className="px-2 py-0.5 rounded text-xs font-semibold" style={{ backgroundColor: 'var(--green-soft)', color: 'var(--green)' }}>
-            自动匹配已归案
-          </span>
+          <span className="text-[11px] text-muted">点击即可原位预览</span>
         </div>
 
-        <h3 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{task.title} — {task.subtitle}</h3>
-
-        <div className="space-y-2">
-          <motion.div
-            animate={{ height: expanded ? 'auto' : reduced ? 'auto' : '120px' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className={`p-3.5 rounded-xl text-xs leading-relaxed font-mono border overflow-hidden ${!expanded ? 'line-clamp-6' : ''}`}
-            style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-          >
-            <p>Hi Team,</p>
-            <p>We have received the additional liabilities clarification document for applicant <strong>Chloe Lin</strong>.</p>
-            <p>The credit assessor is currently reviewing the file. No further action is required from your end at this stage. Estimated processing turnaround is 24-48 business hours.</p>
-            <p>Kind regards,<br/>CBA Broker Support Team</p>
-          </motion.div>
-
-          <button onClick={() => setExpanded(!expanded)} className="flex items-center space-x-1 text-xs font-semibold hover:underline cursor-pointer" style={{ color: 'var(--accent)' }} id="email-body-toggle">
-            {expanded ? <><ChevronUp className="w-3.5 h-3.5" /><span>收起 ▴</span></> : <><ChevronDown className="w-3.5 h-3.5" /><span>展开全文 ▾</span></>}
-          </button>
-        </div>
-
-        {/* Attachments */}
-        <div className="pt-2 border-t space-y-2" style={{ borderColor: 'var(--border)' }} id="email-attachments">
-          <div className="flex items-center space-x-1.5 text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
-            <Paperclip className="w-3.5 h-3.5" />
-            <span>邮件附件 ({MOCK_ATTACHMENTS.length})</span>
-          </div>
+        {attachments.length === 0 ? (
+          <p className="text-[11px] text-muted py-2 text-center">暂无附件（可通过左侧案卷目录补充材料）</p>
+        ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {MOCK_ATTACHMENTS.map((att) => (
+            {attachments.map((att) => (
               <div
                 key={att.id}
                 onClick={() => {
@@ -209,43 +177,56 @@ export function GeneralEmailDetail({ task }: GeneralEmailDetailProps) {
                     docType: att.name.toLowerCase().endsWith('.pdf') ? 'pdf' : 'image',
                   });
                 }}
-                className="p-2 rounded-xl border flex items-center justify-between cursor-pointer hover:border-[var(--accent)] transition-colors"
+                className="p-2 rounded-xl border flex items-center justify-between cursor-pointer hover:border-[var(--accent)] hover:shadow-2xs transition-all"
                 style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border)' }}
               >
                 <div className="flex items-center space-x-2 min-w-0">
                   <FileText className="w-4 h-4 text-[var(--accent)] flex-shrink-0" />
-                  <span className="text-xs font-mono font-medium truncate" style={{ color: 'var(--text-primary)' }}>{att.name}</span>
+                  <span className="text-xs font-mono font-medium truncate text-[var(--text-primary)]">{att.name}</span>
                 </div>
                 <span className="text-[11px] font-mono text-muted flex-shrink-0">{att.size}</span>
               </div>
             ))}
           </div>
-        </div>
+        )}
       </div>
 
-      {/* 3. Triage Buttons */}
-      <div className="rounded-2xl p-4 border space-y-3" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-        <div className="flex items-center space-x-1.5 text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
-          <span>🎯 邮件派单分流</span>
+      {/* 3. 立即行动栏 (Broker Actions) */}
+      <div className="rounded-2xl p-4 border space-y-3 bg-[var(--bg-card)] shadow-2xs" style={{ borderColor: 'var(--border)' }}>
+        <div className="flex items-center space-x-1.5 text-xs font-bold text-[var(--text-primary)]">
+          <span>⚡ 极速行动</span>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
-          <motion.button whileTap={{ scale: 0.95 }} onClick={() => handleDispatch('me')} className="px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 cursor-pointer shadow-xs" style={{ backgroundColor: 'var(--accent)', color: 'var(--on-accent)' }}>
-            <User className="w-3.5 h-3.5" /><span>🙋 我来做</span>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          <motion.button
+            whileTap={{ scale: 0.96 }}
+            onClick={() => handleDispatch('me')}
+            className="px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 cursor-pointer bg-[var(--accent)] text-[var(--on-accent)] shadow-xs"
+          >
+            <User className="w-3.5 h-3.5" />
+            <span>我来跟进</span>
           </motion.button>
-          <motion.button whileTap={{ scale: 0.95 }} onClick={() => handleDispatch('boss')} className="px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 cursor-pointer border" style={{ backgroundColor: 'var(--purple-soft)', color: 'var(--purple)', borderColor: 'rgba(168,85,247,0.3)' }}>
-            <UserCheck className="w-3.5 h-3.5" /><span>👔 给老板</span>
+
+          <motion.button
+            whileTap={{ scale: 0.96 }}
+            onClick={() => handleDispatch('boss')}
+            className="px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 cursor-pointer border bg-[var(--yellow-soft)] text-[var(--yellow)] border-[var(--yellow)]/30"
+          >
+            <UserCheck className="w-3.5 h-3.5" />
+            <span>转交老板</span>
           </motion.button>
-          <motion.button whileTap={{ scale: 0.95 }} onClick={() => handleDispatch('judy')} className="px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 cursor-pointer border" style={{ backgroundColor: 'var(--green-soft)', color: 'var(--green)', borderColor: 'rgba(16,185,129,0.3)' }}>
-            <Clock className="w-3.5 h-3.5" /><span>📋 给 Judy</span>
+
+          <motion.button
+            whileTap={{ scale: 0.96 }}
+            onClick={() => {
+              useTaskStore.getState().completeTask(task.id);
+              showToast('success', '已标记任务处理完毕');
+              useUiStore.getState().closeTaskDetail();
+            }}
+            className="px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 cursor-pointer border bg-[var(--green-soft)] text-[var(--green)] border-[var(--green)]/30"
+          >
+            <span>✅ 标记已处理</span>
           </motion.button>
-          <motion.button whileTap={{ scale: 0.95 }} onClick={() => handleDispatch('ignore')} className="px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 cursor-pointer border" style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-muted)', borderColor: 'var(--border)' }}>
-            <span>🔇 忽略</span>
-          </motion.button>
-          {task.sourceMsgId && (
-            <motion.button whileTap={{ scale: 0.95 }} onClick={handleMuteSender} id="mute-sender-btn" className="px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 cursor-pointer border" style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-muted)', borderColor: 'var(--border)' }}>
-              <VolumeX className="w-3.5 h-3.5" /><span>🔕 静音发件人</span>
-            </motion.button>
-          )}
         </div>
       </div>
 

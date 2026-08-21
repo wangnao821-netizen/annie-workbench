@@ -19,7 +19,7 @@ from core.pii.gateway import desensitize, rehydrate
 logger = get_logger(__name__)
 
 _TIME_KEYWORDS_PATTERN = r"(?:下周[一二三四五六日天]|本周[一二三四五六日天]|周[一二三四五六日天](?:前|之前)?|今天下午|今天晚上|明天上午|明天下午|明天早?上?|明早|后天下午|后天晚上|后天|下个?月\s*\d+\s*号|今天|今日|明天|明日|今晚|明晚|月底|\d+\s*天后|\d+\s*小时后)"
-_ACTION_VERBS_PATTERN = r"(?:帮我|请)?(?:记一下|记一笔|帮我记|建(?:一个|个)?(?:加急|紧急)?(?:任务|待办|提醒)|创建任务|安排一下|提醒我|设(?:一个|个)?提醒|设个待办|做个备忘)[:：,，\s]*"
+_ACTION_VERBS_PATTERN = r"(?:好的?(?:把|吧)?|行(?:吧)?|嗯|那(?:就)?|OK|ok)?[,，\s]*(?:帮我|请)?(?:记一下|记一笔|帮我记|建(?:一个|个)?(?:加急|紧急)?(?:任务|待办|提醒)|创建任务|安排一下|提醒我|设(?:一个|个)?提醒|设个待办|做个备忘|也?(?:排|安排)(?:到|一下).*?(?:时间|时候))[:：,，\s]*"
 _PRIORITY_HIGH_PATTERN = r"(?:加急|马上|今天内|尽快|立刻|紧急|urgent)"
 
 
@@ -39,17 +39,26 @@ def extract_task_slots(message: str, ref_time: datetime | None = None) -> dict[s
         deadline = resolve_relative_time(raw_time, ref_time=ref_time)
 
     # 2. 标题清洗：剥离动词/加急词/时间词/残留连接词/代词废话/首尾标点
-    cleaned = re.sub(_ACTION_VERBS_PATTERN, "", raw, flags=re.IGNORECASE).strip()
+    cleaned = raw
+    if raw_time and raw_time in cleaned:
+        cleaned = cleaned.replace(raw_time, "").strip()
+    cleaned = re.sub(r"^(?:好的?(?:把|吧)?|行(?:吧)?|嗯|那(?:就)?|OK|ok)[,，\s]*", "", cleaned, flags=re.IGNORECASE).strip()
+    cleaned = re.sub(_ACTION_VERBS_PATTERN, "", cleaned, flags=re.IGNORECASE).strip()
     cleaned = re.sub(r"^(?:加急|紧急)[:：,，\s]*", "", cleaned).strip()
     if raw_time and raw_time in cleaned:
         cleaned = cleaned.replace(raw_time, "").strip()
     cleaned = re.sub(r"^(?:前|之前|内|当天|到时候|上午|下午|中午|晚上)[:：,，\s]*", "", cleaned).strip()
     cleaned = re.sub(r"^(?:我(?:要)?(?:去)?|我们(?:需要)?|去)[:：,，\s]*", "", cleaned).strip()
+    cleaned = re.sub(r"^[的地得]\s*", "", cleaned).strip()
     cleaned = re.sub(r"^[:：,，\s\-]+", "", cleaned)
+    cleaned = re.sub(r"也?(?:排|安排)(?:到|一下).*?(?:时间|时候|时|$)", "", cleaned).strip()
+    cleaned = re.sub(r"^(?:把|吧|也)[,，\s]*", "", cleaned).strip()
+    cleaned = re.sub(r"^[的地得]\s*", "", cleaned).strip()
     cleaned = re.sub(r"[:：,，!！。.\s]+$", "", cleaned).strip()
 
     title = cleaned[:40] if cleaned else raw[:40]
-    confidence = "high" if len(title) >= 2 and ("记一下" not in title and "建任务" not in title) else "low"
+    has_filler = bool(re.search(r"^(?:好的|好的把|行吧|嗯|那就|把|也)", title))
+    confidence = "high" if (len(title) >= 2 and not has_filler and "记一下" not in title and "建任务" not in title and raw_time is not None) else "low"
 
     return {
         "title": title,

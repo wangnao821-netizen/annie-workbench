@@ -230,36 +230,68 @@ def run_chat_with_tools_stream(
 
     elif intent == ChatIntent.TASK_CREATE and case_id:
         try:
-            from core.chat.slot_extractor import extract_task_slots, llm_extract_slots
-            from core.chat.tools import _create_task
+            from core.chat.slot_extractor import extract_task_slots
+            from core.chat.tools import _create_task, TOOL_SCHEMAS
 
+            # 1. 轨道 A：先尝试规则快路径 (0 延迟)
             slots = extract_task_slots(message)
-            if slots.get("confidence") != "high":
-                llm_slots = llm_extract_slots(message, "task_create", case_id, db)
-                if llm_slots:
-                    slots["title"] = llm_slots.get("title") or slots.get("title") or message[:30]
-                    slots["deadline"] = llm_slots.get("deadline") or slots.get("deadline")
-                    slots["priority"] = llm_slots.get("priority") or slots.get("priority")
+            task_args = None
 
-            res = _create_task({
-                "title": slots["title"],
-                "deadline": slots.get("deadline"),
-                "priority": slots.get("priority", "normal"),
-                "context": {"source": "chat", "raw_time": slots.get("raw_time")},
-            }, case_id, db)
+            if slots.get("confidence") == "high":
+                task_args = {
+                    "title": slots["title"],
+                    "deadline": slots.get("deadline"),
+                    "priority": slots.get("priority", "normal"),
+                    "context": {"source": "chat", "mode": "fast_path", "raw_time": slots.get("raw_time")},
+                }
+            else:
+                # 2. 轨道 B：复杂口语走精准 Tool Calling (语义理解，无废话)
+                yield {"event": "step", "data": {"label": "正在解析任务事项与排期...", "status": "running"}}
+
+                create_task_schema = next((t for t in TOOL_SCHEMAS if t.get("function", {}).get("name") == "create_task"), None)
+                task_prompt = f"请根据用户的对话内容创建待办任务，提取清晰的事项标题、截止时间与优先级：\n{safe_message}"
+
+                result = gw.call_llm(
+                    text=DesensitizedText(task_prompt),
+                    prompt_template="",
+                    system_prompt="你是一个专业的信贷助手，负责将口语指令提取为严谨利落的任务事项（去除‘好的把’、‘也安排’等口语废话）。",
+                    tools=[create_task_schema] if create_task_schema else None,
+                    tool_choice="required",
+                    max_tokens=100,
+                )
+
+                if result.tool_calls:
+                    call_args = result.tool_calls[0].get("arguments", {})
+                    task_args = {
+                        "title": call_args.get("title") or slots.get("title") or message[:30],
+                        "deadline": call_args.get("deadline") or slots.get("deadline"),
+                        "priority": call_args.get("priority") or slots.get("priority", "normal"),
+                        "context": {"source": "chat", "mode": "tool_calling", "raw_time": slots.get("raw_time")},
+                    }
+                else:
+                    task_args = {
+                        "title": slots.get("title") or message[:30],
+                        "deadline": slots.get("deadline"),
+                        "priority": slots.get("priority", "normal"),
+                        "context": {"source": "chat", "mode": "fallback"},
+                    }
+
+            # 3. 执行任务创建并回填系统提示
+            res = _create_task(task_args, case_id, db)
 
             if res.get("ok"):
-                dl_display = slots.get("deadline") or "未设期限"
+                dl_display = task_args.get("deadline") or "未设期限"
                 tool_cards.append({
                     "type": "task_created",
-                    "title": f"📋 任务已创建：{slots['title']}（{dl_display}，{slots['priority']}）",
+                    "title": f"📋 任务已创建：{task_args['title']}（{dl_display}，{task_args['priority']}）",
                     "payload": {
                         "task_id": res.get("task_id"),
-                        "title": slots["title"],
-                        "deadline": slots.get("deadline"),
-                        "priority": slots.get("priority"),
+                        "title": task_args["title"],
+                        "deadline": task_args.get("deadline"),
+                        "priority": task_args.get("priority"),
                     },
                 })
+                base_prompt += f"\n\n【系统通知】已成功为 Vera 创建任务: {task_args['title']}，截止时间: {dl_display}。"
             else:
                 tool_cards.append({
                     "type": "task_create_failed",

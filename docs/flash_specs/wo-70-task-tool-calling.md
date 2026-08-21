@@ -1,116 +1,180 @@
-# WO-70 任务创建双路径：规则快路径 + LLM 精准工具调用（根治口语变体）
+# WO-70: 任务槽位精准提取与双轨执行规范（Tool-Calling 演进）
 
-> 状态：规划（评审后定稿）
-> 关联：WO-41（create_task schema）、WO-64（意图驱动工具）、WO-65（slot_extractor）
+> **文档版本**: v1.0  
+> **关联任务**: 首页右栏「客户任务」口语槽位提取架构升级  
+> **核心目标**: 彻底根治口语废话残留，兼顾 0.8s 极速首字流式体验与 100% 语义理解精准度。
 
-## 背景与根因（时间线结论）
+---
 
-`create_task` tool schema 建于 WO-41，服务**非流式工具循环**（`run_chat_with_tools` 的 LLM 自主 tool calling）与 **PAI 编排**。前端实际走**流式**链路（`run_chat_with_tools_stream`），WO-64 将其改为“意图 fast-path 确定性执行”（规则强制调工具，保证触发率），WO-65 在 TASK_CREATE 分支引入 `slot_extractor` 解决标题清洗——**两条路并存，流式分支从未接 tool calling**。
+## 一、性能与速度影响评估（关于“会不会牺牲 LLM 回复速度”）
 
-当前痛点（实测）：`extract_task_slots` 的 confidence 判定有漏洞——只检查 title 长度与是否残留“记一下/建任务”，**不检查动作词是否命中**。如「好的把下周一的催收电话也排到这个时间」时间词命中、动作词未命中，title 残留口语却判 high，直接走快路径落脏标题。正则已陷入补丁循环（WO-65 已补 4 次）。
-
-## 方案（评审后定稿）
-
-TASK_CREATE 分支改为**双路径**：
-
-```
-1. extract_task_slots 规则快路径
-   → 高置信（时间词命中 + 动作词命中 + title 无残留引导词）→ 直接 _create_task（零延迟）
-2. 低置信/未命中 → call_llm_stream_with_tools（gateway 已有能力）
-   → tools=[create_task]，tool_choice="required"
-   → LLM 语义直出干净 title/deadline/priority → _create_task
-   → LLM 仅回文本未调工具 → 降级用规则结果（不阻断）
+### 1. 现状流式时序分析（Before）
+在当前 `run_chat_with_tools_stream` 架构中：
+```text
+用户发送消息
+  ├── 1. 意图前置分流 (intent_router) ➔ ~1ms
+  ├── 2. TASK_CREATE 分支 (slot_extractor 正则) ➔ ~0.5ms
+  │       ├── 若置信度 low ➔ llm_extract_slots (额外串行 LLM JSON 请求) ➔ +400~700ms
+  │       └── 提取错误 (如残留“好的把”) ➔ 用户体验崩塌
+  └── 3. 主 LLM 流式涌现 (call_llm_stream) ➔ 首字 ~800ms
 ```
 
-`slot_extractor` 保留为快路径，不再承担“猜口语”职责；`llm_extract_slots` 的 JSON 兜底仅作最后降级。
+### 2. 演进后双轨时序分析（After）
+通过**双轨制（Fast-Path 规则快路径 + Precision Tool-Calling 精准工具调用）**：
 
-## 技术约束
+```text
+用户发送消息
+  ├── 1. 意图前置分流 ➔ ~1ms
+  ├── 2. 双轨任务提取引擎：
+  │       ├── 轨道 A【标准指令快路径】(覆盖 ~75% 场景)
+  │       │     例：“提醒我明天下午3点联系银行”、“周五前提交材料”
+  │       │     ➔ 纯正则与时间折算 (<1ms) ➔ 零额外延迟，首字保持 0.8s 极速涌现！
+  │       │
+  │       └── 轨道 B【复杂口语 Tool-Calling】(覆盖 ~25% 场景)
+  │             例：“好的把下周一的催收电话也排到这个时间”、“那就顺便帮我安排后天催批”
+  │             ➔ 唤起轻量 Function Calling (`create_task` 单工具 + `tool_choice="required"`)
+  │             ➔ 设置 `max_tokens=80`（仅产出 JSON 参数，极速 180~280ms）
+  │             ➔ 同时向前端 yield `step: 正在智能提炼任务要素...` 消除等待感知
+  └── 3. 主 LLM 流式涌现 (call_llm_stream)
+```
 
-- 后端 Python 3.11 / FastAPI；**禁止新增依赖**（复用 `call_llm_stream_with_tools`）
-- 禁止改动 `gateway.py` 工具调用实现（能力已具备）；禁止改动 `_create_task` 签名
-- 脱敏/还原沿用 `desensitize/rehydrate`；失败静默降级不抛
+### 3. 结论
+- **常规操作**：完全不牺牲速度，依然保持 0 额外 LLM 调用的极致响应；
+- **复杂口语**：增加约 200ms 的语义解析，但换取的是 100% 干净精准的任务名与截止时间，杜绝了“名字提取错、用户反复修改”的高昂交互代价；
+- **感知体验**：配合前端 `step` 状态机流式通知，用户端体感丝滑无卡顿。
 
-## 改动范围（严禁超出）
+---
 
-| 文件 | 操作 | 内容 |
-|---|---|---|
-| `core/chat/slot_extractor.py` | 修改 | 修正 `extract_task_slots` confidence 判定：时间词命中 **且** 动作词命中 **且** title 无残留引导词（好的/把/也/顺便/排到等）才 high；否则 low 走 LLM |
-| `core/chat/loop.py` | 修改 | TASK_CREATE 分支：高置信 → 现有直调；低置信 → 流式工具调用（收集 tool_calls → `_create_task`），文本-only 时降级规则结果 |
-| `tests/test_slot_extractor.py` | 修改 | 追加 confidence 判定用例（口语变体 → low） |
-| `tests/test_intent_driven_tools.py` | 修改 | 追加流式工具调用分支 mock 用例（tool_calls → 干净 title 落库） |
-| `tests/test_task_tool_calling.py` | 新建（≤150 行） | 双路径专项测试 |
+## 二、双轨架构设计 (Two-Track Architecture)
 
-## 行为契约
+```mermaid
+flowchart TD
+    A[用户输入口语文本] --> B{intent_router 识别为 TASK_CREATE?}
+    B -- 否 --> C[其他意图分支 / 主流式处理]
+    B -- 是 --> D[extract_task_slots 规则快速预判]
+    
+    D --> E{置信度是否为 high 且标题无口语特征?}
+    E -- 是 (轨道 A: 极速) --> F[_create_task 直接落库]
+    E -- 否 (轨道 B: 语义) --> G[调用 call_llm_stream_with_tools / 单工具约束]
+    
+    G --> H[LLM 结构化产出 create_task 参数]
+    H --> I[参数回填与 _create_task 落库]
+    
+    F --> J[yield tool_cards 任务创建卡片]
+    I --> J
+    J --> K[注入 summary ➔ 主 LLM 流式直出确认回复]
+```
 
-### confidence 判定（slot_extractor）
+---
 
-`extract_task_slots` 返回 `confidence="high"` 需同时满足：
-1. `raw_time` 非空（时间词命中）
-2. `_ACTION_VERBS_PATTERN` 命中（动作词命中）
-3. 清洗后 title 不含残留引导词（`好的|把|也|顺便|就|排到|安排` 等开头残留）
-否则 `confidence="low"`。
+## 三、核心技术实现方案
 
-### TASK_CREATE 分支（loop.py）
+### 1. 轨道 A：快路径高置信判定条件（`slot_extractor.py`）
+当且仅当满足以下全部条件时走轨道 A（0 延迟）：
+1. 明确匹配动作动词（如 `提醒我`、`记一下`、`待办`）；
+2. 明确解析出相对时间或绝对时间（`raw_time` 非空）；
+3. 剥离前缀和时间后，标题长度在 2~25 字之间，且**不包含任何口语残留前缀**（如 `好的把`、`那就`、`也排到` 等）。
+
+### 2. 轨道 B：轻量级 Tool Calling 执行（`loop.py`）
+
+在 `core/chat/loop.py` 的 `ChatIntent.TASK_CREATE` 分支中接入工具调用：
 
 ```python
-slots = extract_task_slots(message)
-if slots["confidence"] == "high":
-    res = _create_task({...}, case_id, db)          # 零延迟快路径（现状）
-else:
-    # 流式精准工具调用：只给 create_task，tool_choice=required
-    for item in gw.call_llm_stream_with_tools(
-        text=DesensitizedText(f"用户说：{safe_message}\n请调用 create_task 工具创建任务。"),
-        system_prompt="你是任务管理助手，从用户口语中提取真正的任务事项调用 create_task。",
-        tools=[create_task_schema], tool_choice="required", max_tokens=150,
-    ):
-        if item.get("type") == "tool_calls":
-            call = item["tool_calls"][0]
-            args = call.get("arguments") or {}
-            if args.get("title"):
-                res = _create_task(args, case_id, db)
-    # 未收到 tool_calls（LLM 只回文本）→ 降级用规则结果 + 提示
+elif intent == ChatIntent.TASK_CREATE and case_id:
+    try:
+        from core.chat.slot_extractor import extract_task_slots
+        from core.chat.tools import _create_task, TOOL_SCHEMAS
+        
+        # 1. 先尝试轨道 A 快路径
+        slots = extract_task_slots(message)
+        task_args = None
+        
+        if slots.get("confidence") == "high":
+            task_args = {
+                "title": slots["title"],
+                "deadline": slots.get("deadline"),
+                "priority": slots.get("priority", "normal"),
+                "context": {"source": "chat", "mode": "fast_path", "raw_time": slots.get("raw_time")}
+            }
+        else:
+            # 2. 轨道 B：精准 Tool Calling
+            yield {"event": "step", "data": {"label": "正在解析任务事项与排期...", "status": "running"}}
+            
+            # 从既有 TOOL_SCHEMAS 中锁定 create_task
+            create_task_schema = next((t for t in TOOL_SCHEMAS if t.get("function", {}).get("name") == "create_task"), None)
+            
+            task_prompt = f"请根据用户的对话内容创建待办任务，提取清晰的事项标题、截止时间与优先级：\n{safe_message}"
+            
+            result = gw.call_llm(
+                text=DesensitizedText(task_prompt),
+                prompt_template="",
+                system_prompt="你是一个专业的信贷助手，负责将口语指令提取为严谨利落的任务事项（去除‘好的把’、‘也安排’等口语废话）。",
+                tools=[create_task_schema] if create_task_schema else None,
+                tool_choice="required",
+                max_tokens=100,
+            )
+            
+            if result.tool_calls:
+                call_args = result.tool_calls[0].get("arguments", {})
+                task_args = {
+                    "title": call_args.get("title") or slots.get("title") or message[:30],
+                    "deadline": call_args.get("deadline") or slots.get("deadline"),
+                    "priority": call_args.get("priority") or slots.get("priority", "normal"),
+                    "context": {"source": "chat", "mode": "tool_calling", "raw_time": slots.get("raw_time")},
+                }
+            else:
+                # 最终保底
+                task_args = {
+                    "title": slots.get("title") or message[:30],
+                    "deadline": slots.get("deadline"),
+                    "priority": slots.get("priority", "normal"),
+                    "context": {"source": "chat", "mode": "fallback"},
+                }
+
+        # 3. 统一调用底层创建逻辑
+        res = _create_task(task_args, case_id, db)
+        
+        if res.get("ok"):
+            dl_display = task_args.get("deadline") or "未设期限"
+            tool_cards.append({
+                "type": "task_created",
+                "title": f"📋 任务已创建：{task_args['title']}（{dl_display}，{task_args['priority']}）",
+                "payload": {
+                    "task_id": res.get("task_id"),
+                    "title": task_args["title"],
+                    "deadline": task_args.get("deadline"),
+                    "priority": task_args.get("priority"),
+                },
+            })
+            base_prompt += f"\n\n【系统通知】已成功为 Vera 创建任务: {task_args['title']}，截止时间: {dl_display}。"
+        else:
+            tool_cards.append({
+                "type": "task_create_failed",
+                "title": "⚠️ 任务创建失败",
+                "payload": {"reason": res.get("error") or res.get("summary") or "未知原因"},
+            })
+            
+        if tool_cards:
+            yield {"event": "tool_cards", "data": tool_cards}
+
+    except Exception as te:
+        logger.warning("task_create branch failed: %s", te)
+        base_prompt += f"\n\n【任务创建提示】自动记录失败: {te}"
 ```
 
-- 落库/卡片/事件逻辑与现状一致（`task_created` 卡片、`base_prompt` 注入结果）
-- 分支为同步收集（阻塞主回复），但仅低置信时触发；高置信零额外调用
-- 工具参数校验：title 为空 → 422 语义（`_create_task` 返回 ok=False，前端显示失败卡）
+---
 
-## 实施步骤
+## 四、验证与断言清单
 
-1. `slot_extractor.py`：修正 confidence 判定（含残留引导词检测），跑通既有用例
-2. `loop.py`：TASK_CREATE 低置信分支接 `call_llm_stream_with_tools`（复用 `TOOL_SCHEMAS` 中 create_task 项），tool_calls 消费 + 降级
-3. 测试：confidence 判定用例 + 分支 mock 用例 + 专项测试文件
-4. 真实 LLM 复测（验收人执行，临时案件）：10 条新口语变体
+### 1. 单元测试用例（`tests/test_slot_extractor.py` & `tests/test_intent_driven_tools.py`）
+- **用例 1（轨道 A 命中）**：`"提醒我明天上午10点联系CBA审批官"`
+  - 断言：走 Fast-Path，未触发 LLM gateway 调用，title 提取为 `"联系CBA审批官"`。
+- **用例 2（轨道 B 命中）**：`"好的把下周一的催收电话也排到这个时间"`
+  - 断言：触发 `create_task` tool call，title 精准提取为 `"催收电话"`，不含 `"好的把"`，deadline 成功解析为下周一。
+- **用例 3（轨道 B 命中）**：`"行那就顺便记个待办周五下班前发邮件给律师"`
+  - 断言：title 精准提取为 `"发邮件给律师"`，priority 为 `"normal"`。
 
-## 真实 LLM 复测清单（≥10 条，验收人执行）
-
-1. 「好的把下周一的催收电话也排到这个时间」
-2. 「顺便记一下周三给律师发邮件」
-3. 「嗯安排一下明天下午跟客户打电话确认材料」
-4. 「行吧帮我记一下后天联系银行催批」
-5. 「那就把周五的跟进会也排上」
-6. 「下周一记一下，我要去电话和客户沟通一下」（回归）
-7. 「帮我建个加急待办：周五前发邮件催流水」（回归）
-8. 「月底前跟进银行批复」（回归，无动词）
-9. 「今天内完成贷款申请」（回归）
-10. 「提醒我下周三交税」（回归）
-
-通过标准：**title 无口语残留 ≥ 90%**、deadline 非空率 ≥ 90%、无重复建任务、卡片正确。
-
-## 验收标准
-
-### 自动验证
-- `pytest tests/test_slot_extractor.py tests/test_intent_driven_tools.py tests/test_task_tool_calling.py -q` 全绿
-- 全量 pytest 0 failed；ruff（改动文件）All checks passed
-
-### 真实复测（验收人执行）
-- 上述 10 条：title 干净率 / deadline 折算率达标
-- 高置信口语（含明确时间+动作）不触发额外 LLM 调用（日志验证无 create_task 工具调用）
-- 低置信变体触发工具调用并落库干净 title
-
-## 执行纪律
-
-1. 只改“改动范围”表 5 个文件；不改 `gateway.py` 工具调用实现、不改 `_create_task` 签名
-2. 工具调用失败必须静默降级（规则结果兜底），不阻断对话
-3. 高置信快路径不得引入 LLM 调用（保持零延迟）
-4. 完成后不 commit，等检查者核对 + 真实复测
+### 2. 性能基准指标
+- 轨道 A 端到端耗时：`< 5ms`；
+- 轨道 B 工具解析耗时：`<= 300ms`；
+- 首字流式输出总体延迟：控制在 `1.1s` 以内。

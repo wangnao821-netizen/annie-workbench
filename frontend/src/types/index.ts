@@ -49,6 +49,11 @@ export interface TaskItem {
   bossDecision?: string | null;
   status?: string;              // "pending" | "in_progress" | "completed"
   assignee?: string | null;     // "vera" | "brandon" | ...
+  emailFrom?: string | null;       // 邮件发件人
+  emailSubject?: string | null;    // 邮件主题
+  emailBodyHtml?: string | null;   // 邮件正文 HTML
+  emailBodyText?: string | null;   // 邮件正文纯文本
+  emailAttachments?: { id: string; name: string; size: string }[] | null;  // 邮件附件列表
 }
 
 export interface ChecklistItemType {

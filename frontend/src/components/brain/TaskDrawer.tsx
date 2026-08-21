@@ -24,7 +24,6 @@ export function TaskDrawer({ caseId }: TaskDrawerProps) {
   const tasks = useTaskStore((s) => s.tasks);
   const fetchTasks = useTaskStore((s) => s.fetchTasks);
   const completeTask = useTaskStore((s) => s.completeTask);
-  const openOsWorkbench = useUiStore((s) => s.openOsWorkbench);
 
   const [activeTab, setActiveTab] = useState<TabType>(taskDrawerTab || 'all');
 
@@ -312,7 +311,7 @@ export function TaskDrawer({ caseId }: TaskDrawerProps) {
                           className={`text-xs font-medium truncate cursor-pointer hover:text-[var(--purple)] transition-colors ${
                             task.completed ? 'line-through text-muted' : 'text-[var(--text-primary)] font-semibold'
                           }`}
-                          onClick={() => openOsWorkbench(task.id)}
+                          onClick={() => useUiStore.getState().openTaskDetail(task.id)}
                           title={task.title || task.subtitle}
                         >
                           {task.title || task.subtitle}

@@ -45,7 +45,7 @@ export function OsWorkbench({ taskId, onClose }: OsWorkbenchProps) {
             id="os-workbench-back"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>← 返回任务队列</span>
+            <span>返回任务队列</span>
           </motion.button>
 
           <div className="h-4 w-[1px]" style={{ backgroundColor: 'var(--border)' }} />
@@ -91,12 +91,12 @@ export function OsWorkbench({ taskId, onClose }: OsWorkbenchProps) {
           <div className="hidden xl:block w-[1px] my-2" style={{ backgroundColor: 'var(--border)' }} />
 
           {/* Column 2: AI Strategies */}
-          <OsStrategyColumn />
+          <OsStrategyColumn caseName={clientName} lender={lender} />
 
           <div className="hidden xl:block w-[1px] my-2" style={{ backgroundColor: 'var(--border)' }} />
 
           {/* Column 3: Bilingual Draft & Guardrail */}
-          <OsDraftColumn />
+          <OsDraftColumn caseName={clientName} lender={lender} />
         </div>
       </div>
     </motion.div>
