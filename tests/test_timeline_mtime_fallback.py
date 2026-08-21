@@ -2,11 +2,9 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 from core.pipeline.msg_timeline import _extract_shortfall_reason, _parse_msg_file
 
@@ -16,7 +14,7 @@ def test_msg_without_date_falls_back_to_mtime(tmp_path: Path):
     dummy_msg = tmp_path / "Draft_Template.msg"
     dummy_msg.write_text("dummy msg content", encoding="utf-8")
     
-    fake_time = datetime(2025, 5, 13, 10, 40, 0, tzinfo=timezone.utc).timestamp()
+    fake_time = datetime(2025, 5, 13, 10, 40, 0, tzinfo=UTC).timestamp()
     os.utime(dummy_msg, (fake_time, fake_time))
 
     mock_msg_obj = MagicMock()

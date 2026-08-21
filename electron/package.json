@@ -57,7 +57,8 @@
         { "target": "nsis", "arch": ["x64"] },
         { "target": "portable", "arch": ["x64"] }
       ],
-      "icon": "build/app.ico"
+      "icon": "build/app.ico",
+      "signAndEditExecutable": false
     },
     "nsis": {
       "oneClick": false,

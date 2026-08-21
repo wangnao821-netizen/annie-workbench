@@ -231,7 +231,7 @@ def run_chat_with_tools_stream(
     elif intent == ChatIntent.TASK_CREATE and case_id:
         try:
             from core.chat.slot_extractor import extract_task_slots
-            from core.chat.tools import _create_task, TOOL_SCHEMAS
+            from core.chat.tools import TOOL_SCHEMAS, _create_task
 
             # 1. 轨道 A：先尝试规则快路径 (0 延迟)
             slots = extract_task_slots(message)
