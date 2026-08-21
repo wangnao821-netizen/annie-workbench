@@ -3,6 +3,7 @@
 > 本文件是 `vera-workbench` 工作区的最高优先级规则。任何 AI 在本项目写代码、改文件、跑命令前，必须先读取并遵守本文件。
 > 与其他文档冲突时，以本文件为准。
 > 来源：老项目（loan-assistant）完整宪法迁移 + 新版精简宪法有效部分融合 + 项目现状调整（v1.0，2026-08-22）。
+> 项目沿革：本工作区由 `loan-assistant` 迁移而来（Annie Workbench）；`loan-assistant` 的老宪法与旧技能目录**已退役**，一律以本文件与 `vera-workbench/.agents/skills/` 为准。
 
 ---
 
@@ -159,8 +160,13 @@ logs/      日志
 
 1. **Annie 品牌**：软件与 AI 统一命名 **Annie（小安）**；`Vera` 是「对经纪人的称呼/用户地址」，两者不同义。对外品牌、窗口标题、安装包名、AI 自称一律 Annie；用户可见处禁止再出现「Vera AI」。
 2. **阶段体系单一真源**：案件阶段以 `core/case_engine/milestones.py` 的 9 级为唯一真源；前端 `caseMapper` 映射表不得自造枚举；阶段变更走 `PATCH /api/cases/{id}/stage`（复用 `update_case_stage_and_milestones`），禁止手写 `case.stage`。
-3. **技能体系**：项目技能位于 `.agents/skills/`（apple-design / flash-executor-spec / neat-freak / plan-executor）；施工单/收尾/前端审查时按对应 SKILL.md 执行。
+3. **技能体系**：项目技能位于 `.agents/skills/`（**superpowers 全集** / apple-design / flash-executor-spec / neat-freak / plan-executor）：
+   - 新功能/行为修改 → 按 `superpowers:brainstorming`（HARD-GATE：未经批准绝不写代码）
+   - Bug/异常排查 → 按 `superpowers:systematic-debugging`（未查清根因绝不提修改）
+   - 复杂多步任务 → 按 `superpowers:writing-plans` / `executing-plans`
+   - 交付前 → 按 `superpowers:verification-before-completion`（终端运行测试留凭据）
+   - 施工单/收尾/前端审查 → 按 flash-executor-spec / neat-freak / apple-design 对应 SKILL.md 执行
 
 ---
 
-*v1.0 · 2026-08-22 · 老宪法迁移 + 现状调整 + 五步门禁融合*
+*v1.1 · 2026-08-22 · 收录 superpowers 技能集 + 项目沿革（loan-assistant 退役声明）*
