@@ -1,13 +1,11 @@
 """WO-71 时间线 Bug 链修复验收测试。"""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
-import pytest
-
 from core.models.orm import CaseContextEvent
-from core.pipeline.msg_timeline import _write_event, _event_from_row
+from core.pipeline.msg_timeline import _event_from_row, _write_event
 
 
 class TestWriteEventPreservesTime:
@@ -58,8 +56,8 @@ class TestEventFromRowUsesOccurredAt:
         row.content = "[note] Test email subject\nSome summary"
         row.source_type = "email_timeline"
         row.source_ref = "email_timeline:test.msg:note"
-        row.occurred_at = datetime(2024, 5, 6, 9, 21, 48)
-        row.created_at = datetime(2026, 8, 21, 6, 56, 11)
+        row.occurred_at = datetime(2024, 5, 6, 9, 21, 48, tzinfo=UTC)
+        row.created_at = datetime(2026, 8, 21, 6, 56, 11, tzinfo=UTC)
         result = _event_from_row(row)
         assert "2024-05-06" in result["event_time"]
         assert "2026-08-21" not in result["event_time"]
@@ -72,6 +70,6 @@ class TestEventFromRowUsesOccurredAt:
         row.source_type = "manual_note"
         row.source_ref = None
         row.occurred_at = None
-        row.created_at = datetime(2026, 8, 21, 6, 56, 11)
+        row.created_at = datetime(2026, 8, 21, 6, 56, 11, tzinfo=UTC)
         result = _event_from_row(row)
         assert "2026-08-21" in result["event_time"]
