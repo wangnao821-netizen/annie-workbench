@@ -14,7 +14,7 @@ export function GapAnalysisCard({ payload, caseId }: GapAnalysisCardProps) {
   const missing = payload?.missing || [];
   const matched = payload?.matched || [];
   const suggestions = payload?.suggestions || [];
-  const summary = payload?.summary || '经过 Vera AI 对比审贷 Policy 规则，已梳理材料缺口与建议清单：';
+const summary = payload?.summary || '经过 Annie 对比审贷 Policy 规则，已梳理材料缺口与建议清单：';
 
   const handleGenerateDraftList = async () => {
     if (!caseId) {

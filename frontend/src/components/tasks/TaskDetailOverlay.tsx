@@ -161,7 +161,7 @@ export function TaskDetailOverlay({ task, onClose }: TaskDetailOverlayProps) {
                   )}
                   {((task.status === 'in_progress' && (task.assignee === 'vera' || task.delegatedTo === 'vera')) || (task.assignee === 'vera' && !task.completed)) && (
                     <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-[var(--accent-soft)] text-[var(--accent)] border border-[var(--accent-soft)]">
-                      🙋 Vera 正在跟进
+        🙋 Annie 正在跟进
                     </span>
                   )}
                   {task.completed && (

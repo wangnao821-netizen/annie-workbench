@@ -1,4 +1,4 @@
-/* Vera 工作台 — Electron 主进程
+/* Annie — Electron 主进程
  * 职责：无边框窗口 + 后端进程管理 + 托盘 + 首次配置引导 + IPC（窗口控制/版本/通知）
  * 红线：只写项目内 .env / config.json；不写客户文件夹；key 仅写入用户输入值。
  */
@@ -245,7 +245,7 @@ function createTray() {
     const pngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAcSURBVDhPY/z//z8DJYCJgUJACkAaGhoGGRgAG28fAfc5+T0AAAAASUVORK5CYII=';
     const icon = nativeImage.createFromBuffer(Buffer.from(pngBase64, 'base64'));
     tray = new Tray(icon);
-    tray.setToolTip('Vera 工作台');
+    tray.setToolTip('Annie');
     tray.setContextMenu(Menu.buildFromTemplate([
       { label: '显示主窗口', click: () => { mainWindow?.show(); mainWindow?.focus(); } },
       { type: 'separator' },
@@ -271,7 +271,7 @@ function createTray() {
 async function ensureEnv() {
   if (fs.existsSync(ENV_PATH)) return;
   const lines = [
-    '# Vera 工作台环境变量（可留空，按需补充）',
+    '# Annie 环境变量（可留空，按需补充）',
     'ENV=development',
     '# DEEPSEEK_API_KEY=',
     '# GEMINI_API_KEY=',
@@ -313,7 +313,7 @@ function registerIpc() {
   ipcMain.handle('notify:show', (_e, { title, body }) => {
     const { Notification } = require('electron');
     if (Notification.isSupported()) {
-      new Notification({ title: title || 'Vera 工作台', body: body || '' }).show();
+    new Notification({ title: title || 'Annie', body: body || '' }).show();
     }
   });
 }

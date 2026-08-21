@@ -459,7 +459,7 @@ const MOCK_TIMELINES: Record<string, CaseTimelineResponse> = {
         event_type: 'note',
         title: '材料收集完毕，完成预审自检',
         summary: '核心清单收集完毕，已确认借款人收入核算达标，准备递交。',
-        sender: 'Vera AI Assistant',
+        sender: 'Annie',
         source_file: 'Broker Notes - Li Ming.docx',
         is_blocker: false,
       },
@@ -759,7 +759,7 @@ export function getPolicyCheck(caseId: string): Promise<PolicyCheckResult> {
       ],
       alternative_lenders: ['Macquarie', 'Westpac', 'ANZ'],
       summary: '整体贷款方案可行，但针对试用期与境外赠予首付存在 2 项中度风控提示，建议补充前雇主履历及 Gift Letter。',
-      disclaimer: '本政策建议由 Vera AI 根据目前录入的案情事实与各银行最新 Policy 指南自动生成，仅供 Broker 审案参考，不构成银行批复保证。',
+        disclaimer: '本政策建议由 Annie 根据目前录入的案情事实与各银行最新 Policy 指南自动生成，仅供 Broker 审案参考，不构成银行批复保证。',
     });
   }
   return request<PolicyCheckResult>(`/api/cases/${encodeURIComponent(caseId)}/policy-check`);
@@ -2541,7 +2541,6 @@ export async function getCaseMailPreview(caseId: string, filename: string): Prom
     `/api/cases/${encodeURIComponent(caseId)}/mail-preview?filename=${encodeURIComponent(filename)}`
   );
 }
-
 
 
 

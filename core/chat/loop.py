@@ -106,7 +106,7 @@ def run_chat_with_tools(
     rt = get_runtime_persona(db)
     system_prompt = build_system_prompt(
         key=rt.get("persona_key"),
-        ai_name=rt.get("ai_name") or "Vera AI",
+        ai_name=rt.get("ai_name") or "Annie",
         user_address=rt.get("user_address") or "Vera",
     ) or _SYSTEM_PROMPT
 
@@ -164,7 +164,7 @@ def run_chat_with_tools_stream(
     rt = get_runtime_persona(db)
     system_prompt = build_system_prompt(
         key=rt.get("persona_key"),
-        ai_name=rt.get("ai_name") or "Vera AI",
+        ai_name=rt.get("ai_name") or "Annie",
         user_address=rt.get("user_address") or "Vera",
     ) or _SYSTEM_PROMPT
 
@@ -381,7 +381,7 @@ def run_chat_with_tools_stream(
     elif intent == ChatIntent.STATUS_ACK:
         base_prompt = f"【用户回复】\n{safe_message}\n\n【指令】这是简短状态/闲聊/确认指令。请用 1 句话利落回应（如确认收到指示、随时待命），绝不展开任何无关的长篇分析。"
 
-    yield {"event": "step", "data": {"label": "Vera AI 正在生成实战建议与分析...", "status": "generating"}}
+        yield {"event": "step", "data": {"label": "Annie 正在生成实战建议与分析...", "status": "generating"}}
 
     try:
         for token_chunk in gw.call_llm_stream(

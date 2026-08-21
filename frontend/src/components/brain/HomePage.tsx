@@ -510,7 +510,7 @@ export function HomePage({ onNavigate }: HomePageProps) {
                           {/* Boss Escalated / Overdue / AI / Normal Badge */}
                           {((t.status === 'in_progress' && (t.assignee === 'vera' || t.delegatedTo === 'vera')) || (t.assignee === 'vera' && !t.completed)) && (
                             <span className="px-1.5 py-0.2 rounded text-[11px] font-bold bg-[var(--accent-soft)] text-[var(--accent)] border border-[var(--accent-soft)] inline-flex items-center space-x-1">
-                              <span>🙋 Vera 正在跟进</span>
+          <span>🙋 Annie 正在跟进</span>
                             </span>
                           )}
                           {t.escalatedToBoss ? (
@@ -650,7 +650,7 @@ export function HomePage({ onNavigate }: HomePageProps) {
                 <Lightbulb className="w-4 h-4" />
               </div>
               <span className="text-xs font-extrabold text-[var(--accent)]">
-                Vera 智能专家贴士
+          Annie 智能专家贴士
               </span>
             </div>
 

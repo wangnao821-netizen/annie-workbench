@@ -179,7 +179,7 @@ export function ChatPanel({ caseId, onToggleCollapse }: ChatPanelProps) {
 已成功接收指令："${text}"。
 
 💡 **判断与建议**
-Vera 已根据 ${caseId ? `案卷 [${caseId}]` : '全局业务知识库'} 完成最新事实校验与规则核对。
+          Annie 已根据 ${caseId ? `案卷 [${caseId}]` : '全局业务知识库'} 完成最新事实校验与规则核对。
 
 📋 **推荐跟进项**
 - 核对对应银行的最新审贷指南
@@ -222,7 +222,7 @@ Vera 已根据 ${caseId ? `案卷 [${caseId}]` : '全局业务知识库'} 完成
       style={{ backgroundColor: 'var(--bg-panel)', borderColor: 'var(--border)' }}
       id="ai-chat-panel"
     >
-      {/* 1. 顶部状态栏: Vera AI 专属微光徽标 + 状态 */}
+      {/* 1. 顶部状态栏: Annie 专属微光徽标 + 状态 */}
       <div
         className="px-3.5 py-2.5 border-b flex items-center justify-between text-xs flex-shrink-0 shadow-2xs"
         style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-panel)' }}
@@ -235,21 +235,21 @@ Vera 已根据 ${caseId ? `案卷 [${caseId}]` : '全局业务知识库'} 完成
             <span
               className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 rounded-full animate-pulse"
               style={{ borderColor: 'var(--bg-panel)' }}
-              title="Vera AI 在线"
+            title="Annie 在线"
             />
           </div>
 
           <div className="min-w-0">
             <div className="flex items-center space-x-1.5">
               <h3 className="font-extrabold text-xs tracking-tight" style={{ color: 'var(--text-primary)' }}>
-                Vera AI
+          Annie
               </h3>
               <span className="text-[10px] px-1.5 py-0.2 rounded font-bold bg-[var(--purple-soft)] text-[var(--purple)]">
                 Pro
               </span>
             </div>
             <p className="text-[11px] text-muted truncate">
-              {caseId ? `Vera 智能业务搭档 · 已注入案卷 [${caseId}]` : 'Vera 智能业务搭档 · 全局经验库'}
+          {caseId ? `Annie 智能业务搭档 · 已注入案卷 [${caseId}]` : 'Annie 智能业务搭档 · 全局经验库'}
             </p>
           </div>
         </div>
@@ -280,7 +280,7 @@ Vera 已根据 ${caseId ? `案卷 [${caseId}]` : '全局业务知识库'} 完成
               <Sparkles className="w-6 h-6" />
             </div>
             <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
-              欢迎与 Vera AI 协同工作
+          欢迎与 Annie 协同工作
             </p>
             <p className="text-[11px] text-muted max-w-xs mx-auto">
               向我询问关于当前案件的材料缺口、银行政策对比、核对结果或起草邮件草稿。
@@ -306,7 +306,7 @@ Vera 已根据 ${caseId ? `案卷 [${caseId}]` : '全局业务知识库'} 完成
                       <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-purple-600 to-fuchsia-500 flex items-center justify-center text-white text-[10px] shrink-0 shadow-2xs">
                         <Sparkles className="w-3 h-3" />
                       </div>
-                      <span className="font-bold text-[var(--purple)]">Vera AI</span>
+        <span className="font-bold text-[var(--purple)]">Annie</span>
                       <span>· {m.created_at}</span>
                     </>
                   )}
@@ -365,7 +365,7 @@ Vera 已根据 ${caseId ? `案卷 [${caseId}]` : '全局业务知识库'} 完成
               <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-purple-600 to-fuchsia-500 flex items-center justify-center text-white text-[10px] shrink-0 shadow-2xs">
                 <Sparkles className="w-3 h-3 animate-spin" />
               </div>
-              <span className="font-bold text-[var(--purple)]">Vera AI</span>
+        <span className="font-bold text-[var(--purple)]">Annie</span>
               <span>· 分析中</span>
             </div>
             <div
@@ -378,7 +378,7 @@ Vera 已根据 ${caseId ? `案卷 [${caseId}]` : '全局业务知识库'} 完成
             >
               <Sparkles className="w-3.5 h-3.5 text-[var(--purple)] animate-bounce" />
               <span className="animate-pulse font-medium text-[var(--purple)]">
-                Vera AI 正在分析案卷与上下文...
+          Annie 正在分析案卷与上下文...
               </span>
             </div>
           </motion.div>

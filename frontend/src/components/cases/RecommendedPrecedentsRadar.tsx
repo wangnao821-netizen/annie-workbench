@@ -56,7 +56,7 @@ export function RecommendedPrecedentsRadar({ caseId, compact = false }: Recommen
         style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}
       >
         <Sparkles className="w-4 h-4 text-[var(--purple)] animate-spin" />
-        <span>Vera AI 正在匹配历史破局先例...</span>
+            <span>Annie 正在匹配历史破局先例...</span>
       </div>
     );
   }

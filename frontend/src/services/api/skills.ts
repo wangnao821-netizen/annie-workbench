@@ -171,7 +171,7 @@ const MOCK_SKILLS: SkillItem[] = [
     triggers: ['CBA预核准质询澄清', '流水提问回复'],
     content: 'Directly address the assessor query regarding unidentifiable transfer descriptions by mapping back to verified rental or salary facts.',
     versions: [
-      { version: '0.9.0', content: 'AI 自动生成草稿提议', updated_at: '2026-08-13 01:30', updated_by: 'Vera AI Engine' },
+      { version: '0.9.0', content: 'AI 自动生成草稿提议', updated_at: '2026-08-13 01:30', updated_by: 'Annie Engine' },
     ],
     updated_at: '2026-08-13 01:30',
   },
@@ -466,4 +466,3 @@ export async function updateSkillDraft(
   });
   return normalizeSkillItem(raw);
 }
-

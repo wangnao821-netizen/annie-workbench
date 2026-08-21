@@ -229,7 +229,7 @@ export function SkillCenter() {
             </span>
           </div>
           <p className="text-xs text-muted max-w-2xl leading-relaxed">
-            管理 Vera AI 的技能规则库与流程包。<strong>人闸原则：</strong>草稿状态 (draft) 永不参与对话触发，必须由 Vera 手动确认激活后方可生效。
+  管理 Annie 的技能规则库与流程包。<strong>人闸原则：</strong>草稿状态 (draft) 永不参与对话触发，必须由 Vera 手动确认激活后方可生效。
           </p>
         </div>
 

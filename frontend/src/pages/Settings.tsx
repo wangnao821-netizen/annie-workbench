@@ -45,7 +45,7 @@ export function Settings() {
               系统设置与能力中心 (System & Capability Center)
             </h1>
             <p className="text-xs text-muted">
-              管理 Vera AI 业务 Agent、技能组件、计算器模型、银行与递交平台及系统偏好
+  管理 Annie 业务 Agent、技能组件、计算器模型、银行与递交平台及系统偏好
             </p>
           </div>
         </div>
@@ -236,7 +236,7 @@ export function Settings() {
             <div className="flex items-center space-x-2">
               <Shield className="w-4 h-4" style={{ color: 'var(--green)' }} />
               <h3 className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
-                🛡️ 安全隐私与 Vera AI 核心守则
+        🛡️ 安全隐私与 Annie 核心守则
               </h3>
             </div>
 
@@ -257,4 +257,3 @@ export function Settings() {
     </div>
   );
 }
-

@@ -95,13 +95,13 @@ def generate_case_brief_markdown(case: Case, facts: list[BrainFact] | None = Non
         lines.extend([
             "> [!CAUTION] 🔒 内部保密与底线控制 (Strictly Internal · 严禁外泄银行)",
             *[f"> - {item}" for item in internal_facts],
-            "> - ⚠️ 内部风控备忘与底线仅供 Vera AI 内部对话参考，外发草稿已开启物理级脱敏屏蔽。",
+    "> - ⚠️ 内部风控备忘与底线仅供 Annie 内部对话参考，外发草稿已开启物理级脱敏屏蔽。",
             "",
         ])
     else:
         lines.extend([
             "> [!CAUTION] 🔒 内部保密与底线控制 (Strictly Internal · 严禁外泄银行)",
-            "> - 客户底线与内部风控备忘仅限本地 Vera AI 内部对话参考，外发邮件已开启物理脱敏屏蔽。",
+    "> - 客户底线与内部风控备忘仅限本地 Annie 内部对话参考，外发邮件已开启物理脱敏屏蔽。",
             "",
         ])
 

@@ -533,7 +533,7 @@ export function TaskDrawer({ caseId }: TaskDrawerProps) {
                       className="w-full p-1.5 rounded-lg border bg-[var(--bg-input)] border-[var(--border)] text-xs outline-none"
                       id="new-task-assignee-select"
                     >
-                      <option value="vera">Vera AI</option>
+          <option value="vera">Annie</option>
                       <option value="brandon">Brandon (经纪人/助理)</option>
                     </select>
                   </div>

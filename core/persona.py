@@ -109,7 +109,7 @@ def build_system_prompt(
 
     Args:
         key: 人格 key；None 用默认。
-        ai_name: Vera 给 AI 起的名字（仅内线使用）；缺省默认 "Vera AI"。
+    ai_name: Vera 给 AI 起的名字（仅内线使用）；缺省默认 "Annie"。
         user_address: 希望 AI 对经纪人的称呼；缺省默认 "Vera"。
 
     Returns:
@@ -120,7 +120,7 @@ def build_system_prompt(
     if not persona:
         return ""
 
-    actual_ai_name = ai_name or "Vera AI"
+    actual_ai_name = ai_name or "Annie"
     actual_user_address = user_address or "Vera"
 
     common = [str(r) for r in data.get("common_rules", [])]
@@ -158,5 +158,4 @@ def build_system_prompt(
     lines.append("   - 立即将该答案锁定为最新事实，直接推进并输出最终对比表与复议清单，严禁再次重复询问已被回答的问题！")
 
     return "\n".join(lines)
-
 

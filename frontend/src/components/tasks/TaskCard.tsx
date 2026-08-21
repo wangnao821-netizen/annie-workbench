@@ -151,7 +151,7 @@ export function TaskCard({ task, isSelected, isMultiSelected, onSelect, onToggle
               id={`task-claimed-status-${task.id}`}
               className="px-1.5 py-0.2 rounded-md text-xs font-bold border bg-[var(--accent-soft)] text-[var(--accent)] border-[var(--accent-soft)] inline-flex items-center space-x-1"
             >
-              <span>🙋 Vera 正在跟进</span>
+          <span>🙋 Annie 正在跟进</span>
             </span>
           )}
           {task.escalatedToBoss && (

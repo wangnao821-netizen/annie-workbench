@@ -516,10 +516,10 @@ export function CoCreateDialog({
 
           {/* Main Content Area: Two-Column Split Layout */}
           <div className="flex-1 flex min-h-0 divide-x" style={{ borderColor: 'var(--border)' }}>
-            {/* Left Column: Dialog Stream ("和 VERA 说") */}
+      {/* Left Column: Dialog Stream ("和 Annie 说") */}
             <div className="w-[420px] max-w-[48%] flex flex-col min-h-0 bg-[var(--bg-subtle)] ">
               <div className="px-4 py-2 border-b text-[11px] font-bold text-muted flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
-                <span>和 VERA 说 (对话调优区)</span>
+          <span>和 Annie 说 (对话调优区)</span>
                 <span className="text-[11px] font-mono opacity-80">Session: {sessionId ? sessionId.slice(0, 8) : 'active'}</span>
               </div>
 
@@ -547,7 +547,7 @@ export function CoCreateDialog({
                 {loading && (
                   <div className="flex items-center space-x-2 text-xs text-muted p-2">
                     <RefreshCw className="w-3.5 h-3.5 animate-spin text-[var(--accent)]" />
-                    <span>VERA 正在思考并构思草稿...</span>
+          <span>Annie 正在思考并构思草稿...</span>
                   </div>
                 )}
                 <div ref={messagesEndRef} />
@@ -782,4 +782,3 @@ export function CoCreateDialog({
     </AnimatePresence>
   );
 }
-

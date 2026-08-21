@@ -731,7 +731,7 @@ export function BrainChat({ caseId, onToggleRightDeck, isRightDeckCollapsed }: B
           ? `已触发【申报一致性比对】功能卡。请在下方卡片中选择核查材料或贴入路径，开始交叉比对。`
           : (isFollowup || isChaser || isOsReply)
           ? `已成功响应指令："${text}"。共创 Dialog 功能卡片已就绪，可点开弹窗深谈或生成多版本。`
-          : `已接收指令："${text}"。Vera AI 已根据 ${activeCaseInfo ? `案件 [${activeCaseInfo.clientName}] (${mode === 'external' ? '递交模式' : '内线模式'})` : '全局模式'} 分析完毕。`,
+        : `已接收指令："${text}"。Annie 已根据 ${activeCaseInfo ? `案件 [${activeCaseInfo.clientName}] (${mode === 'external' ? '递交模式' : '内线模式'})` : '全局模式'} 分析完毕。`,
         suggested_actions: isDeclarationRequest ? ['开始申报一致性检查', '生成解释信草稿', '生成回复草稿'] : ['跟进邮件', '发送催件邮件', 'OS回复', '检查申报一致性'],
         tool_cards: mockToolCards,
         created_at: '刚刚',
@@ -996,7 +996,7 @@ export function BrainChat({ caseId, onToggleRightDeck, isRightDeckCollapsed }: B
               </div>
               <div className="space-y-1.5 max-w-sm">
                 <h3 className="font-extrabold text-base tracking-tight" style={{ color: 'var(--text-primary)' }}>全局咨询模式</h3>
-                <p className="text-xs text-muted leading-relaxed">选择左侧案件开始深入对话，或直接向 Vera AI 询问金融业务、政策与计算方案。</p>
+          <p className="text-xs text-muted leading-relaxed">选择左侧案件开始深入对话，或直接向 Annie 询问金融业务、政策与计算方案。</p>
               </div>
 
               <motion.button whileTap={{ scale: 0.95 }} onClick={() => setNewCaseOpen(true)} id="global-chat-new-case-btn"
@@ -1030,7 +1030,7 @@ export function BrainChat({ caseId, onToggleRightDeck, isRightDeckCollapsed }: B
                   <div className="space-y-1 flex-1 min-w-0">
                     <div className="font-extrabold flex items-center justify-between">
                       <span className="text-[var(--red)] font-bold flex items-center">
-                        Vera AI 智能提醒
+                      Annie 智能提醒
                       </span>
                       <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-[var(--red-soft)] text-[var(--red)] font-bold">
                         {overdueCount} 项已逾期
@@ -1059,7 +1059,7 @@ export function BrainChat({ caseId, onToggleRightDeck, isRightDeckCollapsed }: B
                   <div key={m.id} id={`chat-message-${m.id}`} className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'} space-y-1.5`}>
                     <div className="flex items-center space-x-1.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>
                       {m.role === 'user' ? <User className="w-3 h-3" /> : <Bot className="w-3 h-3 text-[var(--purple)]" />}
-                      <span>{m.role === 'user' ? '我' : 'Vera AI'}</span><span>· {formatChatTime(m.created_at)}</span>
+              <span>{m.role === 'user' ? '我' : 'Annie'}</span><span>· {formatChatTime(m.created_at)}</span>
                     </div>
 
                     {/* Step Capsule for streaming assistant message */}
@@ -1083,7 +1083,7 @@ export function BrainChat({ caseId, onToggleRightDeck, isRightDeckCollapsed }: B
                         <span className="font-semibold">
                           {activeStepStatus === 'generating'
                             ? '✓ 已完成分析，正在输出...'
-                            : activeStepLabel || 'Vera AI 正在分析...'}
+        : activeStepLabel || 'Annie 正在分析...'}
                         </span>
                       </motion.div>
                     )}
@@ -1597,7 +1597,7 @@ export function BrainChat({ caseId, onToggleRightDeck, isRightDeckCollapsed }: B
           >
             <div className="flex items-center space-x-1.5 text-[11px]" style={{ color: 'var(--text-muted)' }}>
               <Bot className="w-3 h-3 text-[var(--purple)] animate-pulse" />
-              <span>Vera AI</span>
+              <span>Annie</span>
               <span>· 正在分析</span>
             </div>
             <div 
@@ -1610,7 +1610,7 @@ export function BrainChat({ caseId, onToggleRightDeck, isRightDeckCollapsed }: B
                 <Loader2 className="w-4 h-4 animate-spin text-[var(--accent)] shrink-0" />
               )}
               <span className="animate-pulse font-medium">
-                {activeStepLabel || 'Vera AI 正在全面检索案卷大脑并组织建议...'}
+            {activeStepLabel || 'Annie 正在全面检索案卷大脑并组织建议...'}
               </span>
             </div>
           </motion.div>
@@ -1841,7 +1841,7 @@ export function BrainChat({ caseId, onToggleRightDeck, isRightDeckCollapsed }: B
           </motion.button>
           <input id="brain-chat-input" type="text" value={prompt} onChange={(e) => setPrompt(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder={activeCaseInfo ? `向 Vera AI 提问或发指令 (${activeCaseInfo.clientName})...` : "向 Vera AI 全局咨询..."}
+        placeholder={activeCaseInfo ? `向 Annie 提问或发指令 (${activeCaseInfo.clientName})...` : "向 Annie 全局咨询..."}
             className="bg-transparent border-none outline-none focus:outline-none focus:ring-0 w-full text-xs" style={{ color: 'var(--text-primary)' }} />
         </div>
         <motion.button whileTap={{ scale: 0.94 }} onClick={() => handleSend()} disabled={sending} id="brain-chat-send-btn"

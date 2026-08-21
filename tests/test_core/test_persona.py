@@ -70,9 +70,9 @@ class TestSystemPrompt:
         assert "外线草稿" in prompt
 
     def test_prompt_without_identity_uses_defaults(self) -> None:
-        """2026-08-20 起无运行期设置时注入默认称呼（Vera AI / Vera），不再省略。"""
+        """2026-08-20 起无运行期设置时注入默认称呼（Annie / Vera），不再省略。"""
         prompt = build_system_prompt("a")
-        assert "你的名字是「Vera AI」" in prompt
+        assert "你的名字是「Annie」" in prompt
         assert "称呼「Vera」" in prompt
 
 

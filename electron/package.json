@@ -1,7 +1,7 @@
 {
   "name": "vera-workbench-electron",
   "version": "2.2.0",
-  "description": "Vera 工作台 Electron 封装（窗口/托盘/后端进程管理/打包）",
+  "description": "Annie Electron 封装（窗口/托盘/后端进程管理/打包）",
   "main": "main.js",
   "private": true,
   "scripts": {
@@ -22,7 +22,7 @@
   },
   "build": {
     "appId": "com.vera.workbench",
-    "productName": "Vera 工作台",
+    "productName": "Annie",
     "afterPack": "after-pack.js",
     "asar": false,
     "directories": {
@@ -57,15 +57,23 @@
         { "target": "nsis", "arch": ["x64"] },
         { "target": "portable", "arch": ["x64"] }
       ],
-      "icon": "build/app.ico",
-      "signAndEditExecutable": false
+      "icon": "build/app.ico"
     },
     "nsis": {
       "oneClick": false,
+      "perMachine": false,
       "allowToChangeInstallationDirectory": true,
+      "installerSidebar": "build/installerSidebar.bmp",
+      "uninstallerSidebar": "build/installerSidebar.bmp",
+      "installerHeader": "build/installerHeader.bmp",
+      "installerHeaderIcon": "build/icon.ico",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Vera 工作台"
+    "shortcutName": "Annie",
+      "include": "build/installer.nsh",
+      "runAfterFinish": true
     }
   }
 }

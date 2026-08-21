@@ -15,7 +15,7 @@ export function EmptyDetail() {
       </h3>
 
       <p className="text-xs max-w-[280px]" style={{ color: 'var(--text-secondary)' }}>
-        请从左侧任务列表中选择一条卡片，系统将为您自动装载该案件上下文、银行邮件内容与 Vera AI 草稿。
+  请从左侧任务列表中选择一条卡片，系统将为您自动装载该案件上下文、银行邮件内容与 Annie 草稿。
       </p>
     </div>
   );

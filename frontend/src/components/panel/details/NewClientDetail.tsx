@@ -61,7 +61,7 @@ export function NewClientDetail({ task: _task }: NewClientDetailProps) {
           <div className="flex items-center space-x-2">
             <Sparkles className="w-4 h-4" style={{ color: 'var(--purple)' }} />
             <h4 className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
-              🤖 Vera AI 结构化字段自动提取
+        🤖 Annie 结构化字段自动提取
             </h4>
           </div>
           <span className="text-[11px] font-mono" style={{ color: 'var(--green)' }}>
