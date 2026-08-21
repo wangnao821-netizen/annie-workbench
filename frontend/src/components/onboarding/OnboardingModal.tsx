@@ -34,7 +34,6 @@ interface SlideItem {
   quote?: string;
   icon: typeof Sparkles;
   accentColor: string;
-  glowColor: string;
   content: {
     type: 'points' | 'tools';
     items: Array<{
@@ -49,14 +48,13 @@ interface SlideItem {
 const SLIDES: SlideItem[] = [
   {
     tag: '01 · 核心哲学 · Core Philosophy',
-    badgeBg: 'rgba(59, 130, 246, 0.12)',
-    badgeBorder: 'rgba(59, 130, 246, 0.3)',
+    badgeBg: 'var(--accent-soft, rgba(30, 94, 65, 0.1))',
+    badgeBorder: 'var(--accent, #1e5e41)',
     title: '贷款案件记忆与决策大脑',
     subtitle: '专为贷款经纪人打造的私人智能决策参谋',
     quote: '“她说，它记、它答、它建议、她拍板。”',
     icon: Sparkles,
-    accentColor: '#3b82f6',
-    glowColor: 'rgba(59, 130, 246, 0.18)',
+    accentColor: 'var(--accent, #1e5e41)',
     content: {
       type: 'points',
       items: [
@@ -80,13 +78,12 @@ const SLIDES: SlideItem[] = [
   },
   {
     tag: '02 · 智能建档 · Smart Intake',
-    badgeBg: 'rgba(16, 185, 129, 0.12)',
-    badgeBorder: 'rgba(16, 185, 129, 0.3)',
+    badgeBg: 'var(--accent-soft, rgba(30, 94, 65, 0.1))',
+    badgeBorder: 'var(--accent, #1e5e41)',
     title: '一句话建档与客户资产全景',
     subtitle: '摆脱繁琐录入，自然沉淀多维案卷图谱',
     icon: User,
-    accentColor: '#10b981',
-    glowColor: 'rgba(16, 185, 129, 0.18)',
+    accentColor: 'var(--accent, #1e5e41)',
     content: {
       type: 'points',
       items: [
@@ -110,13 +107,12 @@ const SLIDES: SlideItem[] = [
   },
   {
     tag: '03 · 核心工具 · Core Tools',
-    badgeBg: 'rgba(245, 158, 11, 0.12)',
-    badgeBorder: 'rgba(245, 158, 11, 0.3)',
+    badgeBg: 'var(--accent-soft, rgba(30, 94, 65, 0.1))',
+    badgeBorder: 'var(--accent, #1e5e41)',
     title: '全流程智能辅助工具箱',
     subtitle: '覆盖算力、清单、政策与邮件时序的全套原子能力',
     icon: Calculator,
-    accentColor: '#f59e0b',
-    glowColor: 'rgba(245, 158, 11, 0.18)',
+    accentColor: 'var(--accent, #1e5e41)',
     content: {
       type: 'tools',
       items: [
@@ -161,13 +157,12 @@ const SLIDES: SlideItem[] = [
   },
   {
     tag: '04 · 档案与知识中心 · Knowledge & Precedents',
-    badgeBg: 'rgba(236, 72, 153, 0.12)',
-    badgeBorder: 'rgba(236, 72, 153, 0.3)',
+    badgeBg: 'var(--accent-soft, rgba(30, 94, 65, 0.1))',
+    badgeBorder: 'var(--accent, #1e5e41)',
     title: '档案与知识中心 · 经验沉淀与复用',
     subtitle: '打通存量案卷经验，越办件越聪明的私域知识大脑',
     icon: BookOpen,
-    accentColor: '#ec4899',
-    glowColor: 'rgba(236, 72, 153, 0.18)',
+    accentColor: 'var(--accent, #1e5e41)',
     content: {
       type: 'points',
       items: [
@@ -191,13 +186,12 @@ const SLIDES: SlideItem[] = [
   },
   {
     tag: '05 · 隐私与安全 · Privacy & Safety',
-    badgeBg: 'rgba(139, 92, 246, 0.12)',
-    badgeBorder: 'rgba(139, 92, 246, 0.3)',
+    badgeBg: 'var(--accent-soft, rgba(30, 94, 65, 0.1))',
+    badgeBorder: 'var(--accent, #1e5e41)',
     title: '100% 本地物理隔离 · 绝对隐私安全',
     subtitle: '数据不出设备，本地自主掌控的纯粹体验',
     icon: ShieldCheck,
-    accentColor: '#8b5cf6',
-    glowColor: 'rgba(139, 92, 246, 0.18)',
+    accentColor: 'var(--accent, #1e5e41)',
     content: {
       type: 'points',
       items: [
@@ -221,7 +215,7 @@ const SLIDES: SlideItem[] = [
   },
 ];
 
-const STORAGE_KEY = 'vera_onboarding_seen_v2_2';
+const STORAGE_KEY = 'annie_onboarding_seen_v2_2_1';
 
 export function OnboardingModal({ forceOpen, onClose }: OnboardingModalProps) {
   const [open, setOpen] = useState(false);
@@ -239,7 +233,7 @@ export function OnboardingModal({ forceOpen, onClose }: OnboardingModalProps) {
       if (!hasSeen) {
         const timer = setTimeout(() => {
           setOpen(true);
-        }, 500);
+        }, 300);
         return () => clearTimeout(timer);
       }
     } catch {
@@ -272,17 +266,19 @@ export function OnboardingModal({ forceOpen, onClose }: OnboardingModalProps) {
   };
 
   useEffect(() => {
-    if (!open) return;
+    if (!open && !forceOpen) return;
+
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') handleClose();
       if (e.key === 'ArrowRight') handleNext();
-      else if (e.key === 'ArrowLeft') handlePrev();
-      else if (e.key === 'Escape') handleClose();
+      if (e.key === 'ArrowLeft') handlePrev();
     };
+
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [open, currentIndex, handleClose]);
+  }, [open, forceOpen, currentIndex, handleClose]);
 
-  if (!open) return null;
+  if (!open && !forceOpen) return null;
 
   const currentSlide = SLIDES[currentIndex];
   const IconComponent = currentSlide.icon;
@@ -290,46 +286,49 @@ export function OnboardingModal({ forceOpen, onClose }: OnboardingModalProps) {
 
   return (
     <AnimatePresence>
-      <div
-        className="fixed inset-0 z-[99999] flex items-center justify-center p-4 sm:p-6 select-none"
-        id="vera-onboarding-modal"
-      >
-        {/* Apple 深度深空磨砂毛玻璃遮罩 */}
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 overflow-hidden">
+        {/* 背景轻柔毛玻璃遮罩 */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={handleClose}
-          className="absolute inset-0 bg-black/75 backdrop-blur-2xl transition-all duration-300"
+          className="absolute inset-0 bg-black/40 backdrop-blur-md transition-all duration-300"
         />
 
-        {/* 主卡片：采用高对比度暗色微光体系，不依赖页面明暗主题变量 */}
+        {/* 主卡片：通透温润的 Apple 极简护眼绿设计 */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 12 }}
+          initial={{ opacity: 0, scale: 0.96, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 12 }}
-          transition={{ type: 'spring', damping: 30, stiffness: 340 }}
-          className="relative w-full max-w-2xl bg-[#131316] text-white border border-white/15 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]"
+          exit={{ opacity: 0, scale: 0.96, y: 10 }}
+          transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+          className="relative w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border"
           style={{
-            boxShadow: '0 30px 80px -15px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+            backgroundColor: 'var(--bg-card)',
+            borderColor: 'var(--border)',
+            boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.25), 0 0 0 1px var(--border)',
+            color: 'var(--text-primary)',
           }}
         >
-          {/* 顶部柔和微光（严格置于底层 z-0，不遮挡任何文字） */}
+          {/* 顶部微弱翡翠绿光弧 */}
           <div
-            className="absolute top-0 left-0 right-0 h-40 pointer-events-none transition-all duration-500 ease-out z-0 opacity-40"
+            className="absolute top-0 left-0 right-0 h-32 pointer-events-none transition-all duration-500 ease-out z-0 opacity-20"
             style={{
-              background: `radial-gradient(ellipse at 50% -20%, ${currentSlide.glowColor} 0%, transparent 75%)`,
+              background: 'radial-gradient(ellipse at 50% -20%, var(--accent) 0%, transparent 70%)',
             }}
           />
 
-          {/* 顶部工具栏：分类徽标 + 关闭按钮 (z-10) */}
-          <div className="relative z-10 flex items-center justify-between px-7 pt-6 pb-3 border-b border-white/[0.06]">
+          {/* 顶部工具栏：分类徽标 + 关闭按钮 */}
+          <div 
+            className="relative z-10 flex items-center justify-between px-7 pt-6 pb-3 border-b"
+            style={{ borderColor: 'var(--border)' }}
+          >
             <div
-              className="inline-flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-semibold tracking-wide border transition-all duration-300"
+              className="inline-flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-bold tracking-wide border transition-all duration-300"
               style={{
-                backgroundColor: currentSlide.badgeBg,
-                color: currentSlide.accentColor,
-                borderColor: currentSlide.badgeBorder,
+                backgroundColor: 'var(--accent-soft, rgba(30, 94, 65, 0.08))',
+                color: 'var(--accent, #1e5e41)',
+                borderColor: 'var(--accent, #1e5e41)',
               }}
             >
               <IconComponent className="w-3.5 h-3.5" />
@@ -338,34 +337,47 @@ export function OnboardingModal({ forceOpen, onClose }: OnboardingModalProps) {
 
             <button
               onClick={handleClose}
-              className="p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-              title="跳过导览 (Esc)"
+              className="p-1.5 rounded-full hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer text-muted hover:text-primary"
+              title="关闭导览 (Esc)"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          {/* 动态内容滑动区域 (z-10) */}
+          {/* 动态内容滑动区域 */}
           <div className="relative z-10 px-7 py-5 flex-1 overflow-y-auto min-h-[380px] flex flex-col justify-between">
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentIndex}
-                initial={{ opacity: 0, x: 20 }}
+                initial={{ opacity: 0, x: 18 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.22, ease: [0.25, 0.1, 0.25, 1] }}
-                className="space-y-5"
+                exit={{ opacity: 0, x: -18 }}
+                transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+                className="space-y-4.5"
               >
-                {/* 标题区：对比度完全强化，通透清晰 */}
+                {/* 标题区 */}
                 <div className="space-y-1.5">
-                  <h2 className="text-2xl sm:text-[28px] font-extrabold tracking-tight text-white leading-tight">
+                  <h2 
+                    className="text-2xl sm:text-[26px] font-black tracking-tight leading-tight"
+                    style={{ color: 'var(--text-primary)' }}
+                  >
                     {currentSlide.title}
                   </h2>
-                  <p className="text-sm sm:text-base text-zinc-300 leading-relaxed font-normal">
+                  <p 
+                    className="text-sm sm:text-base leading-relaxed font-medium"
+                    style={{ color: 'var(--text-secondary)' }}
+                  >
                     {currentSlide.subtitle}
                   </p>
                   {currentSlide.quote && (
-                    <div className="mt-3 px-4 py-2.5 rounded-2xl bg-white/[0.05] border border-white/[0.08] text-xs sm:text-sm font-medium text-zinc-200 italic">
+                    <div 
+                      className="mt-2.5 px-4 py-2 rounded-2xl border text-xs sm:text-sm font-semibold italic"
+                      style={{
+                        backgroundColor: 'var(--accent-soft, rgba(30, 94, 65, 0.06))',
+                        borderColor: 'var(--border)',
+                        color: 'var(--accent, #1e5e41)',
+                      }}
+                    >
                       {currentSlide.quote}
                     </div>
                   )}
@@ -373,28 +385,38 @@ export function OnboardingModal({ forceOpen, onClose }: OnboardingModalProps) {
 
                 {/* 动态内容：列表型 vs 工具矩阵型 */}
                 {currentSlide.content.type === 'points' ? (
-                  <div className="space-y-3 pt-1">
+                  <div className="space-y-2.5 pt-1">
                     {currentSlide.content.items.map((item, idx) => {
                       const ItemIcon = item.icon;
                       return (
                         <div
                           key={idx}
-                          className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.07] hover:border-white/15 hover:bg-white/[0.06] transition-all duration-200 flex items-start space-x-3.5"
+                          className="p-3.5 rounded-2xl border transition-all duration-200 flex items-start space-x-3.5 hover:shadow-xs"
+                          style={{
+                            backgroundColor: 'var(--bg-subtle)',
+                            borderColor: 'var(--border)',
+                          }}
                         >
                           <div
                             className="p-2 rounded-xl flex-shrink-0 mt-0.5"
                             style={{
-                              backgroundColor: currentSlide.badgeBg,
-                              color: currentSlide.accentColor,
+                              backgroundColor: 'var(--accent-soft, rgba(30, 94, 65, 0.12))',
+                              color: 'var(--accent, #1e5e41)',
                             }}
                           >
                             <ItemIcon className="w-4 h-4" />
                           </div>
                           <div className="space-y-0.5">
-                            <h4 className="text-sm font-bold text-white tracking-wide">
+                            <h4 
+                              className="text-sm font-bold tracking-wide"
+                              style={{ color: 'var(--text-primary)' }}
+                            >
                               {item.title}
                             </h4>
-                            <p className="text-xs text-zinc-300 leading-relaxed">
+                            <p 
+                              className="text-xs leading-relaxed"
+                              style={{ color: 'var(--text-secondary)' }}
+                            >
                               {item.desc}
                             </p>
                           </div>
@@ -410,30 +432,47 @@ export function OnboardingModal({ forceOpen, onClose }: OnboardingModalProps) {
                       return (
                         <div
                           key={idx}
-                          className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.07] hover:border-white/15 hover:bg-white/[0.06] transition-all duration-200 flex flex-col justify-between"
+                          className="p-3 rounded-2xl border transition-all duration-200 flex flex-col justify-between"
+                          style={{
+                            backgroundColor: 'var(--bg-subtle)',
+                            borderColor: 'var(--border)',
+                          }}
                         >
-                          <div className="flex items-center justify-between pb-1.5">
+                          <div className="flex items-center justify-between pb-1">
                             <div className="flex items-center space-x-2">
                               <div
                                 className="p-1.5 rounded-lg"
                                 style={{
-                                  backgroundColor: currentSlide.badgeBg,
-                                  color: currentSlide.accentColor,
+                                  backgroundColor: 'var(--accent-soft, rgba(30, 94, 65, 0.12))',
+                                  color: 'var(--accent, #1e5e41)',
                                 }}
                               >
                                 <ToolIcon className="w-3.5 h-3.5" />
                               </div>
-                              <span className="text-xs font-bold text-white">
+                              <span 
+                                className="text-xs font-bold"
+                                style={{ color: 'var(--text-primary)' }}
+                              >
                                 {tool.title}
                               </span>
                             </div>
                             {tool.tag && (
-                              <span className="text-[10px] font-mono text-zinc-400 px-1.5 py-0.5 rounded bg-white/[0.06]">
+                              <span 
+                                className="text-[10px] font-mono px-1.5 py-0.5 rounded border"
+                                style={{
+                                  backgroundColor: 'var(--bg-card)',
+                                  borderColor: 'var(--border)',
+                                  color: 'var(--text-muted)',
+                                }}
+                              >
                                 {tool.tag}
                               </span>
                             )}
                           </div>
-                          <p className="text-[11px] text-zinc-300 leading-relaxed mt-1">
+                          <p 
+                            className="text-[11px] leading-relaxed mt-1"
+                            style={{ color: 'var(--text-secondary)' }}
+                          >
                             {tool.desc}
                           </p>
                         </div>
@@ -445,9 +484,15 @@ export function OnboardingModal({ forceOpen, onClose }: OnboardingModalProps) {
             </AnimatePresence>
           </div>
 
-          {/* 底部控制栏：胶囊指示器 + 翻页按钮 (z-10) */}
-          <div className="relative z-10 flex items-center justify-between px-7 py-4.5 border-t border-white/[0.07] bg-white/[0.02]">
-            {/* iOS 风格胶囊分页指示器 */}
+          {/* 底部控制栏：胶囊指示器 + 翻页按钮 */}
+          <div 
+            className="relative z-10 flex items-center justify-between px-7 py-4 border-t"
+            style={{ 
+              backgroundColor: 'var(--bg-subtle)', 
+              borderColor: 'var(--border)' 
+            }}
+          >
+            {/* 胶囊分页指示器 */}
             <div className="flex items-center space-x-1.5">
               {SLIDES.map((_, idx) => (
                 <button
@@ -455,10 +500,13 @@ export function OnboardingModal({ forceOpen, onClose }: OnboardingModalProps) {
                   onClick={() => setCurrentIndex(idx)}
                   className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
                     currentIndex === idx
-                      ? 'w-6 bg-white shadow-sm'
-                      : 'w-1.5 bg-white/25 hover:bg-white/50'
+                      ? 'w-6 shadow-xs'
+                      : 'w-1.5 opacity-30 hover:opacity-70'
                   }`}
-                  title={`第 ${idx + 1} 页`}
+                  style={{
+                    backgroundColor: 'var(--accent, #1e5e41)',
+                  }}
+                  title={`第 ${idx + 1} 幕`}
                 />
               ))}
             </div>
@@ -468,7 +516,8 @@ export function OnboardingModal({ forceOpen, onClose }: OnboardingModalProps) {
               {currentIndex > 0 && (
                 <button
                   onClick={handlePrev}
-                  className="px-3.5 py-2 rounded-2xl text-xs font-semibold text-zinc-300 hover:text-white hover:bg-white/10 transition-all flex items-center space-x-1 cursor-pointer"
+                  className="px-3.5 py-2 rounded-2xl text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer hover:bg-[var(--bg-card)] border border-transparent hover:border-[var(--border)]"
+                  style={{ color: 'var(--text-secondary)' }}
                 >
                   <ChevronLeft className="w-3.5 h-3.5" />
                   <span>上一页</span>
@@ -477,13 +526,14 @@ export function OnboardingModal({ forceOpen, onClose }: OnboardingModalProps) {
 
               <button
                 onClick={handleNext}
-                className="px-5 py-2.5 rounded-2xl text-xs font-bold text-white transition-all duration-200 flex items-center space-x-1.5 shadow-lg active:scale-95 cursor-pointer"
+                className="px-5 py-2.5 rounded-2xl text-xs font-black transition-all duration-200 flex items-center space-x-1.5 shadow-md active:scale-95 cursor-pointer"
                 style={{
-                  backgroundColor: currentSlide.accentColor,
-                  boxShadow: `0 8px 24px -4px ${currentSlide.accentColor}88`,
+                  backgroundColor: 'var(--accent, #1e5e41)',
+                  color: 'var(--on-accent, #ffffff)',
+                  boxShadow: '0 4px 16px -2px rgba(30, 94, 65, 0.35)',
                 }}
               >
-        <span>{isLast ? '✨ 开启 Annie' : '继续探索'}</span>
+                <span>{isLast ? '✨ 开启 Annie' : '继续探索'}</span>
                 {isLast ? (
                   <Sparkles className="w-3.5 h-3.5" />
                 ) : (

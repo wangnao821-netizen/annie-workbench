@@ -50,7 +50,7 @@ export const useCaseStore = create<CaseState>((set) => ({
   stageVersion: 0,
   fetchCases: async () => {
     set({ casesLoading: true, casesError: null });
-    const useMock = import.meta.env.VITE_USE_MOCK !== 'false';
+    const useMock = import.meta.env.VITE_USE_MOCK === 'true';
     if (useMock) {
       const updatedList = [...MOCK_CASES];
       set((state) => {

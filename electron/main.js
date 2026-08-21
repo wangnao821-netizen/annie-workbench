@@ -103,19 +103,25 @@ async function ensureBackend() {
   const python = cfg.pythonPath || findPython();
   const preferred = cfg.port || 8000;
 
-  // 端口已被占用：是我们的后端 → 直接复用；否则向后探测空闲端口。
   let port = preferred;
-  if (await portInUse(port)) {
+
+  // 仅在本地开发态（IS_DEV）下，才允许复用开发者终端已启动的后端。
+  // 在生产打包（IS_PACKAGED）环境下，必须启动自己专属的沙盒后端进程，绝不与开发机端口混用！
+  if (IS_DEV && (await portInUse(port))) {
     if (await checkHealth(port)) {
       backendPort = port;
       return;
     }
+  }
+
+  // 若端口被占用（无论开发机还是其他程序），自适应探测空闲端口以启动专属后端
+  if (await portInUse(port)) {
     let found = null;
-    for (let p = preferred + 1; p < preferred + 11; p++) {
+    for (let p = preferred + 1; p < preferred + 30; p++) {
       if (!(await portInUse(p))) { found = p; break; }
     }
     if (!found) {
-      dialog.showErrorBox('端口不可用', `端口 ${preferred}-${preferred + 10} 均被占用，请关闭占用程序后重试。`);
+      dialog.showErrorBox('端口不可用', `端口 ${preferred}-${preferred + 30} 均被占用，请关闭占用程序后重试。`);
       return;
     }
     port = found;

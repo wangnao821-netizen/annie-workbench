@@ -505,7 +505,7 @@ export function TopNavBar({ onNavigate, activeView: activeViewProp }: TopNavBarP
                   className="w-full px-3 py-2 rounded-xl text-xs font-bold flex items-center space-x-2.5 transition-colors cursor-pointer text-[var(--accent)] hover:bg-[var(--accent-soft)]"
                 >
                   <Sparkles className="w-4 h-4 flex-shrink-0" />
-                  <span>✨ 产品亮点与导览</span>
+                  <span>产品亮点与导览</span>
                 </button>
 
                 {/* Version Info */}
