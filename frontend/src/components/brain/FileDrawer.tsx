@@ -452,7 +452,7 @@ export function FileDrawer({ caseId: propCaseId }: FileDrawerProps) {
                             <h4 className="text-xs font-extrabold truncate" style={{ color: 'var(--text-primary)' }}>
                               {fileItem.name}
                             </h4>
-                            <div className="flex items-center space-x-2 text-[11px] text-muted mt-0.5">
+                            <div className="flex items-center space-x-2 text-[11px] text-muted mt-0.5 flex-wrap gap-y-1">
                               <span>{formatSize(fileItem.size)}</span>
                               <span>•</span>
                               <span>{fileItem.mtime || '最近更新'}</span>
@@ -461,6 +461,30 @@ export function FileDrawer({ caseId: propCaseId }: FileDrawerProps) {
                                   {fileItem.doc_type}
                                 </span>
                               )}
+                              {/* WO-67: 匹配清单角标 */}
+                              {(() => {
+                                const matched = fileItem.matched_checklist || fileItem.matchedChecklist || [];
+                                if (matched.length > 0) {
+                                  const tooltip = `已匹配清单: ${matched.join(', ')}`;
+                                  return (
+                                    <span
+                                      title={tooltip}
+                                      className="px-1.5 py-0.2 rounded font-medium text-[10px] bg-[var(--green-soft)] text-[var(--green)] border border-[var(--green-soft)] flex items-center gap-1 cursor-default"
+                                    >
+                                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--green)] shrink-0" />
+                                      <span>清单 {matched.length} 项</span>
+                                    </span>
+                                  );
+                                }
+                                return (
+                                  <span
+                                    title="此文件尚未与任何材料清单项关联"
+                                    className="px-1.5 py-0.2 rounded font-medium text-[10px] bg-[var(--bg-subtle)] text-muted border border-[var(--border)] cursor-default"
+                                  >
+                                    未匹配
+                                  </span>
+                                );
+                              })()}
                             </div>
                           </div>
                         </div>

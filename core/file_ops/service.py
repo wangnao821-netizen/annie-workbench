@@ -69,17 +69,55 @@ def list_files(case: Case, rel_path: str = "", client_root: Path | None = None,
 
     WO-48：传入 db 时按绝对路径关联 processed_files，为已落库文件附带
     file_id（供前端 Office 原样排版预览 /api/files/{id}/preview）；未关联为 None。
+    WO-67：增加 matched_checklist（引用该 file_id 的清单项名列表）。
     """
     case_dir, _root = _case_dir(case, client_root)
     target = _within(case_dir, rel_path) if rel_path else case_dir
     if not target.is_dir():
         raise ValueError(f"目录不存在：{rel_path or '/'}")
     file_id_by_path: dict[str, str] = {}
+    matched_by_file_id: dict[str, list[str]] = {}
     if db is not None:
+        import json
+
+        from core.models.orm import CaseChecklist
+
         file_id_by_path = {
             str(Path(row.nas_path).resolve()): row.id
             for row in db.query(CaseFile).filter(CaseFile.case_id == case.id).all()
         }
+        # 构建 file_id -> [checklist.item_name] 倒排索引
+        checklists = db.query(CaseChecklist).filter(CaseChecklist.case_id == case.id).all()
+        for chk in checklists:
+            name = (chk.item_name or "").strip()
+            if not name:
+                continue
+            matched_fids: set[str] = set()
+            if chk.received_file_id:
+                matched_fids.add(str(chk.received_file_id))
+            if chk.received_file_ids and isinstance(chk.received_file_ids, list):
+                for fid in chk.received_file_ids:
+                    if fid:
+                        matched_fids.add(str(fid))
+            if chk.candidate_file_ids:
+                raw_c = chk.candidate_file_ids
+                if isinstance(raw_c, list):
+                    for fid in raw_c:
+                        if fid:
+                            matched_fids.add(str(fid))
+                elif isinstance(raw_c, str):
+                    try:
+                        c_list = json.loads(raw_c)
+                        if isinstance(c_list, list):
+                            for fid in c_list:
+                                if fid:
+                                    matched_fids.add(str(fid))
+                    except Exception as e:  # noqa: BLE001
+                        logger.debug("Failed to parse candidate_file_ids: %s", e)
+            for fid in matched_fids:
+                if name not in matched_by_file_id.setdefault(fid, []):
+                    matched_by_file_id[fid].append(name)
+
     dirs, files = [], []
     for child in sorted(target.iterdir()):
         if child.name in _IGNORED_NAMES or child.name.startswith("."):
@@ -88,12 +126,14 @@ def list_files(case: Case, rel_path: str = "", client_root: Path | None = None,
         mtime = datetime.fromtimestamp(child.stat().st_mtime, tz=UTC).isoformat()
         if child.is_dir():
             dirs.append({"name": child.name, "rel_path": rel, "is_dir": True, "size": None,
-                         "mtime": mtime, "doc_type": None, "file_id": None})
+                         "mtime": mtime, "doc_type": None, "file_id": None, "matched_checklist": []})
         else:
             doc_type, _conf = classify_file(child.name)
+            fid = file_id_by_path.get(str(child.resolve()))
+            matched = matched_by_file_id.get(str(fid), []) if fid else []
             files.append({"name": child.name, "rel_path": rel, "is_dir": False,
                           "size": child.stat().st_size, "mtime": mtime, "doc_type": doc_type,
-                          "file_id": file_id_by_path.get(str(child.resolve()))})
+                          "file_id": fid, "matched_checklist": matched})
     return {"current_path": rel_path or "", "items": dirs + files}
 def preview_file(case: Case, rel_path: str, db: Session, client_root: Path | None = None) -> dict:
     case_dir, root = _case_dir(case, client_root)

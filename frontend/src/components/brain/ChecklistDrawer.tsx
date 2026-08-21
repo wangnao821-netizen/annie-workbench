@@ -5,8 +5,9 @@ import {
 } from 'lucide-react';
 import { useUiStore } from '../../stores/uiStore';
 import { useToastStore } from '../../stores/toastStore';
-import { ChecklistItemResponse } from '../../types/api';
+import { ChecklistItemResponse, ChecklistLibraryItem } from '../../types/api';
 import { getChecklist, confirmChecklistItem, revokeChecklistItem, addChecklistItem, regenerateChecklist, matchChecklistFiles } from '../../services/api/cases';
+import { getChecklistLibrary, FALLBACK_CHECKLIST_LIBRARY } from '../../services/api/checklist';
 import { FilePreviewPanel } from '../panel/details/FilePreviewPanel';
 
 interface ChecklistDrawerProps {
@@ -86,8 +87,28 @@ export function ChecklistDrawer({ caseId }: ChecklistDrawerProps) {
   const [previewFile, setPreviewFile] = useState<{ fileId?: string; filename: string } | null>(null);
 
   // Form states
+  const [addMode, setAddMode] = useState<'library' | 'custom'>('library');
   const [newName, setNewName] = useState('');
   const [newCategory, setNewCategory] = useState<string>('身份');
+  // Library picker states (WO-68)
+  const [libraryItems, setLibraryItems] = useState<ChecklistLibraryItem[]>(FALLBACK_CHECKLIST_LIBRARY);
+  const [selectedLibraryId, setSelectedLibraryId] = useState<string>('');
+  const [loadingLibrary, setLoadingLibrary] = useState(false);
+
+  useEffect(() => {
+    if (showAddForm) {
+      setLoadingLibrary(true);
+      getChecklistLibrary()
+        .then((res) => {
+          if (res && res.items && res.items.length > 0) {
+            setLibraryItems(res.items);
+          }
+        })
+        .catch(() => {})
+        .finally(() => setLoadingLibrary(false));
+    }
+  }, [showAddForm]);
+
   const [newBank, setNewBank] = useState<string>('');
   const [newCondition, setNewCondition] = useState<string>('');
   const [newRequired, setNewRequired] = useState<boolean>(true);
@@ -247,19 +268,38 @@ export function ChecklistDrawer({ caseId }: ChecklistDrawerProps) {
       useToastStore.getState().showToast('error', '未关联案件');
       return;
     }
+    const isLibraryMode = addMode === 'library';
+    if (isLibraryMode && !selectedLibraryId) {
+      useToastStore.getState().showToast('error', '请先选择标准材料项');
+      return;
+    }
+    if (!isLibraryMode && !newName.trim()) {
+      useToastStore.getState().showToast('error', '请输入自定义材料名称');
+      return;
+    }
+
+    const itemName = isLibraryMode
+      ? libraryItems.find((it) => it.id === selectedLibraryId)?.name_zh || newName
+      : newName.trim();
+
     setSubmitting(true);
     try {
       await addChecklistItem(caseId, {
-        name_zh: newName.trim(),
+        name_zh: itemName,
         category: CATEGORY_TO_EN[newCategory] ?? 'special',
         bank_specific: newBank || undefined,
         applicable_when: newCondition || undefined,
         is_required: newRequired,
       });
-      useToastStore.getState().showToast('success', '已加入清单并沉淀到清单总库');
+      useToastStore.getState().showToast(
+        'success',
+        isLibraryMode ? '已加入本案材料清单' : '已加入清单并沉淀到清单总库'
+      );
       setNewName('');
       setNewBank('');
       setNewCondition('');
+      setSelectedLibraryId('');
+      setAddMode('library');
       setShowAddForm(false);
       await fetchChecklistData();
       window.dispatchEvent(new CustomEvent('checklist_updated'));
@@ -360,105 +400,233 @@ export function ChecklistDrawer({ caseId }: ChecklistDrawerProps) {
                 initial={reduced ? { opacity: 0 } : { height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={reduced ? { opacity: 0 } : { height: 0, opacity: 0 }}
-                className="p-3 border-b bg-[var(--bg-card)] space-y-2.5 overflow-hidden flex-shrink-0"
+                className="p-3.5 border-b bg-[var(--bg-card)] space-y-3 overflow-hidden flex-shrink-0"
                 style={{ borderColor: 'var(--border)' }}
                 id="add-checklist-form"
               >
-                <div className="flex items-center justify-between text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
-                  <span>＋ 新增清单材料项</span>
-                  <button type="button" onClick={() => setShowAddForm(false)} className="text-muted hover:text-primary">
-                    <X className="w-3.5 h-3.5" />
+                {/* Header with Mode Switcher */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-1 p-0.5 rounded-lg border bg-[var(--bg-subtle)] text-[11px] font-bold" style={{ borderColor: 'var(--border)' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAddMode('library');
+                        setNewName('');
+                      }}
+                      className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                        addMode === 'library'
+                          ? 'bg-[var(--green-soft)] text-[var(--green)]'
+                          : 'text-muted hover:text-primary'
+                      }`}
+                    >
+                      📚 从总库选择
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAddMode('custom');
+                        setSelectedLibraryId('');
+                        setNewName('');
+                      }}
+                      className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                        addMode === 'custom'
+                          ? 'bg-[var(--green-soft)] text-[var(--green)]'
+                          : 'text-muted hover:text-primary'
+                      }`}
+                    >
+                      ✏️ 自定义新增
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedLibraryId('');
+                      setAddMode('library');
+                      setShowAddForm(false);
+                    }}
+                    className="p-1 rounded-lg text-muted hover:text-primary hover:bg-[var(--bg-card-hover)] cursor-pointer transition-colors"
+                    title="关闭"
+                  >
+                    <X className="w-4 h-4" />
                   </button>
                 </div>
 
-                <div className="space-y-2 text-xs">
-                  <div>
-                    <label className="block text-xs font-bold text-muted mb-1">材料名称 *</label>
-                    <input
-                      type="text"
-                      value={newName}
-                      onChange={(e) => setNewName(e.target.value)}
-                      placeholder="如：2025 财年 ATO Notice of Assessment"
-                      className="w-full p-2 rounded-lg border bg-[var(--bg-input)] border-[var(--border)] text-xs outline-none focus:border-[var(--green)]"
-                      id="new-checklist-name-input"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
+                {/* Mode 1: Library Quick Picker */}
+                {addMode === 'library' ? (
+                  <div className="space-y-3 text-xs">
                     <div>
-                      <label className="block text-xs font-bold text-muted mb-1">业务分类 *</label>
+                      <label className="block text-xs font-bold text-muted mb-1.5">选择标准材料项</label>
                       <select
-                        value={newCategory}
-                        onChange={(e) => setNewCategory(e.target.value)}
-                        className="w-full p-1.5 rounded-lg border bg-[var(--bg-input)] border-[var(--border)] text-xs outline-none"
-                        id="new-checklist-cat-select"
+                        value={selectedLibraryId}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSelectedLibraryId(val);
+                          const selected = libraryItems.find((it) => it.id === val);
+                          if (selected) {
+                            setNewName(selected.name_zh);
+                            const mappedCat = Object.keys(CATEGORY_TO_EN).find(
+                              (k) => CATEGORY_TO_EN[k] === selected.category
+                            ) || '身份';
+                            setNewCategory(mappedCat);
+                            if (selected.applicable_when) {
+                              setNewCondition(JSON.stringify(selected.applicable_when));
+                            }
+                            if (selected.bank_specific) {
+                              setNewBank(selected.bank_specific);
+                            }
+                            setNewRequired(true);
+                          }
+                        }}
+                        className="w-full p-2.5 rounded-xl border bg-[var(--bg-input)] border-[var(--border)] text-xs outline-none focus:border-[var(--green)]"
+                        id="new-checklist-library-drawer-picker"
                       >
-                        {SELECTABLE_CATEGORIES.map((cat) => (
-                          <option key={cat} value={cat}>{cat}</option>
+                        <option value="">
+                          {loadingLibrary ? '总库加载中...' : '── 点击展开选择标准材料项 ──'}
+                        </option>
+                        {libraryItems.map((lib) => (
+                          <option key={lib.id} value={lib.id}>
+                            {lib.name_zh} {lib.is_custom ? '(自定义)' : ''} {lib.use_count > 0 ? `[★${lib.use_count}]` : ''}
+                          </option>
                         ))}
                       </select>
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-bold text-muted mb-1">要求类型</label>
-                      <select
-                        value={newRequired ? 'required' : 'optional'}
-                        onChange={(e) => setNewRequired(e.target.value === 'required')}
-                        className="w-full p-1.5 rounded-lg border bg-[var(--bg-input)] border-[var(--border)] text-xs outline-none"
-                        id="new-checklist-req-select"
+                    {/* Selected Item Info Capsule */}
+                    {selectedLibraryId && (
+                      <div className="p-2.5 rounded-xl bg-[var(--green-soft)]/40 border border-[var(--green-soft)] text-xs space-y-1">
+                        <div className="font-bold text-[var(--green)] flex items-center justify-between">
+                          <span>✓ 已选择：{newName}</span>
+                          <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-[var(--bg-card)] text-[var(--text-secondary)]">
+                            {newCategory}
+                          </span>
+                        </div>
+                        {newBank && <div className="text-muted text-[11px]">限定银行: {newBank}</div>}
+                      </div>
+                    )}
+
+                    {/* Library Mode Action Button */}
+                    <div className="flex items-center justify-end space-x-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedLibraryId('');
+                          setShowAddForm(false);
+                        }}
+                        className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-muted hover:text-primary cursor-pointer"
                       >
-                        <option value="required">🔴 必须提交</option>
-                        <option value="optional">⚪ 可选/补充</option>
-                      </select>
+                        取消
+                      </button>
+                      <motion.button
+                        whileTap={reduced ? undefined : { scale: 0.94 }}
+                        onClick={handleAddItem}
+                        disabled={submitting || !selectedLibraryId}
+                        className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-[var(--green)] hover:bg-[var(--green)] cursor-pointer shadow-xs disabled:opacity-40 flex items-center space-x-1"
+                        id="submit-new-checklist-btn"
+                      >
+                        <span>{submitting ? '加入中...' : '＋ 加入本案清单'}</span>
+                      </motion.button>
                     </div>
                   </div>
+                ) : (
+                  /* Mode 2: Custom Material Form */
+                  <div className="space-y-2.5 text-xs">
+                    <div>
+                      <label className="block text-xs font-bold text-muted mb-1">材料名称 *</label>
+                      <input
+                        type="text"
+                        value={newName}
+                        onChange={(e) => setNewName(e.target.value)}
+                        placeholder="如：2025 财年 ATO Notice of Assessment"
+                        className="w-full p-2.5 rounded-xl border bg-[var(--bg-input)] border-[var(--border)] text-xs outline-none focus:border-[var(--green)]"
+                        id="new-checklist-name-input"
+                      />
+                    </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-muted mb-1">指定银行（可选 22 家）</label>
-                    <select
-                      value={newBank}
-                      onChange={(e) => setNewBank(e.target.value)}
-                      className="w-full p-1.5 rounded-lg border bg-[var(--bg-input)] border-[var(--border)] text-xs outline-none"
-                      id="new-checklist-bank-select"
-                    >
-                      <option value="">通用 / 不限银行</option>
-                      {AUSTRALIAN_BANKS.map((b) => (
-                        <option key={b} value={b}>{b}</option>
-                      ))}
-                    </select>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs font-bold text-muted mb-1">业务分类 *</label>
+                        <select
+                          value={newCategory}
+                          onChange={(e) => setNewCategory(e.target.value)}
+                          className="w-full p-2 rounded-lg border bg-[var(--bg-input)] border-[var(--border)] text-xs outline-none"
+                          id="new-checklist-cat-select"
+                        >
+                          {SELECTABLE_CATEGORIES.map((cat) => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-muted mb-1">要求类型</label>
+                        <select
+                          value={newRequired ? 'required' : 'optional'}
+                          onChange={(e) => setNewRequired(e.target.value === 'required')}
+                          className="w-full p-2 rounded-lg border bg-[var(--bg-input)] border-[var(--border)] text-xs outline-none"
+                          id="new-checklist-req-select"
+                        >
+                          <option value="required">🔴 必须提交</option>
+                          <option value="optional">⚪ 可选/补充</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs font-bold text-muted mb-1">指定银行（可选 22 家）</label>
+                        <select
+                          value={newBank}
+                          onChange={(e) => setNewBank(e.target.value)}
+                          className="w-full p-2 rounded-lg border bg-[var(--bg-input)] border-[var(--border)] text-xs outline-none"
+                          id="new-checklist-bank-select"
+                        >
+                          <option value="">通用 / 不限银行</option>
+                          {AUSTRALIAN_BANKS.map((b) => (
+                            <option key={b} value={b}>{b}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-muted mb-1">适用条件规则（可选）</label>
+                        <input
+                          type="text"
+                          value={newCondition}
+                          onChange={(e) => setNewCondition(e.target.value)}
+                          placeholder='如：{"employment":"self_employed"}'
+                          className="w-full p-2 rounded-lg border bg-[var(--bg-input)] border-[var(--border)] text-xs outline-none"
+                          id="new-checklist-condition-input"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-[11px] text-muted">💡 提交后将自动沉淀至总库</span>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNewName('');
+                            setSelectedLibraryId('');
+                            setShowAddForm(false);
+                          }}
+                          className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-muted hover:text-primary cursor-pointer"
+                        >
+                          取消
+                        </button>
+                        <motion.button
+                          whileTap={reduced ? undefined : { scale: 0.94 }}
+                          onClick={handleAddItem}
+                          disabled={submitting || !newName.trim()}
+                          className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-[var(--green)] hover:bg-[var(--green)] cursor-pointer shadow-xs disabled:opacity-50"
+                          id="submit-new-checklist-btn"
+                        >
+                          {submitting ? '加入中...' : '＋ 沉淀并加入本案'}
+                        </motion.button>
+                      </div>
+                    </div>
                   </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-muted mb-1">适用条件规则（可选）</label>
-                    <input
-                      type="text"
-                      value={newCondition}
-                      onChange={(e) => setNewCondition(e.target.value)}
-                      placeholder='如：{"employment":"self_employed"} 或 文本规则'
-                      className="w-full p-1.5 rounded-lg border bg-[var(--bg-input)] border-[var(--border)] text-xs outline-none"
-                      id="new-checklist-condition-input"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-end space-x-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => setShowAddForm(false)}
-                    className="px-3 py-1.5 rounded-lg text-xs font-semibold text-muted hover:text-primary cursor-pointer"
-                  >
-                    取消
-                  </button>
-                  <motion.button
-                    whileTap={{ scale: 0.94 }}
-                    onClick={handleAddItem}
-                    disabled={submitting}
-                    className="px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-[var(--green)] hover:bg-[var(--green)] cursor-pointer shadow-xs disabled:opacity-50"
-                    id="submit-new-checklist-btn"
-                  >
-                    {submitting ? '加入中...' : '沉淀到清单总库'}
-                  </motion.button>
-                </div>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
