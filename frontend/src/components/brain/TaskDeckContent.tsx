@@ -12,7 +12,6 @@ import {
   Mail,
   FolderOpen,
   Landmark,
-  Settings,
   X,
 } from 'lucide-react';
 import { useTaskStore } from '../../stores/taskStore';

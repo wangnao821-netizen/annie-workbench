@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { motion, useReducedMotion } from 'motion/react';
-import { Mail, Sparkles, User, UserCheck, Clock, VolumeX, Paperclip, FileText, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
+import { motion } from 'motion/react';
+import { Mail, Sparkles, User, UserCheck, Paperclip, FileText } from 'lucide-react';
 import { TaskItem } from '../../../types';
 import { useTaskStore } from '../../../stores/taskStore';
+import { useUiStore } from '../../../stores/uiStore';
 import { DelegateDialog } from '../DelegateDialog';
 import { DelegateRequest, EmailAnalyzeResponse } from '../../../types/api';
-import { muteSender, analyzeEmail } from '../../../services/api/inbox';
+import { analyzeEmail } from '../../../services/api/inbox';
 import { useToastStore } from '../../../stores/toastStore';
 import { FilePreviewPanel } from './FilePreviewPanel';
 
@@ -23,26 +24,21 @@ export function GeneralEmailDetail({ task }: GeneralEmailDetailProps) {
   const [presetName, setPresetName] = useState('');
   const [expanded, setExpanded] = useState(false);
   const [previewFile, setPreviewFile] = useState<{ name: string; docType: string } | null>(null);
-  const reduced = useReducedMotion();
   const showToast = useToastStore((s) => s.showToast);
   const attachments = task.emailAttachments ?? [];
 
   // AI Analysis state
   const [analysis, setAnalysis] = useState<EmailAnalyzeResponse | null>(null);
-  const [analyzing, setAnalyzing] = useState(false);
 
   const msgId = String(task.sourceMsgId || task.id);
 
   const triggerAnalyze = useCallback(async () => {
     if (!msgId) return;
-    setAnalyzing(true);
     try {
       const res = await analyzeEmail(msgId);
       setAnalysis(res);
     } catch {
       // Keep existing or graceful state
-    } finally {
-      setAnalyzing(false);
     }
   }, [msgId]);
 
@@ -50,24 +46,13 @@ export function GeneralEmailDetail({ task }: GeneralEmailDetailProps) {
     triggerAnalyze();
   }, [triggerAnalyze]);
 
-  const match = task.meta?.match(/(\d+)%/);
-  const confidence = match ? `${match[1]}%` : '--';
-
-  const channelMap: Record<string, string> = { email: '邮件', file: '文件', wechat: '微信', manual: '手动' };
-  const channelText = channelMap[task.sourceChannel || 'email'] || '邮件';
-
-  const prioText = { urgent: '🔥 紧急', high: '✨ 高', normal: '普通', low: '低' }[task.priority] || '普通';
   const categoryCode = task.type === 'NEW_CLIENT' ? 'new_lead' : 'client_doc';
   const categoryText = CATEGORY_MAP[categoryCode] || '客户材料';
 
   const summary = analysis?.summary || task.aiSummary || '等待 AI 邮件分析...';
-  const actionType = analysis?.action_type || '阶段推进与跟进';
-  const stageSignal = analysis?.stage_signal || '材料审理';
-  const deadlineStr = analysis?.deadline || '无硬性截止';
   const conditionsStr = Array.isArray(analysis?.conditions)
     ? analysis.conditions.join('；')
-    : (analysis?.conditions || '全量材料合规');
-  const urgencyScore = analysis?.urgency_score !== undefined ? analysis.urgency_score : 80;
+    : (analysis?.conditions || '需补齐相关材料');
 
   const handleDispatch = (type: string) => {
     if (type === 'me') dispatchTaskAction(task.id, 'claim');
@@ -79,20 +64,6 @@ export function GeneralEmailDetail({ task }: GeneralEmailDetailProps) {
   const handleDelegateSubmit = (body: DelegateRequest) => {
     delegateTaskAction(task.id, body);
     setDelegateDialogOpen(false);
-  };
-
-  const handleMuteSender = async () => {
-    if (!task.sourceMsgId) return;
-    if (import.meta.env.VITE_USE_MOCK !== 'false') {
-      showToast('info', '（演示）已静音该发件人');
-      return;
-    }
-    try {
-      await muteSender(task.sourceMsgId);
-      showToast('success', '已静音该发件人');
-    } catch {
-      showToast('error', '静音失败');
-    }
   };
 
   return (

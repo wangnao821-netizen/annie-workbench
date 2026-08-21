@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
-import { Landmark, FileCheck, CheckCircle, Circle, Plus, Sparkles } from 'lucide-react';
+import { Landmark, FileCheck, CheckCircle, Circle, Plus } from 'lucide-react';
 import { useToastStore } from '../../stores/toastStore';
 
 export interface OsConditionItem {
