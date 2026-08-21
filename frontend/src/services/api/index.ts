@@ -1,6 +1,7 @@
 export * from './system';
 export * from './tasks';
 export * from './cases';
+export * from './checklist';
 export * from './drafts';
 export * from './chat';
 export * from './inbox';
@@ -14,4 +15,3 @@ export * from './holidays';
 export * from './knowledge';
 export * from './assistant';
 export * from './aiSettings';
-

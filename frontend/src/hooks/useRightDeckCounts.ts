@@ -7,6 +7,7 @@ import { getCaseFolderFiles } from '../services/api/fileOps';
 export interface RightDeckCounts {
   checklistPendingCount: number;
   fileCount: number;
+  unmatchedFileCount: number;
   taskCount: number;
   overdueCount: number;
   dueTodayCount: number;
@@ -16,6 +17,7 @@ export interface RightDeckCounts {
 export function useRightDeckCounts(caseId: string | null): RightDeckCounts {
   const [checklistPendingCount, setChecklistPendingCount] = useState(0);
   const [fileCount, setFileCount] = useState(0);
+  const [unmatchedFileCount, setUnmatchedFileCount] = useState(0);
   const tasks = useTaskStore((s) => s.tasks);
   const currentCase = useCaseStore((s) => s.currentCase);
 
@@ -23,6 +25,7 @@ export function useRightDeckCounts(caseId: string | null): RightDeckCounts {
     if (!caseId) {
       setChecklistPendingCount(0);
       setFileCount(0);
+      setUnmatchedFileCount(0);
       return;
     }
 
@@ -37,10 +40,15 @@ export function useRightDeckCounts(caseId: string | null): RightDeckCounts {
         (item) => item.status !== 'received' && item.is_required !== false
       ).length;
 
-      const totalFiles = ((fileData && fileData.items) || []).filter((i) => !i.is_dir).length;
+      const items = (fileData && fileData.items) || [];
+      const totalFiles = items.filter((i) => !i.is_dir).length;
+      const unmatched = items.filter(
+        (i) => !i.is_dir && (!i.matched_checklist || i.matched_checklist.length === 0) && (!i.matchedChecklist || i.matchedChecklist.length === 0)
+      ).length;
 
       setChecklistPendingCount(pendingChk);
       setFileCount(totalFiles);
+      setUnmatchedFileCount(unmatched);
     } catch {
       // 失败静默（角标不显示，不影响主功能）
     }
@@ -112,6 +120,7 @@ export function useRightDeckCounts(caseId: string | null): RightDeckCounts {
   return {
     checklistPendingCount,
     fileCount,
+    unmatchedFileCount,
     taskCount: matchingTasks.length,
     overdueCount,
     dueTodayCount,

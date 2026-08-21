@@ -156,6 +156,52 @@ export function HomePage({ onNavigate }: HomePageProps) {
     }
   };
 
+  const formatHomeAiSummary = (raw?: string | null, title?: string): string | null => {
+    if (!raw) return null;
+    const trimmed = raw.trim();
+    if (!trimmed) return null;
+
+    let res: string | null = null;
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        const keys = Object.keys(parsed);
+        if (keys.length === 1 && (keys[0] === 'source' || keys[0] === 'raw_time' || keys[0] === 'mode')) {
+          return null;
+        }
+        if (parsed.note) res = `备忘: ${parsed.note}`;
+        else if (parsed.summary) res = parsed.summary;
+        else if (parsed.items && Array.isArray(parsed.items)) {
+          res = `要点: ${parsed.items.slice(0, 2).join('；')}`;
+        }
+        else if (parsed.reason) res = `原因: ${parsed.reason}`;
+        else if (parsed.case) {
+          const parts = [];
+          if (parsed.loan) parts.push(`贷款 $${Number(parsed.loan).toLocaleString()}`);
+          if (parsed.rate) parts.push(`利率 ${parsed.rate}%`);
+          if (parsed.note) parts.push(parsed.note);
+          if (parts.length > 0) res = parts.join(' · ');
+        }
+      } catch {
+        return null;
+      }
+    } else if (!trimmed.includes('"source"') && !trimmed.includes('"chat"')) {
+      res = trimmed;
+    }
+
+    if (!res) return null;
+
+    if (title) {
+      const cleanTitle = title.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, '');
+      const cleanRes = res.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, '');
+      if (cleanTitle.includes(cleanRes) || cleanRes.includes(cleanTitle)) {
+        return null;
+      }
+    }
+
+    return res;
+  };
+
   const getPriorityBadge = (priority: TaskPriority) => {
     switch (priority) {
       case 'urgent':
@@ -380,182 +426,185 @@ export function HomePage({ onNavigate }: HomePageProps) {
       </div>
 
       {/* 5. 主内容区 (Bento 双栏 Layout) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch">
         
-        {/* Left Column (span-2): 今日待办 */}
-        <div className="lg:col-span-2 rounded-2xl border p-4 shadow-sm flex flex-col h-full min-h-[380px]" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-          {/* Section Header & Dropdown Filter */}
-          <div className="flex items-center justify-between gap-2 pb-3 border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
-            <div className="flex items-center space-x-2">
-              <CheckCircle2 className="w-4.5 h-4.5 text-[var(--text-secondary)]" />
-              <h2 className="text-sm font-extrabold tracking-tight text-primary">
-                今日待办 (Today's Priorities)
-              </h2>
-              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-[var(--bg-subtle)] text-[var(--text-secondary)]">
-                {sortedTasks.length} 项
-              </span>
-            </div>
+        {/* Left Column (span-2): 今日待办 (物理级 100% 同步右栏总高) */}
+        <div className="lg:col-span-2 relative min-h-[420px]">
+          <div className="absolute inset-0 rounded-2xl border p-4 shadow-sm flex flex-col overflow-hidden" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+            {/* Section Header & Dropdown Filter */}
+            <div className="flex items-center justify-between gap-2 pb-3 border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
+              <div className="flex items-center space-x-2">
+                <CheckCircle2 className="w-4.5 h-4.5 text-[var(--text-secondary)]" />
+                <h2 className="text-sm font-extrabold tracking-tight text-primary">
+                  今日待办 (Today's Priorities)
+                </h2>
+                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-[var(--bg-subtle)] text-[var(--text-secondary)]">
+                  {sortedTasks.length} 项
+                </span>
+              </div>
 
-            {/* 下拉菜单形式 (Task Category Dropdown) */}
-            <div className="flex items-center space-x-1.5">
-              <Filter className="w-3.5 h-3.5 text-muted hidden sm:inline" />
-              <div className="relative">
-                <select
-                  value={taskTab}
-                  onChange={(e) => setTaskTab(e.target.value as 'all' | 'overdue' | 'boss' | 'ai')}
-                  className="appearance-none border rounded-xl px-3 py-1 pr-7 text-xs font-bold outline-none cursor-pointer hover:bg-[var(--bg-card-hover)] transition-colors"
-                  style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-                  id="home-task-tab-select"
-                >
-                  <option value="all" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)' }}>全部待办 ({tasks.filter(t => !t.completed).length})</option>
-                  <option value="overdue" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--red)' }}>逾期/紧急 ({overdueTasks.length})</option>
-                  <option value="boss" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--yellow)' }}>待老板拍板 ({bossTasks.length})</option>
-                  <option value="ai" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--purple)' }}>AI 建议 ({aiSuggestedTasks.length})</option>
-                </select>
-                <ChevronDown className="w-3.5 h-3.5 text-muted absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-              </div>
-            </div>
-          </div>
-
-          {/* Task Items list with fixed scrollable height matching right column */}
-          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-2 pt-1 pr-0.5">
-            {tasksLoading ? (
-              <div className="py-12 text-center text-xs text-muted space-y-2">
-                <RefreshCw className="w-5 h-5 animate-spin mx-auto text-[var(--accent)]" />
-                <p>正在获取最新待办清单...</p>
-              </div>
-            ) : tasksError ? (
-              <div className="p-4 rounded-xl bg-[var(--red-soft)] border border-[var(--red-soft)] text-[var(--red)] text-xs flex items-center justify-between">
-                <span>{tasksError}</span>
-                <button onClick={() => fetchTasks()} className="px-2.5 py-1 rounded-lg bg-[var(--red)] text-white font-bold cursor-pointer">
-                  重试
-                </button>
-              </div>
-            ) : sortedTasks.length === 0 ? (
-              <div className="py-10 px-4 text-center space-y-2">
-                <div className="w-10 h-10 rounded-2xl bg-[var(--green-soft)] text-[var(--green)] flex items-center justify-center mx-auto border border-[var(--green-soft)] shadow-xs">
-                  <CheckCircle2 className="w-5 h-5" />
-                </div>
-                <div className="space-y-0.5">
-                  <h3 className="font-extrabold text-xs text-primary">当前分类无待办事项</h3>
-                  <p className="text-[11px] text-muted max-w-sm mx-auto">
-                    相关补件与沟通任务均已按时完成。
-                  </p>
-                </div>
-              </div>
-            ) : (
-              sortedTasks.map((t) => {
-                const isUrgent = t.priority === 'urgent' || t.tags.some(tag => tag.label.includes('超期') || tag.label.includes('逾期'));
-                const isAi = Boolean(t.aiSummary) || t.type === 'OS_ATTACK';
-
-                return (
-                  <motion.div
-                    key={t.id}
-                    whileHover={{ y: -1 }}
-                    className={`p-2.5 rounded-xl border transition-all flex items-center justify-between gap-2.5 ${
-                      isUrgent ? 'bg-[var(--red-soft)] border-[var(--red-soft)]' : 'bg-[var(--bg-card)] border-[var(--border)] hover:bg-[var(--bg-card-hover)]'
-                    }`}
-                    id={`home-task-item-${t.id}`}
+              {/* 下拉菜单形式 (Task Category Dropdown) */}
+              <div className="flex items-center space-x-1.5">
+                <Filter className="w-3.5 h-3.5 text-muted hidden sm:inline" />
+                <div className="relative">
+                  <select
+                    value={taskTab}
+                    onChange={(e) => setTaskTab(e.target.value as 'all' | 'overdue' | 'boss' | 'ai')}
+                    className="appearance-none border rounded-xl px-3 py-1 pr-7 text-xs font-bold outline-none cursor-pointer hover:bg-[var(--bg-card-hover)] transition-colors"
+                    style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                    id="home-task-tab-select"
                   >
-                    <div className="space-y-1 min-w-0 flex-1">
-                      <div className="flex items-center space-x-1.5 flex-wrap gap-y-0.5">
-                        {/* Boss Escalated / Overdue / AI / Normal Badge */}
-                        {((t.status === 'in_progress' && (t.assignee === 'vera' || t.delegatedTo === 'vera')) || (t.assignee === 'vera' && !t.completed)) && (
-                          <span className="px-1.5 py-0.2 rounded text-[11px] font-bold bg-[var(--accent-soft)] text-[var(--accent)] border border-[var(--accent-soft)] inline-flex items-center space-x-1">
-                            <span>🙋 Vera 正在跟进</span>
-                          </span>
-                        )}
-                        {t.escalatedToBoss ? (
-                          <span className="px-1.5 py-0.2 rounded text-[11px] font-bold bg-[var(--yellow-soft)] text-[var(--yellow)] border border-[var(--yellow-soft)] inline-flex items-center space-x-1">
-                            <Crown className="w-3 h-3" />
-                            <span>待老板拍板</span>
-                          </span>
-                        ) : isUrgent ? (
-                          <span className="px-1.5 py-0.2 rounded text-[11px] font-black bg-[var(--red)] text-white shadow-2xs">
-                            已逾期
-                          </span>
-                        ) : isAi ? (
-                          <span className="px-1.5 py-0.2 rounded text-[11px] font-bold bg-[var(--purple-soft)] text-[var(--purple)] border border-[var(--purple-soft)] inline-flex items-center space-x-1">
-                            <Bot className="w-3 h-3" />
-                            <span>AI 建议</span>
-                          </span>
-                        ) : (
-                          <span className="px-1.5 py-0.2 rounded text-[11px] font-medium bg-[var(--bg-subtle)] text-muted">
-                            常规
-                          </span>
+                    <option value="all" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)' }}>全部待办 ({tasks.filter(t => !t.completed).length})</option>
+                    <option value="overdue" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--red)' }}>逾期/紧急 ({overdueTasks.length})</option>
+                    <option value="boss" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--yellow)' }}>待老板拍板 ({bossTasks.length})</option>
+                    <option value="ai" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--purple)' }}>AI 建议 ({aiSuggestedTasks.length})</option>
+                  </select>
+                  <ChevronDown className="w-3.5 h-3.5 text-muted absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+              </div>
+            </div>
+
+            {/* Task Items list with fixed scrollable height matching right column */}
+            <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pt-2 pr-1">
+              {tasksLoading ? (
+                <div className="py-12 text-center text-xs text-muted space-y-2">
+                  <RefreshCw className="w-5 h-5 animate-spin mx-auto text-[var(--accent)]" />
+                  <p>正在获取最新待办清单...</p>
+                </div>
+              ) : tasksError ? (
+                <div className="p-4 rounded-xl bg-[var(--red-soft)] border border-[var(--red-soft)] text-[var(--red)] text-xs flex items-center justify-between">
+                  <span>{tasksError}</span>
+                  <button onClick={() => fetchTasks()} className="px-2.5 py-1 rounded-lg bg-[var(--red)] text-white font-bold cursor-pointer">
+                    重试
+                  </button>
+                </div>
+              ) : sortedTasks.length === 0 ? (
+                <div className="py-10 px-4 text-center space-y-2">
+                  <div className="w-10 h-10 rounded-2xl bg-[var(--green-soft)] text-[var(--green)] flex items-center justify-center mx-auto border border-[var(--green-soft)] shadow-xs">
+                    <CheckCircle2 className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-0.5">
+                    <h3 className="font-extrabold text-xs text-primary">当前分类无待办事项</h3>
+                    <p className="text-[11px] text-muted max-w-sm mx-auto">
+                      相关补件与沟通任务均已按时完成。
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                sortedTasks.map((t) => {
+                  const isUrgent = t.priority === 'urgent' || t.tags.some(tag => tag.label.includes('超期') || tag.label.includes('逾期'));
+                  const isAi = Boolean(t.aiSummary) || t.type === 'OS_ATTACK';
+                  const cleanSummary = formatHomeAiSummary(t.aiSummary || t.subtitle, t.title);
+
+                  return (
+                    <motion.div
+                      key={t.id}
+                      whileHover={{ y: -1 }}
+                      className={`p-2.5 rounded-xl border transition-all flex items-center justify-between gap-2.5 ${
+                        isUrgent ? 'bg-[var(--red-soft)] border-[var(--red-soft)]' : 'bg-[var(--bg-card)] border-[var(--border)] hover:bg-[var(--bg-card-hover)]'
+                      }`}
+                      id={`home-task-item-${t.id}`}
+                    >
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex items-center space-x-1.5 flex-wrap gap-y-0.5">
+                          {/* Boss Escalated / Overdue / AI / Normal Badge */}
+                          {((t.status === 'in_progress' && (t.assignee === 'vera' || t.delegatedTo === 'vera')) || (t.assignee === 'vera' && !t.completed)) && (
+                            <span className="px-1.5 py-0.2 rounded text-[11px] font-bold bg-[var(--accent-soft)] text-[var(--accent)] border border-[var(--accent-soft)] inline-flex items-center space-x-1">
+                              <span>🙋 Vera 正在跟进</span>
+                            </span>
+                          )}
+                          {t.escalatedToBoss ? (
+                            <span className="px-1.5 py-0.2 rounded text-[11px] font-bold bg-[var(--yellow-soft)] text-[var(--yellow)] border border-[var(--yellow-soft)] inline-flex items-center space-x-1">
+                              <Crown className="w-3 h-3" />
+                              <span>待老板拍板</span>
+                            </span>
+                          ) : isUrgent ? (
+                            <span className="px-1.5 py-0.2 rounded text-[11px] font-black bg-[var(--red)] text-white shadow-2xs">
+                              已逾期
+                            </span>
+                          ) : isAi ? (
+                            <span className="px-1.5 py-0.2 rounded text-[11px] font-bold bg-[var(--purple-soft)] text-[var(--purple)] border border-[var(--purple-soft)] inline-flex items-center space-x-1">
+                              <Bot className="w-3 h-3" />
+                              <span>AI 建议</span>
+                            </span>
+                          ) : (
+                            <span className="px-1.5 py-0.2 rounded text-[11px] font-medium bg-[var(--bg-subtle)] text-muted">
+                              常规
+                            </span>
+                          )}
+
+                          {/* Priority Badge */}
+                          {getPriorityBadge(t.priority)}
+
+                          {/* Client Name */}
+                          {t.caseName && (
+                            <span className="font-extrabold text-[11px] text-primary flex items-center">
+                              <User className="w-3 h-3 mr-0.5 text-muted inline" />
+                              {t.caseName}
+                            </span>
+                          )}
+
+                          {/* Lender */}
+                          {t.caseBank && (
+                            <span className="px-1 py-0.2 rounded text-[11px] font-bold bg-[var(--accent-soft)] text-[var(--accent)] border border-[var(--accent-soft)]">
+                              {t.caseBank}
+                            </span>
+                          )}
+                        </div>
+
+                        <h3 className="font-bold text-xs text-primary leading-tight truncate">
+                          {t.title}
+                        </h3>
+
+                        {t.bossDecision && (
+                          <p className="text-xs font-semibold text-[var(--yellow)] truncate">
+                            问题: {t.bossDecision}
+                          </p>
                         )}
 
-                        {/* Priority Badge */}
-                        {getPriorityBadge(t.priority)}
-
-                        {/* Client Name */}
-                        {t.caseName && (
-                          <span className="font-extrabold text-[11px] text-primary flex items-center">
-                            <User className="w-3 h-3 mr-0.5 text-muted inline" />
-                            {t.caseName}
-                          </span>
-                        )}
-
-                        {/* Lender */}
-                        {t.caseBank && (
-                          <span className="px-1 py-0.2 rounded text-[11px] font-bold bg-[var(--accent-soft)] text-[var(--accent)] border border-[var(--accent-soft)]">
-                            {t.caseBank}
-                          </span>
+                        {cleanSummary && (
+                          <p className="text-[11px] text-muted truncate">
+                            ✨ {cleanSummary}
+                          </p>
                         )}
                       </div>
 
-                      <h3 className="font-bold text-xs text-primary leading-tight truncate">
-                        {t.title}
-                      </h3>
+                      <div className="flex items-center space-x-1.5 flex-shrink-0">
+                        <motion.button
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => useUiStore.getState().openTaskDetail(t.id)}
+                          className="px-2 py-1.5 rounded-lg text-[11px] font-bold border border-[var(--border)] text-muted hover:text-primary hover:bg-[var(--bg-card-hover)] cursor-pointer transition-colors flex items-center space-x-1"
+                          title="打开任务处理详情"
+                          id={`home-task-detail-btn-${t.id}`}
+                        >
+                          <span>详情</span>
+                          <ArrowUpRight className="w-3 h-3" />
+                        </motion.button>
 
-                      {t.bossDecision && (
-                        <p className="text-xs font-semibold text-[var(--yellow)] truncate">
-                          问题: {t.bossDecision}
-                        </p>
-                      )}
-
-                      {t.aiSummary && (
-                        <p className="text-[11px] text-muted truncate">
-                          {t.aiSummary}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="flex items-center space-x-1.5 flex-shrink-0">
-                      <motion.button
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => useUiStore.getState().openTaskDetail(t.id)}
-                        className="px-2 py-1.5 rounded-lg text-[11px] font-bold border border-[var(--border)] text-muted hover:text-primary hover:bg-[var(--bg-card-hover)] cursor-pointer transition-colors flex items-center space-x-1"
-                        title="打开任务处理详情"
-                        id={`home-task-detail-btn-${t.id}`}
-                      >
-                        <span>详情</span>
-                        <ArrowUpRight className="w-3 h-3" />
-                      </motion.button>
-
-                      <motion.button
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => handleOpenCaseTask(t)}
-                        className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold shadow-xs flex items-center space-x-1 cursor-pointer transition-opacity"
-                        style={{ backgroundColor: 'var(--accent)', color: 'var(--on-accent)' }}
-                        id={`home-task-action-${t.id}`}
-                      >
-                        <span>进入案件对话</span>
-                        <ArrowRight className="w-3 h-3" />
-                      </motion.button>
-                    </div>
-                  </motion.div>
-                );
-              })
-            )}
+                        <motion.button
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => handleOpenCaseTask(t)}
+                          className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold shadow-xs flex items-center space-x-1 cursor-pointer transition-opacity"
+                          style={{ backgroundColor: 'var(--accent)', color: 'var(--on-accent)' }}
+                          id={`home-task-action-${t.id}`}
+                        >
+                          <span>进入案件对话</span>
+                          <ArrowRight className="w-3 h-3" />
+                        </motion.button>
+                      </div>
+                    </motion.div>
+                  );
+                })
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Right Column (span-1): Bento 小组件 (Quick Kanban + Expert Tip + AI Chat Box) */}
-        <div className="flex flex-col gap-5 h-full">
+        {/* Right Column (span-1): Bento 小组件 (紧密内聚自然堆叠，作为高度基准) */}
+        <div className="flex flex-col gap-4">
           
           {/* Widget 1: 快捷看板 (Quick Kanban Stage Progress) */}
-          <div className="rounded-2xl border p-4 space-y-3.5 shadow-sm flex-1 flex flex-col justify-between" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+          <div className="rounded-2xl border p-4 space-y-3 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}>
             <div className="flex items-center justify-between pb-2 border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
               <div className="flex items-center space-x-2">
                 <Layers className="w-4 h-4 text-[var(--accent)]" />
@@ -564,7 +613,7 @@ export function HomePage({ onNavigate }: HomePageProps) {
               <span className="text-xs font-extrabold text-muted">共 {cases.length} 笔案件</span>
             </div>
 
-            <div className="space-y-3 flex-1 flex flex-col justify-center">
+            <div className="space-y-2.5">
               {stageBreakdown.map((st, i) => (
                 <div key={i} className="space-y-1">
                   <div className="flex items-center justify-between text-xs">
@@ -587,7 +636,7 @@ export function HomePage({ onNavigate }: HomePageProps) {
 
             <button
               onClick={() => onNavigate('cases')}
-              className="w-full py-2 rounded-xl text-xs font-bold border hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer text-center text-[var(--accent)] flex items-center justify-center space-x-1 flex-shrink-0"
+              className="w-full py-1.5 mt-1 rounded-xl text-xs font-bold border hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer text-center text-[var(--accent)] flex items-center justify-center space-x-1"
               style={{ borderColor: 'var(--border)' }}
             >
               <span>进入完整看板 ➔</span>

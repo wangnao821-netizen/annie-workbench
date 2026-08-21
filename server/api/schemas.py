@@ -1117,6 +1117,7 @@ class FileOpsItem(BaseModel):
     mtime: str | None = None
     doc_type: str | None = None
     file_id: str | None = None  # WO-48: 已落库文件的 processed_files id（供 Office 原样预览）
+    matched_checklist: list[str] = Field(default_factory=list)  # WO-67: 匹配到的清单项名列表
 
 
 class FileOpsListResponse(BaseModel):
@@ -1150,6 +1151,29 @@ class FileOpsResult(BaseModel):
     source: str
     target: str
     event_id: str | None = None
+
+
+class ChecklistLibraryItem(BaseModel):
+    """清单总库条目（master + custom 合并，WO-68）。"""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    name_zh: str
+    name_en: str | None = None
+    category: str
+    applicable_when: dict | None = None
+    bank_specific: str | None = None
+    use_count: int = 0
+    is_custom: bool = False
+
+
+class ChecklistLibraryResponse(BaseModel):
+    """清单总库列表响应（WO-68）。"""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    items: list[ChecklistLibraryItem]
 
 
 class RenameRequest(BaseModel):

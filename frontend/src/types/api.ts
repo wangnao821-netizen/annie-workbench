@@ -1091,11 +1091,28 @@ export interface FileItem {
   mtime?: string;
   doc_type?: string;
   file_id?: string;
+  matched_checklist?: string[];
+  matchedChecklist?: string[];
 }
 
 export interface FolderFilesResponse {
   current_path: string;
   items: FileItem[];
+}
+
+export interface ChecklistLibraryItem {
+  id: string;
+  name_zh: string;
+  name_en?: string | null;
+  category: string;
+  applicable_when?: Record<string, any> | null;
+  bank_specific?: string | null;
+  use_count: number;
+  is_custom: boolean;
+}
+
+export interface ChecklistLibraryResponse {
+  items: ChecklistLibraryItem[];
 }
 
 export interface FilePreviewResponse {
