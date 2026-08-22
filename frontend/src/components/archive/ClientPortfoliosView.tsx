@@ -23,9 +23,7 @@ export function ClientPortfoliosView() {
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [clients, setClients] = useState<ClientPortfolioItem[]>([]);
-  const [expandedClients, setExpandedClients] = useState<Record<string, boolean>>({
-    PERSON_1: true,
-  });
+  const [expandedClients, setExpandedClients] = useState<Record<string, boolean>>({});
 
   const fetchPortfolio = useCallback(async () => {
     setLoading(true);

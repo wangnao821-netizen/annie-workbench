@@ -2411,10 +2411,10 @@ const MOCK_PORTFOLIO_CLIENTS: ClientPortfolioItem[] = [
 ];
 
 /**
- * 获取档案中心大盘统计 (GET /api/archive/stats) (WO-60)
+ * 获取档案中心大盘统计 (GET /api/archive/stats)
  */
 export async function getArchiveStats(): Promise<ArchiveHubStatsResponse> {
-  if (import.meta.env.VITE_USE_MOCK !== 'false') {
+  if (import.meta.env.VITE_USE_MOCK === 'true') {
     return Promise.resolve({
       ok: true,
       stats: MOCK_ARCHIVE_STATS,
@@ -2425,10 +2425,10 @@ export async function getArchiveStats(): Promise<ArchiveHubStatsResponse> {
 }
 
 /**
- * 获取客户终生资产全景 (GET /api/archive/portfolio) (WO-60)
+ * 获取客户终生资产全景 (GET /api/archive/portfolio)
  */
 export async function getArchivePortfolio(query?: string): Promise<ArchivePortfolioResponse> {
-  if (import.meta.env.VITE_USE_MOCK !== 'false') {
+  if (import.meta.env.VITE_USE_MOCK === 'true') {
     let list = [...MOCK_PORTFOLIO_CLIENTS];
     if (query && query.trim()) {
       const q = query.trim().toLowerCase();
@@ -2452,10 +2452,10 @@ export async function getArchivePortfolio(query?: string): Promise<ArchivePortfo
 }
 
 /**
- * 一键同步/刷新先例入知识库 (POST /api/archive/sync-knowledge) (WO-61)
+ * 一键同步/刷新先例入知识库 (POST /api/archive/sync-knowledge)
  */
 export async function syncKnowledgePrecedents(): Promise<KnowledgeSyncResponse> {
-  if (import.meta.env.VITE_USE_MOCK !== 'false') {
+  if (import.meta.env.VITE_USE_MOCK === 'true') {
     await new Promise((r) => setTimeout(r, 600));
     return Promise.resolve({
       ok: true,
@@ -2471,12 +2471,12 @@ export async function syncKnowledgePrecedents(): Promise<KnowledgeSyncResponse> 
 }
 
 /**
- * 获取案件推荐的相似先例 (GET /api/cases/{case_id}/recommended-precedents) (WO-61)
+ * 获取案件推荐的相似先例 (GET /api/cases/{case_id}/recommended-precedents)
  */
 export async function getCaseRecommendedPrecedents(
   caseId: string
 ): Promise<CaseRecommendedPrecedentsResponse> {
-  if (import.meta.env.VITE_USE_MOCK !== 'false') {
+  if (import.meta.env.VITE_USE_MOCK === 'true') {
     await new Promise((r) => setTimeout(r, 300));
 
     // Dynamic mock recommendations based on caseId / context

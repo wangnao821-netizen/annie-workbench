@@ -24,11 +24,11 @@ export function Archive() {
   const reduced = useReducedMotion();
   const [activeTab, setActiveTab] = useState<'portfolio' | 'radar' | 'precedents'>('portfolio');
   const [stats, setStats] = useState<ArchiveHubStats>({
-    total_archived_clients: 18,
-    total_cases_count: 24,
-    total_loan_volume: 18600000,
-    total_opportunities_count: 6,
-    total_precedents_count: 12,
+    total_archived_clients: 0,
+    total_cases_count: 0,
+    total_loan_volume: 0,
+    total_opportunities_count: 0,
+    total_precedents_count: 0,
   });
   const showToast = useToastStore((s) => s.showToast);
   const [loading, setLoading] = useState(false);
@@ -75,12 +75,12 @@ export function Archive() {
 
   return (
     <div
-      className="flex-1 p-4 md:p-8 space-y-6 overflow-y-auto no-scrollbar max-w-6xl mx-auto w-full"
+      className="flex-1 h-full min-h-0 flex flex-col p-4 md:p-8 space-y-6 overflow-y-auto no-scrollbar max-w-6xl mx-auto w-full select-none"
       style={{ backgroundColor: 'var(--bg-app)' }}
       id="archive-hub-page"
     >
       {/* 1. 顶部：管理资产大盘与操作栏 (Header & Stats) */}
-      <div className="space-y-4">
+      <div className="space-y-4 flex-shrink-0">
         {/* 顶部标题行 */}
         <div
           className="flex items-center justify-between pb-3 border-b flex-wrap gap-3"
@@ -104,7 +104,7 @@ export function Archive() {
                 档案与客户终生价值中心 (Archive Hub)
               </h1>
               <p className="text-xs text-muted">
-                管理资产大盘 · 客户终生资产池 · 二次经营商机雷达 · AI 先例智库 (WO-60)
+                管理资产大盘 · 客户终生资产池 · 二次经营商机雷达 · AI 先例智库
               </p>
             </div>
           </div>
@@ -374,14 +374,14 @@ export function Archive() {
               color: 'var(--purple, #a855f7)',
             }}
           >
-            WO-59
+            {stats.total_precedents_count}
           </span>
         </button>
       </div>
 
       {/* 错误提示条 */}
       {error && (
-        <div className="p-3.5 rounded-2xl border bg-[var(--red-soft)] border-[var(--red-soft)] text-[var(--red)] text-xs flex items-center justify-between">
+        <div className="p-3.5 rounded-2xl border bg-[var(--red-soft)] border-[var(--red-soft)] text-[var(--red)] text-xs flex items-center justify-between flex-shrink-0">
           <div className="flex items-center space-x-2">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span>{error}</span>
@@ -392,15 +392,17 @@ export function Archive() {
         </div>
       )}
 
-      {/* 3. Tab 内容展示区 */}
-      {/* TAB 1: 客户终生资产池 */}
-      {activeTab === 'portfolio' && <ClientPortfoliosView />}
+      {/* 3. Tab 内容展示区 (自适应撑满落底) */}
+      <div className="flex-1 min-h-0 flex flex-col">
+        {/* TAB 1: 客户终生资产池 */}
+        {activeTab === 'portfolio' && <ClientPortfoliosView />}
 
-      {/* TAB 2: 二次经营商机雷达 */}
-      {activeTab === 'radar' && <RetentionRadar />}
+        {/* TAB 2: 二次经营商机雷达 */}
+        {activeTab === 'radar' && <RetentionRadar />}
 
-      {/* TAB 3: AI 先例智库与审批官画像 */}
-      {activeTab === 'precedents' && <PrecedentsAssessorHub />}
+        {/* TAB 3: AI 先例智库与审批官画像 */}
+        {activeTab === 'precedents' && <PrecedentsAssessorHub />}
+      </div>
 
       {/* 4. 批量归档历史客户案卷模态窗 (WO-57) */}
       <ArchiveBatchImportModal
