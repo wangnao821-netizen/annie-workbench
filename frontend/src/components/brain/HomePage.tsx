@@ -215,8 +215,16 @@ export function HomePage({ onNavigate }: HomePageProps) {
     }
   };
 
+  const overdueCount = overdueTasks.length;
+  const upcomingCount = useMemo(() => {
+    return tasks.filter((t) => !t.completed && (t.priority === 'high' || t.tags?.some((tag) => tag.label.includes('到期') || tag.label.toLowerCase().includes('due')))).length;
+  }, [tasks]);
+  const pendingReviewCount = useMemo(() => {
+    return tasks.filter((t) => !t.completed && (t.type === 'OS_ATTACK' || t.tags?.some((tag) => tag.label.includes('审贷') || tag.label.includes('补件') || tag.label.includes('批复')))).length;
+  }, [tasks]);
+
   return (
-    <div className="flex-1 h-full overflow-y-auto no-scrollbar p-4 md:p-6 space-y-6 select-none" style={{ backgroundColor: 'var(--bg-app)' }} id="home-page-container">
+    <div className="flex-1 h-full min-h-0 flex flex-col overflow-y-auto no-scrollbar p-4 md:p-6 space-y-5 select-none" style={{ backgroundColor: 'var(--bg-app)' }} id="home-page-container">
       
       {/* 1. 到期 / 逾期提醒条 (Top Alert Banner) */}
       <AnimatePresence>
@@ -226,7 +234,7 @@ export function HomePage({ onNavigate }: HomePageProps) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={reduced ? { opacity: 0 } : { opacity: 0, y: -10, scale: 0.98 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="p-3.5 rounded-2xl border flex items-center justify-between text-xs font-semibold shadow-md border-[var(--yellow-soft)] text-[var(--yellow)] bg-[var(--yellow-soft)]"
+            className="p-3.5 rounded-2xl border flex items-center justify-between text-xs font-semibold shadow-md border-[var(--yellow-soft)] text-[var(--yellow)] bg-[var(--yellow-soft)] flex-shrink-0"
             id="overdue-banner"
           >
             <div className="flex items-center space-x-3">
@@ -263,16 +271,43 @@ export function HomePage({ onNavigate }: HomePageProps) {
       </AnimatePresence>
 
       {/* 2. 日期放大为主标题 + 快捷操作行 (Welcome & Quick Actions Row) */}
-      <div className="space-y-4">
+      <div className="space-y-4 flex-shrink-0">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-2 border-b" style={{ borderColor: 'var(--border)' }}>
           <div className="space-y-1">
             <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-primary flex items-center space-x-2">
               <Calendar className="w-6 h-6 text-[var(--accent)] inline-block flex-shrink-0" />
               <span>{todayDateStr}</span>
             </h1>
-            <p className="text-xs text-muted">
-              今天有 <strong className="text-[var(--red)] font-bold">{overdueTasks.length} 个紧急待办</strong> · 2 个到期预警 · 1 个银行审贷回复待处理
-            </p>
+            {(() => {
+              const hasAlerts = overdueCount > 0 || upcomingCount > 0 || pendingReviewCount > 0;
+              if (!hasAlerts) {
+                return (
+                  <p className="text-xs text-muted">
+                    所有办件与审贷节点已按时梳理 · 暂无紧急待办
+                  </p>
+                );
+              }
+              return (
+                <p className="text-xs text-muted flex items-center space-x-1.5 flex-wrap">
+                  <span>今天有</span>
+                  {overdueCount > 0 && (
+                    <strong className="text-[var(--red)] font-bold">
+                      {overdueCount} 个紧急待办
+                    </strong>
+                  )}
+                  {upcomingCount > 0 && (
+                    <span>
+                      {overdueCount > 0 ? ' · ' : ''}{upcomingCount} 个到期预警
+                    </span>
+                  )}
+                  {pendingReviewCount > 0 && (
+                    <span>
+                      {(overdueCount > 0 || upcomingCount > 0) ? ' · ' : ''}{pendingReviewCount} 个银行审贷回复待处理
+                    </span>
+                  )}
+                </p>
+              );
+            })()}
           </div>
 
           {/* 3. 快捷操作按钮 (3 Actions) */}
@@ -425,11 +460,11 @@ export function HomePage({ onNavigate }: HomePageProps) {
         })()}
       </div>
 
-      {/* 5. 主内容区 (Bento 双栏 Layout) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch">
+      {/* 5. 主内容区 (Bento 双栏 Layout - 全屏自适应自动落底) */}
+      <div className="flex-1 min-h-[460px] grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch">
         
-        {/* Left Column (span-2): 今日待办 (物理级 100% 同步右栏总高) */}
-        <div className="lg:col-span-2 relative min-h-[420px]">
+        {/* Left Column (span-2): 今日待办 (物理级 100% 同步撑满高度并自动落底) */}
+        <div className="lg:col-span-2 relative h-full min-h-[420px]">
           <div className="absolute inset-0 rounded-2xl border p-4 shadow-sm flex flex-col overflow-hidden" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}>
             {/* Section Header & Dropdown Filter */}
             <div className="flex items-center justify-between gap-2 pb-3 border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
@@ -465,9 +500,9 @@ export function HomePage({ onNavigate }: HomePageProps) {
             </div>
 
             {/* Task Items list with fixed scrollable height matching right column */}
-            <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pt-2 pr-1">
+            <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pt-2 pr-1 flex flex-col">
               {tasksLoading ? (
-                <div className="py-12 text-center text-xs text-muted space-y-2">
+                <div className="my-auto py-12 text-center text-xs text-muted space-y-2">
                   <RefreshCw className="w-5 h-5 animate-spin mx-auto text-[var(--accent)]" />
                   <p>正在获取最新待办清单...</p>
                 </div>
@@ -479,7 +514,7 @@ export function HomePage({ onNavigate }: HomePageProps) {
                   </button>
                 </div>
               ) : sortedTasks.length === 0 ? (
-                <div className="py-10 px-4 text-center space-y-2">
+                <div className="my-auto py-10 px-4 text-center space-y-2">
                   <div className="w-10 h-10 rounded-2xl bg-[var(--green-soft)] text-[var(--green)] flex items-center justify-center mx-auto border border-[var(--green-soft)] shadow-xs">
                     <CheckCircle2 className="w-5 h-5" />
                   </div>
@@ -600,11 +635,11 @@ export function HomePage({ onNavigate }: HomePageProps) {
           </div>
         </div>
 
-        {/* Right Column (span-1): Bento 小组件 (紧密内聚自然堆叠，作为高度基准) */}
-        <div className="flex flex-col gap-4">
+        {/* Right Column (span-1): Bento 小组件 (全屏下自动撑满并落底) */}
+        <div className="flex flex-col gap-4 h-full">
           
           {/* Widget 1: 快捷看板 (Quick Kanban Stage Progress) */}
-          <div className="rounded-2xl border p-4 space-y-3 shadow-sm" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+          <div className="rounded-2xl border p-4 space-y-3 shadow-sm flex-shrink-0" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}>
             <div className="flex items-center justify-between pb-2 border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
               <div className="flex items-center space-x-2">
                 <Layers className="w-4 h-4 text-[var(--accent)]" />
@@ -669,8 +704,8 @@ export function HomePage({ onNavigate }: HomePageProps) {
             </div>
           </div>
 
-          {/* Widget 3: 对话入口 (AI First - 右栏底端对话框) */}
-          <div className="rounded-2xl border p-4 space-y-3 shadow-md relative overflow-hidden flex-shrink-0" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+          {/* Widget 3: 对话入口 (AI First - 右栏底端对话框，自动沉底落底) */}
+          <div className="rounded-2xl border p-4 space-y-3 shadow-md relative overflow-hidden mt-auto flex-shrink-0" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}>
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <div className="p-1.5 rounded-xl bg-[var(--purple-soft)] text-[var(--purple)]">
