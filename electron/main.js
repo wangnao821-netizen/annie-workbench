@@ -42,6 +42,20 @@ let backendProc = null;
 let backendPort = 8000;
 let isQuitting = false;
 
+/* ── 单实例锁（防止重复多开） ───────────────────────────── */
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+}
+
 /* ── 配置 ─────────────────────────────────────────────── */
 function loadConfig() {
   try {
@@ -250,19 +264,35 @@ function createWindow() {
 }
 
 /* ── 托盘 ──────────────────────────────────────────────── */
+function getTrayIcon() {
+  const icoPath = path.join(__dirname, 'build', 'icon.ico');
+  const pngPath = path.join(__dirname, 'build', 'icon.png');
+  if (fs.existsSync(icoPath)) {
+    return nativeImage.createFromPath(icoPath);
+  }
+  if (fs.existsSync(pngPath)) {
+    return nativeImage.createFromPath(pngPath);
+  }
+  return null;
+}
+
 function createTray() {
   try {
-    const pngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAcSURBVDhPY/z//z8DJYCJgUJACkAaGhoGGRgAG28fAfc5+T0AAAAASUVORK5CYII=';
-    const icon = nativeImage.createFromBuffer(Buffer.from(pngBase64, 'base64'));
+    const icon = getTrayIcon();
+    if (!icon) return;
     tray = new Tray(icon);
     tray.setToolTip('Annie');
     tray.setContextMenu(Menu.buildFromTemplate([
       { label: '显示主窗口', click: () => { mainWindow?.show(); mainWindow?.focus(); } },
       { type: 'separator' },
       {
-        label: '退出',
+        label: '退出 Annie',
         click: () => {
           isQuitting = true;
+          if (tray) {
+            try { tray.destroy(); } catch {}
+            tray = null;
+          }
           app.quit();
         },
       },
@@ -301,12 +331,15 @@ function registerIpc() {
     else mainWindow.maximize();
   });
   ipcMain.handle('window:close', () => {
-    if (loadConfig().minimizeToTray !== false) {
-      mainWindow?.hide();
-    } else {
-      isQuitting = true;
-      mainWindow?.close();
+    isQuitting = true;
+    if (tray) {
+      try { tray.destroy(); } catch {}
+      tray = null;
     }
+    if (mainWindow) {
+      mainWindow.close();
+    }
+    app.quit();
   });
   ipcMain.handle('app:version', () => app.getVersion());
   ipcMain.handle('app:api-base', () => `http://127.0.0.1:${backendPort}`);
@@ -405,12 +438,20 @@ app.whenReady().then(async () => {
 
 app.on('before-quit', () => {
   isQuitting = true;
+  if (tray) {
+    try { tray.destroy(); } catch {}
+    tray = null;
+  }
 });
 
 app.on('window-all-closed', () => {
-  // 托盘常驻；真正退出由托盘"退出"触发
+  isQuitting = true;
+  if (tray) {
+    try { tray.destroy(); } catch {}
+    tray = null;
+  }
   if (process.platform !== 'darwin') {
-    // 不退出，保留托盘
+    app.quit();
   }
 });
 

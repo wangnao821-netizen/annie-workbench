@@ -64,7 +64,9 @@ export function CaseBoard({ onOpenCase, onViewAnalytics }: CaseBoardProps) {
             <h2 className="text-base font-extrabold" style={{ color: 'var(--text-primary)' }}>
               案件看板 (Case Board)
             </h2>
-            <p className="text-xs text-muted">管理与跟进当前所有 28 个贷款全生命周期案件</p>
+            <p className="text-xs text-muted">
+              管理与跟进当前所有 {cases.length} 个贷款全生命周期案件
+            </p>
           </div>
         </div>
 
