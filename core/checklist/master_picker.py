@@ -8,6 +8,12 @@
        deposit_source_includes / income_sources）与 bank_specific 硬过滤；
     2. use_ai=True 时再用 LLM 做排序与理由补充（输入经 desensitize 脱敏），
        AI 失败自动回退到纯规则结果。
+
+容量策略（WO-75c）：
+    1. 规则预选按命中顺序取前 _SIZE_MAX 项；
+    2. 用户自定义总项库项（is_custom=True）永不被主库扩容截断——
+       超出上限的部分按序补回（规则路径与 AI 失败回退路径一致）；
+    3. use_ai=True 时由 LLM 自行排序（≤_SIZE_MAX），不套用截断逻辑。
 """
 
 from __future__ import annotations
@@ -61,6 +67,7 @@ def _load_master(db: Session | None = None) -> list[dict]:
                 "category": row.category,
                 "applicable_when": row.applicable_when or {},
                 "bank_specific": row.bank_specific,
+                "is_custom": True,
             }
             for row in customs
         ]
@@ -130,6 +137,7 @@ def _rule_pick(items: list[dict], case_info: dict) -> list[dict]:
             "name_zh": it.get("name_zh", it["id"]),
             "required": True,
             "reason": "根据案件画像与银行政策为必选材料",
+            "is_custom": it.get("is_custom", False),
         })
     return picked
 
@@ -198,10 +206,15 @@ def pick_checklist(case_info: dict, db: Session, use_ai: bool = True) -> list[di
         return picked
 
     if not use_ai:
-        return picked[:_SIZE_MAX]
+        truncated = picked[:_SIZE_MAX]
+        # 用户自定义总库项（is_custom）不应因主库扩容被静默截断，超出 cap 的部分补回
+        extra = [p for p in picked[_SIZE_MAX:] if p.get("is_custom")]
+        return truncated + extra
 
     try:
         return _ai_order(picked, case_info, db)
     except (Exception, SystemExit) as exc:  # noqa: BLE001 — AI 失败回退纯规则，不阻断流程
         logger.warning("AI checklist pre-selection failed, fallback to rules: %s", exc)
-        return picked[:_SIZE_MAX]
+        truncated = picked[:_SIZE_MAX]
+        extra = [p for p in picked[_SIZE_MAX:] if p.get("is_custom")]
+        return truncated + extra

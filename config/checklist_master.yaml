@@ -480,3 +480,96 @@ items:
     category: settlement
     aliases: [trust_deed, trust_settlement]
     applicable_when: { deposit_source_includes: [trust] }
+
+  # ── income_payg 收入-PAYG 补充 ──
+  - id: ato_income_statement
+    name_zh: ATO 收入声明
+    name_en: ATO Income Statement
+    category: income_payg
+    aliases: [ato_income, ato_statement, income_statement]
+    applicable_when: { all: true }
+
+  - id: salary_credit_statement
+    name_zh: 6 个月工资入账流水
+    name_en: Bank Statement (Salary Credits, 6 months)
+    category: income_payg
+    aliases: [salary_statement, salary_credits, wage_credits]
+    applicable_when: { employment_type: [PAYG, Casual] }
+    max_age_days: 60
+
+  # ── special / liability 负债与资产补充 ──
+  - id: living_expense_statement
+    name_zh: 6 个月生活开支流水
+    name_en: Bank Statement (Living Expenses, 6 months)
+    category: special
+    aliases: [living_expense, expense_statement, transaction_statement]
+    applicable_when: { all: true }
+    max_age_days: 60
+
+  - id: car_loan_statement
+    name_zh: 车贷/个人贷款对账单
+    name_en: Car Loan / Personal Loan Statement
+    category: special
+    aliases: [car_loan, personal_loan, auto_loan, carloan]
+    applicable_when: { all: true }
+
+  - id: credit_card_statement
+    name_zh: 信用卡账单 (60天内, 含6月历史)
+    name_en: Credit Card Statement (within 60 days, 6 months history)
+    category: special
+    aliases: [creditcardstatement, credit_card, cc_statement]
+    applicable_when: { all: true }
+    max_age_days: 60
+
+  - id: deposit_receipt
+    name_zh: 首付定金收据
+    name_en: Deposit Receipt
+    category: property
+    aliases: [deposit_receipt, deposit_proof]
+    applicable_when: { purpose: [Purchase] }
+
+  - id: savings_proof
+    name_zh: 存款余额证明
+    name_en: Savings Proof of Balance
+    category: special
+    aliases: [savings_proof, genuine_savings, savings_balance]
+    applicable_when: { all: true }
+
+  - id: super_statement
+    name_zh: 养老金余额证明
+    name_en: Superannuation Statement
+    category: special
+    aliases: [super, superannuation, super_statement, super_balance]
+    applicable_when: { all: true }
+
+  - id: vehicle_asset_info
+    name_zh: 车辆资产信息
+    name_en: Vehicle Asset (Make/Model/Value)
+    category: special
+    aliases: [vehicle_asset, car_asset]
+    applicable_when: { all: true }
+
+  # ── 信息项（kind: info，非文档，走 Fact Find 采集）──
+  - id: employment_history
+    name_zh: 最近 3 年雇主历史
+    name_en: Employment History (3 years)
+    kind: info
+    category: special
+    aliases: [employment_history, emp_history, work_history]
+    applicable_when: { all: true }
+
+  - id: living_history
+    name_zh: 最近 3 年居住历史
+    name_en: Living History (3 years)
+    kind: info
+    category: special
+    aliases: [living_history, residence_history, address_history]
+    applicable_when: { all: true }
+
+  - id: solicitor_info
+    name_zh: 律师/过户师信息
+    name_en: Solicitor / Conveyancer Information
+    kind: info
+    category: special
+    aliases: [solicitor_info, conveyancer, solicitor]
+    applicable_when: { all: true }

@@ -37,6 +37,10 @@ from core.case_engine.progression import evaluate_stage_signal
 from core.case_engine.snapshot import build_case_snapshot
 from core.case_folder.legacy_import import build_legacy_import_preview
 from core.case_folder.topology import scan_customer_topology
+from core.checklist.email_draft import (
+    generate_preliminary_assessment_email,
+    save_preliminary_draft,
+)
 from core.checklist.matcher import (
     CaseNotFoundError,
     check_completeness,
@@ -88,6 +92,8 @@ from server.api.schemas import (
     ContextEventResponse,
     DeclarationCheckRequest,
     DeclarationCheckResponse,
+    EmailDraftRequest,
+    EmailDraftResponse,
     FactAmendRequest,
     FactDisclosureRequest,
     FolderTopologyScanRequest,
@@ -1435,5 +1441,45 @@ def update_case_brief_endpoint(
         client_name=case.client_name or "",
         brief_markdown=req.brief_markdown,
         external_clean_markdown=clean_md,
+    )
+
+
+@router.post(
+    "/{case_id}/email-draft/preliminary",
+    response_model=EmailDraftResponse,
+)
+def create_preliminary_email_draft(
+    case_id: str,
+    req: EmailDraftRequest | None = None,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> EmailDraftResponse:
+    """生成 Preliminary Assessment 邮件草稿并落草稿箱（status=draft，绝不自动发送）。
+
+    案件不存在 → 404；模板加载/校验失败（ref 未命中 master）→ 422；写入失败 → 500（事务回滚）。
+    """
+    case = db.query(Case).filter(Case.id == case_id).first()
+    if not case:
+        raise HTTPException(status_code=404, detail=f"案件 {case_id} 不存在")
+
+    try:
+        email = generate_preliminary_assessment_email(case_id, db)
+        draft = save_preliminary_draft(case_id, db, email)
+    except ValueError as exc:
+        # 模板 ref 未命中 master / 案件画像缺失等一致性错误 → 422
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to save preliminary email draft")
+        raise HTTPException(status_code=500, detail="生成或落库 Preliminary 草稿失败") from exc
+
+    return EmailDraftResponse(
+        ok=True,
+        case_id=case_id,
+        subject=draft.subject or "",
+        body_text=draft.body or "",
+        body_html=email["body_html"],
+        recipient_email=draft.to_email or "",
+        cc_email=email["cc_email"],
+        draft_id=f"draft_{draft.id}",
     )
 

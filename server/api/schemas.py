@@ -1608,3 +1608,23 @@ class StageUpdateRequest(BaseModel):
 
     stage: str = Field(..., min_length=1)
 
+
+# ── WO-75 Preliminary Assessment 邮件草稿 Schema ─────────────────────
+
+
+class EmailDraftRequest(BaseModel):
+    """Preliminary Assessment 邮件草稿请求（当前仅路径参数 case_id，预留扩展）。"""
+
+
+class EmailDraftResponse(BaseModel):
+    """Preliminary Assessment 邮件草稿响应（只落草稿，绝不自动发送）。"""
+
+    ok: bool
+    case_id: str
+    subject: str
+    body_text: str
+    body_html: str
+    recipient_email: str
+    cc_email: str
+    draft_id: str
+

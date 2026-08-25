@@ -1,0 +1,44 @@
+template_id: preliminary_assessment
+version: 1.0.0
+sections:
+  - id: id
+    title_en: ID
+    title_zh: 身份证明
+    items:
+      - ref: driver_license          # 引用 checklist_master.yaml 的 id
+      - ref: passport
+      - ref: visa_grant              # 非澳公民才要求（applicable_when / trim_rules 裁剪）
+  - id: income
+    title_en: Income
+    title_zh: 收入
+    items: [payslip_2, salary_credit_statement, accounting_financial_report, tax_return_2yr, tax_return_1yr, bas_statements, ato_income_statement, rental_statement]
+  - id: employment_history
+    title_en: Employment History
+    title_zh: 雇主历史（3 年）
+    items: [ { ref: employment_history, kind: info } ]
+  - id: living_expense
+    title_en: Living Expense
+    title_zh: 生活开支
+    items: [ living_expense_statement ]
+  - id: liability
+    title_en: Liability
+    title_zh: 负债
+    items: [ existing_loan_statement, credit_card_statement, car_loan_statement ]
+  - id: living_history
+    title_en: Living History
+    title_zh: 居住历史（3 年）
+    items: [ { ref: living_history, kind: info } ]
+  - id: asset
+    title_en: Asset
+    title_zh: 资产
+    items: [ trust_deed, council_rates_notice, contract_of_sale, deposit_receipt, savings_proof, vehicle_asset_info, super_statement ]
+  - id: solicitor
+    title_en: Solicitor Information
+    title_zh: 律师/过户师
+    items: [ { ref: solicitor_info, kind: info } ]
+trim_rules:
+  # 与 master 的 applicable_when 协同；PAYG/自雇/PR/Refinance 裁剪见 email_draft.py 契约
+  - { when: { employment_type: [PAYG, Casual] }, drop: [accounting_financial_report, tax_return_2yr, tax_return_1yr, bas_statements, accountant_letter] }
+  - { when: { employment_type: [SelfEmployed] }, drop: [payslip_2, employment_letter] }
+  - { when: { residency: [Citizen, PR] }, drop: [visa_grant] }
+  - { when: { purpose: [Refinance] }, drop: [contract_of_sale, deposit_receipt], add: [payout_letter, discharge_authority] }
