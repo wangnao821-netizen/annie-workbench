@@ -1,0 +1,11 @@
+key: fact_find
+name: "Fact Find 客户信息录入"
+description: "结构化采集客户雇主历史、居住历史、律师信息、车辆资产与 Super 养老金"
+triggers: ["补充客户信息", "Fact Find", "记录雇主历史", "记录居住历史", "客户律师信息", "车辆资产", "养老金余额"]
+presentation: dialog
+steps:
+  - tool: record_fact_find
+    params: { case_id: "$case_id" }
+    output: result
+confirm_required: true
+acceptance: []

@@ -224,6 +224,12 @@ class CaseFolderConfig(BaseModel):
     auto_gap: CaseFolderAutoGapConfig = Field(default_factory=CaseFolderAutoGapConfig)
 
 
+class OnboardingConfig(BaseModel):
+    """新建案件欢迎流与自动待办配置（WO-76）。"""
+
+    tasks_enabled: bool = True
+
+
 class FollowupConfig(BaseModel):
     """跟进提醒（WO-47）：普通任务截止/承诺到期提醒待办，默认关闭观察后 Vera 开启。"""
 
@@ -257,6 +263,7 @@ class SettingsConfig(BaseModel):
     wechat: WechatConfig = Field(default_factory=WechatConfig)
     scheduler: SchedulerConfig = Field(default_factory=SchedulerConfig)
     case_folder: CaseFolderConfig = Field(default_factory=CaseFolderConfig)
+    onboarding: OnboardingConfig = Field(default_factory=OnboardingConfig)
 
 
 # ---------------------------------------------------------------------------
@@ -417,7 +424,7 @@ class ConfigLoader:
                 for r in rows:
                     if r.key and r.value and r.key not in os.environ:
                         os.environ[r.key] = r.value
-        except Exception:
+        except Exception:  # noqa: BLE001, S110 — DB 初始化前静默容错
             pass
 
         # 1. settings.yaml

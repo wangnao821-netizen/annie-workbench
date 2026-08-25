@@ -25,6 +25,8 @@ import { AssistantOnboardingCard } from './AssistantOnboardingCard';
 import { CalculatorPanel } from '../calculator/CalculatorPanel';
 import { useTaskStore } from '../../stores/taskStore';
 import { CoCreateDialog } from './CoCreateDialog';
+import { WelcomeCard } from './WelcomeCard';
+import { FactFindConfirmCard } from './FactFindConfirmCard';
 
 type QuickAsk = { label: string; action: 'ask' };
 
@@ -208,6 +210,13 @@ export function BrainChat({ caseId, onToggleRightDeck, isRightDeckCollapsed }: B
   const { cases, currentCase } = useCaseStore();
   const setNewCaseOpen = useUiStore((s) => s.setNewCaseOpen);
   const setRightDeckTab = useUiStore((s) => s.setRightDeckTab);
+  const welcomeCaseId = useUiStore((s) => s.welcomeCaseId);
+  const dismissedWelcomeCases = useUiStore((s) => s.dismissedWelcomeCases);
+  const showWelcomeCard = Boolean(
+    caseId &&
+    !dismissedWelcomeCases.includes(caseId) &&
+    (welcomeCaseId === caseId || messages.length === 0)
+  );
   const pendingChatPrompt = useUiStore((s) => s.pendingChatPrompt);
   const setPendingChatPrompt = useUiStore((s) => s.setPendingChatPrompt);
   const mode = useModeStore((s) => s.mode);
@@ -1007,14 +1016,28 @@ export function BrainChat({ caseId, onToggleRightDeck, isRightDeckCollapsed }: B
           ) : loading ? (
             <div className="space-y-3"><div className="h-10 rounded-xl animate-pulse bg-[var(--bg-subtle)] w-2/3" /><div className="h-10 rounded-xl animate-pulse bg-[var(--bg-subtle)] w-1/2 ml-auto" /></div>
           ) : messages.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center p-6 text-center space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-[var(--purple-soft)] flex items-center justify-center border border-[var(--purple-soft)]">
-                <Brain className="w-6 h-6 text-[var(--purple)]" />
+            <div className="space-y-4">
+              {showWelcomeCard && (
+                <WelcomeCard
+                  caseId={caseId!}
+                  caseInfo={activeCaseInfo}
+                />
+              )}
+              <div className="flex flex-col items-center justify-center p-6 text-center space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-[var(--purple-soft)] flex items-center justify-center border border-[var(--purple-soft)]">
+                  <Brain className="w-6 h-6 text-[var(--purple)]" />
+                </div>
+                <p className="text-xs text-muted font-medium">向 Annie 提问关于此案件的任何细节或补充说明...</p>
               </div>
-              <p className="text-xs text-muted font-medium">向 Vera 提问关于此案件的任何细节或补充说明...</p>
             </div>
           ) : (
             <>
+              {showWelcomeCard && (
+                <WelcomeCard
+                  caseId={caseId!}
+                  caseInfo={activeCaseInfo}
+                />
+              )}
               {/* AI Natural Overdue Reminder Bubble (#11 / WO-21) */}
               {caseId && overdueCount > 0 && (
                 <motion.div
@@ -1550,6 +1573,14 @@ export function BrainChat({ caseId, onToggleRightDeck, isRightDeckCollapsed }: B
                           key={idx}
                           payload={card.payload as unknown as any}
                           caseId={caseId}
+                        />
+                      );
+                    }
+                    if ((card.type as string) === 'fact_find_confirm' || (card.type as string) === 'fact_find' || (card.type as string) === 'flow_fact_find') {
+                      return (
+                        <FactFindConfirmCard
+                          key={idx}
+                          payload={card.payload as any}
                         />
                       );
                     }

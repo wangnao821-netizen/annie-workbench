@@ -457,7 +457,7 @@ export interface DraftRefineRequest { instruction: string }
 
 // AI 对话（chat）
 export interface ToolCard {
-  type: 'record_confirm' | 'confirm_required' | 'draft' | 'submission_suggest' | 'attribution_suggest' | 'flow' | 'declaration_check' | 'declaration' | 'flow_followup' | 'flow_chaser' | 'flow_os_reply' | 'flow_folder_lookup' | 'folder_lookup' | 'flow_gap_analysis' | 'gap_analysis' | 'co_create_session' | 'co_create_record' | 'co_create_confirm';
+  type: 'record_confirm' | 'confirm_required' | 'draft' | 'submission_suggest' | 'attribution_suggest' | 'flow' | 'declaration_check' | 'declaration' | 'flow_followup' | 'flow_chaser' | 'flow_os_reply' | 'flow_folder_lookup' | 'folder_lookup' | 'flow_gap_analysis' | 'gap_analysis' | 'co_create_session' | 'co_create_record' | 'co_create_confirm' | 'fact_find_confirm' | 'fact_find';
   title: string;
   payload: Record<string, unknown>;
 }
@@ -1169,6 +1169,12 @@ export interface NamingSuggestResponse {
 }
 
 // WO-46b Co-Create Agent Interfaces
+export interface FromConditionItem {
+  name_zh: string;
+  deadline?: string | null;
+  source_ref?: string | null;
+}
+
 export interface CoCreateChatRequest {
   case_id: string;
   flow_key: 'followup' | 'chaser' | 'os_reply';
@@ -1178,6 +1184,7 @@ export interface CoCreateChatRequest {
   parent_message_id?: string | null;
   branch_label?: string | null;
   create_todo?: boolean;
+  add_checklist_items?: FromConditionItem[] | null;
 }
 
 export interface CoCreateDraft {
@@ -1508,3 +1515,72 @@ export interface MailPreviewResponse {
 
 
 
+
+// WO-75 / WO-76 Preliminary Email Draft Response
+export interface EmailDraftResponse {
+  ok: boolean;
+  case_id: string;
+  subject: string;
+  body_text: string;
+  body_html: string;
+  recipient_email: string;
+  cc_email: string;
+  draft_id: string;
+}
+
+// WO-77 Fact Find 结构化客户信息采集
+export interface EmploymentHistoryItem {
+  company: string;
+  position: string;
+  address?: string;
+  phone?: string;
+  start_date?: string;
+  end_date?: string;
+}
+
+export interface LivingHistoryItem {
+  address: string;
+  start_date?: string;
+  end_date?: string;
+}
+
+export interface SolicitorInfo {
+  company: string;
+  contact_name: string;
+  email: string;
+  phone: string;
+}
+
+export interface VehicleAsset {
+  make: string;
+  model: string;
+  value: number;
+}
+
+export interface SuperBalance {
+  provider: string;
+  balance: number;
+}
+
+export interface FactFindSectionResponse {
+  id: string;
+  case_id: string;
+  section: string;
+  data: any;
+  status: 'pending' | 'confirmed';
+  updated_at: string | null;
+}
+
+export interface FactFindAllResponse {
+  ok: boolean;
+  case_id: string;
+  sections: Record<string, FactFindSectionResponse>;
+}
+
+export interface FactFindConfirmResponse {
+  ok: boolean;
+  section: string;
+  status: 'confirmed';
+  event_id: number | null;
+  checklist_updated: boolean;
+}

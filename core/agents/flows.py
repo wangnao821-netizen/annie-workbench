@@ -26,6 +26,7 @@ _TOOL_WHITELIST = frozenset({
     "checklist_query",
     "checklist_preview",
     "file_ops_open",
+    "record_fact_find",
 })
 
 

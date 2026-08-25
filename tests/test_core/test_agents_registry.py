@@ -28,9 +28,9 @@ def db_session(tmp_path):
 
 
 def test_load_seed_valid():
-    """1. load_seed 加载 14 项，key 唯一，category/status 枚举合法。"""
+    """1. load_seed 加载 15 项，key 唯一，category/status 枚举合法。"""
     seeds = load_seed()
-    assert len(seeds) == 14
+    assert len(seeds) == 15
     keys = [s["key"] for s in seeds]
     assert len(keys) == len(set(keys))
     for s in seeds:
@@ -46,18 +46,18 @@ def test_ensure_seeded_idempotent(db_session):
     """2. ensure_seeded 幂等（跑两次不重复插入）。"""
     ensure_seeded(db_session)
     count1 = db_session.query(AgentState).count()
-    assert count1 == 14
+    assert count1 == 15
 
     ensure_seeded(db_session)
     count2 = db_session.query(AgentState).count()
-    assert count2 == 14
+    assert count2 == 15
 
 
 def test_effective_agents_initial(db_session):
     """3. effective_agents 初始 enabled == enabled_default。"""
     ensure_seeded(db_session)
     items = effective_agents(db_session)
-    assert len(items) == 14
+    assert len(items) == 15
     email_tool = next(i for i in items if i["key"] == "tool-email")
     assert email_tool["enabled"] is False  # default false
     intake_agent = next(i for i in items if i["key"] == "agent-intake")

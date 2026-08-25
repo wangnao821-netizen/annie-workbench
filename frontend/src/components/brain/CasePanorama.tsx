@@ -16,6 +16,7 @@ import {
 import { useUiStore } from '../../stores/uiStore';
 import { useCaseStore } from '../../stores/caseStore';
 import { PolicyHintCard } from './PolicyHintCard';
+import { FactFindSection } from './FactFindSection';
 import { RecommendedPrecedentsRadar } from '../cases/RecommendedPrecedentsRadar';
 import { formatFactValue } from './FactCard';
 
@@ -443,6 +444,9 @@ export function CasePanorama({ caseId, collapsed, onToggle, hideOuterHeader }: C
                   {/* 💡 3. 历史相似破局先例 (Compact Mode, 一键带入对话) */}
                   <RecommendedPrecedentsRadar caseId={caseId} compact={true} />
                 </div>
+
+                {/* WO-77 Fact Find 结构化客户信息采集 */}
+                {caseId && <FactFindSection caseId={caseId} />}
 
                 {/* 5. 底部极简跳转看板按钮 */}
                 <div className="pt-2">

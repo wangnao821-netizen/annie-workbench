@@ -91,6 +91,7 @@ from server.api.co_create import router as co_create_router
 from server.api.commission import router as commission_router
 from server.api.drafts import router as drafts_router
 from server.api.events import router as events_router
+from server.api.fact_find import router as fact_find_router
 from server.api.file_ops import router as file_ops_router
 from server.api.files import router as files_router
 from server.api.folders import router as folders_router
@@ -111,6 +112,7 @@ app.include_router(cards_router)
 app.include_router(folders_router)
 app.include_router(skills_router)
 app.include_router(cases_router)
+app.include_router(fact_find_router)
 app.include_router(banks_router)
 app.include_router(analytics_router)
 app.include_router(checklist_library_router)

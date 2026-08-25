@@ -291,6 +291,57 @@ def run_co_create(case_id: str | None, args: dict, db: Session, track: str = "in
             data = json.loads(target.content)
         except (ValueError, TypeError):
             data = {"subject": "邮件草稿", "body": target.content[:500]}
+
+        add_items = args.get("add_checklist_items") or []
+        if add_items:
+            from datetime import datetime
+
+            from core.models.orm import CaseChecklist
+
+            existing_items = (
+                db.query(CaseChecklist).filter(CaseChecklist.case_id == case_id).all()
+            )
+            existing_lookup = {
+                (it.item_name, (it.source_ref or "").strip()): it
+                for it in existing_items
+            }
+            added_any = False
+            for it in add_items:
+                if isinstance(it, dict):
+                    name = str(it.get("name_zh") or it.get("item_name") or "").strip()
+                    dl = it.get("deadline")
+                    s_ref = it.get("source_ref") or f"flow:{flow_key}"
+                else:
+                    name = str(getattr(it, "name_zh", "") or "").strip()
+                    dl = getattr(it, "deadline", None)
+                    s_ref = getattr(it, "source_ref", None) or f"flow:{flow_key}"
+                if not name:
+                    continue
+                if isinstance(dl, str):
+                    try:
+                        dl = datetime.fromisoformat(dl)
+                    except Exception:  # noqa: BLE001
+                        dl = None
+                key = (name, (s_ref or "").strip())
+                if key in existing_lookup:
+                    continue
+                row = CaseChecklist(
+                    case_id=case_id,
+                    item_name=name,
+                    category="condition",
+                    is_required=True,
+                    status="pending",
+                    phase="condition",
+                    deadline=dl,
+                    source_ref=s_ref,
+                    item_kind="document",
+                )
+                db.add(row)
+                existing_lookup[key] = row
+                added_any = True
+            if added_any:
+                db.commit()
+
         from core.context.accumulator import append_context_event
 
         event = append_context_event(

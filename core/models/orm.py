@@ -778,3 +778,15 @@ class ChecklistLibraryCustom(Base):  # type: ignore[misc]
     source_case_id = Column(String, nullable=True)
     use_count = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+class CaseFactFind(Base):  # type: ignore[misc]
+    """结构化客户信息采集（Fact Find 双轨，WO-77）。"""
+
+    __tablename__ = "case_fact_find"
+
+    id = Column(String, primary_key=True)  # Format: ff_{uuid8}
+    case_id = Column(String, nullable=False, index=True)
+    section = Column(String, nullable=False)  # employment_history / living_history / solicitor_info / vehicle_asset / super_balance
+    data = Column(JSON, nullable=False, default=dict)
+    status = Column(String, nullable=False, default="pending")  # pending / confirmed
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

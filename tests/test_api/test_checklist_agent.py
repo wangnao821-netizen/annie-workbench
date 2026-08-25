@@ -228,7 +228,7 @@ class TestMigration:
         assert {"phase", "deadline", "source_ref", "item_kind"} <= checklist_cols  # WO-74 列已建
         engine.dispose()
 
-        command.downgrade(cfg, "-1")
+        command.downgrade(cfg, "g7h8i9j0k1l2")
         engine = sqlalchemy.create_engine(f"sqlite:///{db_path}")
         event_cols = {c["name"] for c in sqlalchemy.inspect(engine).get_columns("case_context_events")}
         assert "occurred_at" in event_cols  # WO-71 仍在（现为 head-1）

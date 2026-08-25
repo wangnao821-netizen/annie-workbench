@@ -11,6 +11,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { CaseInfo, useCaseStore } from '../../stores/caseStore';
+import { useUiStore } from '../../stores/uiStore';
 import { mapCaseResponse } from '../../services/caseMapper';
 import { createCase, scaffoldCaseFolder } from '../../services/api/cases';
 import { pickNativeDirectory } from '../../services/folderPicker';
@@ -156,6 +157,7 @@ export function NewCaseSheet({ open, onClose, onCreated }: NewCaseSheetProps) {
       showToast('success', `案件【${mappedCase.clientName}】已成功创建！`);
 
       // 4. 同步至 Store 与界面
+      useUiStore.getState().setWelcomeCaseId(mappedCase.caseId);
       setCurrentCase(mappedCase);
       await fetchCases();
       onCreated(mappedCase);

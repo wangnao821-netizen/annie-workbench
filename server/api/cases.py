@@ -33,6 +33,7 @@ from core.case_engine.milestones import (
     get_stage_key,
     update_case_stage_and_milestones,
 )
+from core.case_engine.onboarding_tasks import create_initial_tasks
 from core.case_engine.progression import evaluate_stage_signal
 from core.case_engine.snapshot import build_case_snapshot
 from core.case_folder.legacy_import import build_legacy_import_preview
@@ -104,6 +105,8 @@ from server.api.schemas import (
     FileMatchRequest,
     FolderTopologyScanRequest,
     FolderTopologyScanResponse,
+    FromConditionRequest,
+    FromConditionResponse,
     LegacyImportPreviewRequest,
     LegacyImportPreviewResponse,
     MailPreviewResponse,
@@ -635,6 +638,12 @@ def create_case(req: CaseCreateRequest, db: Session = Depends(get_db)):  # noqa:
         generate_initial_checklist(case.id, db, replace=True)
     except Exception as exc:  # noqa: BLE001 — 首次清单生成失败不阻断建档
         logger.warning("generate initial checklist failed for %s: %s", case.id, exc)
+
+    # WO-76：首批待办任务（发送清单、Equifax、律师信息，失败不阻断建档）
+    try:
+        create_initial_tasks(case.id, db)
+    except Exception as exc:  # noqa: BLE001 — 待办创建失败不阻断建案
+        logger.warning("create initial tasks failed for %s: %s", case.id, exc)
     return _to_case_detail(case)
 
 
@@ -1237,6 +1246,16 @@ def batch_topology_import(
         # 核心修复 2：沉淀初始 Brain Facts（交易/房产/身份/职业）
         _seed_initial_brain_facts_for_import(case, item, db)
 
+        # WO-76：首批待办任务（失败不阻断导入）
+        try:
+            create_initial_tasks(case.id, db)
+        except Exception as exc:  # noqa: BLE001 — 待办创建失败不阻断建档
+            logger.warning(
+                "create initial tasks on import failed for %s: %s",
+                case.id,
+                exc,
+            )
+
         created.append({
             "case_id": case.id,
             "client_name": item.client_name,
@@ -1365,6 +1384,67 @@ def regenerate_case_checklist(
     _refresh_gathering_progress(case_id, db)
     db.commit()
     return [_to_checklist_item(r, db) for r in rows]
+
+
+@router.post(
+    "/{case_id}/checklist/from-condition",
+    response_model=FromConditionResponse,
+    status_code=201,
+)
+def add_checklist_from_condition(
+    case_id: str,
+    req: FromConditionRequest,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> FromConditionResponse:
+    """从 OS/银行追加条件批量沉淀清单项（WO-75b）：phase=condition，幂等去重且不覆盖已收项。"""
+    _get_case_or_404(case_id, db)
+    existing_items = (
+        db.query(CaseChecklist).filter(CaseChecklist.case_id == case_id).all()
+    )
+    existing_lookup = {
+        (it.item_name, (it.source_ref or "").strip()): it
+        for it in existing_items
+    }
+
+    added_rows: list[CaseChecklist] = []
+    skipped_count = 0
+
+    for item in req.items:
+        name = item.name_zh.strip()
+        source = (item.source_ref or "").strip()
+        key = (name, source)
+        if key in existing_lookup:
+            skipped_count += 1
+            continue
+
+        row = CaseChecklist(
+            case_id=case_id,
+            item_name=name,
+            category="condition",
+            is_required=True,
+            status="pending",
+            phase="condition",
+            deadline=item.deadline,
+            source_ref=item.source_ref,
+            item_kind="document",
+        )
+        db.add(row)
+        added_rows.append(row)
+        existing_lookup[key] = row
+
+    if added_rows:
+        _refresh_gathering_progress(case_id, db)
+        db.commit()
+        for r in added_rows:
+            db.refresh(r)
+        mark_case_summary_dirty(case_id, db)
+
+    return FromConditionResponse(
+        ok=True,
+        added_count=len(added_rows),
+        skipped_count=skipped_count,
+        items=[_to_checklist_item(r, db) for r in added_rows],
+    )
 
 
 @router.get("/{case_id}/timeline", response_model=CaseTimelineResponse)

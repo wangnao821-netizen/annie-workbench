@@ -5,7 +5,43 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+
+class FromConditionItem(BaseModel):
+    """OS/银行追加条件清单项（WO-75b）。"""
+    name_zh: str
+    deadline: datetime | None = None
+    source_ref: str | None = None
+
+    @field_validator("name_zh")
+    @classmethod
+    def validate_name_zh(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("name_zh cannot be empty")
+        return v.strip()
+
+
+class CoCreateDraft(BaseModel):
+    """共创弹窗深谈版本（WO-46b）。"""
+    subject: str
+    body: str
+    version: str
+    branch_label: str
+    message_id: int
+
+
+class CoCreateRequest(BaseModel):
+    """共创弹窗深谈请求（WO-46b）：clarify/generate/version/branch/confirm。"""
+    case_id: str
+    flow_key: Literal["followup", "chaser", "os_reply"]  # 非法 → 422
+    action: Literal["clarify", "generate", "version", "branch", "confirm"]
+    message: str = ""                       # 用户本轮输入（clarify/generate/version 用；confirm 可空）
+    session_id: str = ""                    # 恢复会话（默认 draft:{case_id}）
+    parent_message_id: int | None = None    # version/branch/confirm 指定父版本
+    branch_label: str = "main"
+    create_todo: bool = False               # confirm 时可选建待办（红线：必须显式传入）
+    add_checklist_items: list[FromConditionItem] | None = None  # confirm 时可选沉淀追加清单项（WO-75b）
 
 
 class TaskResponse(BaseModel):
@@ -260,27 +296,6 @@ class CardActionRequest(BaseModel):
     extra: dict = Field(default_factory=dict)
 
 
-class CoCreateDraft(BaseModel):
-    """共创弹窗深谈版本（WO-46b）。"""
-    subject: str
-    body: str
-    version: str
-    branch_label: str
-    message_id: int
-
-
-class CoCreateRequest(BaseModel):
-    """共创弹窗深谈请求（WO-46b）：clarify/generate/version/branch/confirm。"""
-    case_id: str
-    flow_key: Literal["followup", "chaser", "os_reply"]  # 非法 → 422
-    action: Literal["clarify", "generate", "version", "branch", "confirm"]
-    message: str = ""                       # 用户本轮输入（clarify/generate/version 用；confirm 可空）
-    session_id: str = ""                    # 恢复会话（默认 draft:{case_id}）
-    parent_message_id: int | None = None    # version/branch/confirm 指定父版本
-    branch_label: str = "main"
-    create_todo: bool = False               # confirm 时可选建待办（红线：必须显式传入）
-
-
 class CoCreateResponse(BaseModel):
     """共创弹窗深谈响应（WO-46b）。"""
     reply: str
@@ -368,6 +383,19 @@ class ChecklistItemResponse(BaseModel):
 
 class ChecklistConfirmRequest(BaseModel):
     received_file_id: str | None = None
+
+
+class FromConditionRequest(BaseModel):
+    """从条件批量沉淀追加清单项请求（WO-75b）。"""
+    items: list[FromConditionItem] = Field(default_factory=list)
+
+
+class FromConditionResponse(BaseModel):
+    """从条件批量沉淀追加清单项响应（WO-75b）。"""
+    ok: bool = True
+    added_count: int = 0
+    skipped_count: int = 0
+    items: list[ChecklistItemResponse] = Field(default_factory=list)
 
 
 class ChecklistAddRequest(BaseModel):
@@ -1662,3 +1690,40 @@ class EmailDraftResponse(BaseModel):
     cc_email: str
     draft_id: str
 
+
+
+# ── WO-77 Fact Find 双轨 ──
+VALID_FACT_FIND_SECTIONS = frozenset({
+    "employment_history",
+    "living_history",
+    "solicitor_info",
+    "vehicle_asset",
+    "super_balance",
+})
+
+
+class FactFindSectionResponse(BaseModel):
+    id: str
+    case_id: str
+    section: str
+    data: Any = Field(default_factory=dict)
+    status: str = "pending"
+    updated_at: datetime | None = None
+
+
+class FactFindAllResponse(BaseModel):
+    ok: bool = True
+    case_id: str
+    sections: dict[str, FactFindSectionResponse] = Field(default_factory=dict)
+
+
+class FactFindUpdateRequest(BaseModel):
+    data: Any
+
+
+class FactFindConfirmResponse(BaseModel):
+    ok: bool = True
+    section: str
+    status: str = "confirmed"
+    event_id: int | None = None
+    checklist_updated: bool = False

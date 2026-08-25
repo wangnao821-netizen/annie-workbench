@@ -210,6 +210,12 @@ def run_flow(
                     )
                     res = {"status": "success", "task_id": action.id, "title": action.title, "summary": f"已创建任务：{action.title}"}
 
+            elif tool_name == "record_fact_find":
+                from core.chat.tools import _record_fact_find
+                merged_ff = {k: v for k, v in params.items() if v is not None}
+                merged_ff.update({k: v for k, v in args.items() if k not in merged_ff})
+                res = _record_fact_find(merged_ff, case_id=case_id, db=db)
+
             elif tool_name == "checklist_query":
                 from core.models.orm import CaseChecklist
                 if not case_id:
@@ -270,7 +276,7 @@ def run_flow(
             executed_any = True
 
             # 每步成功写一条 internal 事件（若 case_id 存在；草稿未确认不蒸馏，WO-27）
-            if case_id and tool_name != "draft_email":
+            if case_id and tool_name != "draft_email" and tool_name != "record_fact_find":
                 if isinstance(res, dict) and "summary" in res:
                     summary_text = str(res["summary"])
                 else:

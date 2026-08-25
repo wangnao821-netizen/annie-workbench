@@ -25,7 +25,7 @@ logger = get_logger(__name__)
 _AGENTS: dict[str, Any] = {}
 _gemini_failures = 0
 _gemini_skipped_until = 0.0
-_TOOL_NAMES = frozenset({"declaration_check", "calculator_assess", "policy_check", "context_event_write", "draft_email", "folder_lookup", "gap_analysis", "task_create", "checklist_query", "checklist_preview", "file_ops_open"})
+_TOOL_NAMES = frozenset({"declaration_check", "calculator_assess", "policy_check", "context_event_write", "draft_email", "folder_lookup", "gap_analysis", "task_create", "checklist_query", "checklist_preview", "file_ops_open", "record_fact_find"})
 _DEFAULT_TIMEOUT_S = 30
 _SYSTEM_PROMPT = "你是澳洲贷款经纪团队的 AI 助手。按流程包意图调用白名单工具，回答具体到这个客户，不要给通用建议。"
 
@@ -63,8 +63,8 @@ def _calculator_assess(ctx, bank: str = "", request: str = "") -> dict:
         loan_amount = float(case_obj.loan_amount or 1840000.0) if case_obj else 1840000.0
         
         # 组装基础申请人数据进行真实银行公式评估
-        from core.calculator.models import ApplicantIn, AssessRequest, LoanPortionIn
         from core.calculator.assess import run_assessment
+        from core.calculator.models import ApplicantIn, AssessRequest, LoanPortionIn
 
         applicant = ApplicantIn(
             id="app_1",
@@ -97,7 +97,7 @@ def _calculator_assess(ctx, bank: str = "", request: str = "") -> dict:
             "pass": result.passed,
             "summary": f"银行 [{lender}] 计算器测算完成：最大可贷 ${result.max_loan:,.2f}，月盈余 ${result.monthly_surplus:,.2f}，通过状态: {'通过' if result.passed else '不通过（额度不足）'}",
         }
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         logger.warning("calculator_assess failed: %s", exc)
         return {"status": "error", "message": f"计算引擎执行异常: {exc}"}
 
@@ -329,7 +329,7 @@ def run_flow_with_pai(flow: dict, case_id: str | None, args: dict, db: Session, 
         return {"reply": reply or f"{name}执行完成。",
                 "tool_cards": [{"type": f"flow_{flow.get('key', 'unknown')}", "title": name, "presentation": flow.get("presentation", "result_card"), "payload": payload}],
                 "recorded_facts": [], "presentation": flow.get("presentation", "result_card")}
-    except Exception as exc:  # noqa: BLE001 — PAI 失败回退，绝不阻断对话
+    except Exception as exc:  # noqa: BLE001  # noqa: BLE001 — PAI 失败回退，绝不阻断对话
         if provider == "gemini":
             _gemini_failures += 1
             if routing is not None and _gemini_failures >= routing.gemini_skip_after_failures:

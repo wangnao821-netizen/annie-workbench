@@ -1,5 +1,9 @@
 import { request, getApiBaseUrl } from '../http';
 import {
+  FactFindAllResponse,
+  FactFindSectionResponse,
+  FactFindConfirmResponse,
+  EmailDraftResponse,
   CaseResponse,
   ChecklistItemResponse,
   AddChecklistItemRequest,
@@ -2594,3 +2598,82 @@ export async function getCaseMailPreview(caseId: string, filename: string): Prom
 
 
 
+
+/**
+ * 生成 Preliminary Assessment 邮件草稿 (POST /api/cases/{id}/email-draft/preliminary) (WO-75 / WO-76)
+ */
+export async function createPreliminaryEmailDraft(caseId: string): Promise<EmailDraftResponse> {
+  if (import.meta.env.VITE_USE_MOCK === 'true') {
+    return {
+      ok: true,
+      case_id: caseId,
+      subject: '材料清单与初审准备 — Annie 信贷助手',
+      body_text: '尊敬的客户，您的案件已建立，请提供以下初始清单材料...',
+      body_html: '<p>尊敬的客户，您的案件已建立，请提供以下初始清单材料...</p>',
+      recipient_email: 'client@example.com',
+      cc_email: '',
+      draft_id: 'draft_mock_1',
+    };
+  }
+  return request<EmailDraftResponse>(`/api/cases/${encodeURIComponent(caseId)}/email-draft/preliminary`, {
+    method: 'POST',
+  });
+}
+
+/**
+ * 获取案件 Fact Find 全部 5 个 section (GET /api/cases/{id}/fact-find) (WO-77)
+ */
+export async function getFactFind(caseId: string): Promise<FactFindAllResponse> {
+  if (import.meta.env.VITE_USE_MOCK === 'true') {
+    return {
+      ok: true,
+      case_id: caseId,
+      sections: {
+        employment_history: { id: 'ff_1', case_id: caseId, section: 'employment_history', data: [], status: 'pending', updated_at: null },
+        living_history: { id: 'ff_2', case_id: caseId, section: 'living_history', data: [], status: 'pending', updated_at: null },
+        solicitor_info: { id: 'ff_3', case_id: caseId, section: 'solicitor_info', data: { company: '', contact_name: '', email: '', phone: '' }, status: 'pending', updated_at: null },
+        vehicle_asset: { id: 'ff_4', case_id: caseId, section: 'vehicle_asset', data: { make: '', model: '', value: 0 }, status: 'pending', updated_at: null },
+        super_balance: { id: 'ff_5', case_id: caseId, section: 'super_balance', data: { provider: '', balance: 0 }, status: 'pending', updated_at: null },
+      },
+    };
+  }
+  return request<FactFindAllResponse>(`/api/cases/${encodeURIComponent(caseId)}/fact-find`);
+}
+
+/**
+ * 更新案件指定 section 的 Fact Find 数据 (PUT /api/cases/{id}/fact-find/{section}) (WO-77)
+ */
+export async function updateFactFindSection(caseId: string, section: string, data: any): Promise<FactFindSectionResponse> {
+  if (import.meta.env.VITE_USE_MOCK === 'true') {
+    return {
+      id: `ff_mock_${section}`,
+      case_id: caseId,
+      section,
+      data,
+      status: 'pending',
+      updated_at: new Date().toISOString(),
+    };
+  }
+  return request<FactFindSectionResponse>(`/api/cases/${encodeURIComponent(caseId)}/fact-find/${encodeURIComponent(section)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ data }),
+  });
+}
+
+/**
+ * 确认指定 section 的 Fact Find 数据 (POST /api/cases/{id}/fact-find/{section}/confirm) (WO-77)
+ */
+export async function confirmFactFindSection(caseId: string, section: string): Promise<FactFindConfirmResponse> {
+  if (import.meta.env.VITE_USE_MOCK === 'true') {
+    return {
+      ok: true,
+      section,
+      status: 'confirmed',
+      event_id: 101,
+      checklist_updated: true,
+    };
+  }
+  return request<FactFindConfirmResponse>(`/api/cases/${encodeURIComponent(caseId)}/fact-find/${encodeURIComponent(section)}/confirm`, {
+    method: 'POST',
+  });
+}

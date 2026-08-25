@@ -13,7 +13,7 @@ import {
 import { useToastStore } from '../../stores/toastStore';
 import { sendCoCreateChat } from '../../services/api/coCreate';
 import { createManualDraft } from '../../services/api/drafts';
-import { CoCreateDraft } from '../../types/api';
+import { CoCreateDraft, FromConditionItem } from '../../types/api';
 
 export interface CoCreateDialogProps {
   open: boolean;
@@ -81,6 +81,7 @@ export function CoCreateDialog({
   const [showCnTranslation, setShowCnTranslation] = useState(false);
   const [activeBranch, setActiveBranch] = useState<'A' | 'B'>('A');
   const [createTodo, setCreateTodo] = useState(false);
+  const [sinkConditionChecklist, setSinkConditionChecklist] = useState(false);
 
   // Co-creation Chat Messages Stream
   const [messages, setMessages] = useState<CoChatMessage[]>([]);
@@ -106,6 +107,7 @@ export function CoCreateDialog({
   useEffect(() => {
     if (open) {
       setCreateTodo(false);
+      setSinkConditionChecklist(false);
       setShowCnTranslation(false);
 
       if (import.meta.env.VITE_USE_MOCK !== 'false') {
@@ -415,8 +417,36 @@ export function CoCreateDialog({
     }
   };
 
+  // Extract candidate condition items from draft version (WO-75b)
+  const getCandidateConditionItems = (): FromConditionItem[] => {
+    if (!currentVersion) return [];
+    const lines = (currentVersion.bodyCn || currentVersion.body || '').split('\n');
+    const candidates: string[] = [];
+    for (const line of lines) {
+      const trimmed = line.trim();
+      const m = trimmed.match(/^(?:[0-9]+[.\u3001]|[-•*])\s*(.+)$/);
+      if (m && m[1].trim()) {
+        candidates.push(m[1].trim().replace(/[;；,，。]$/, ''));
+      }
+    }
+    if (candidates.length === 0) {
+      candidates.push(currentVersion.subject || FLOW_TITLES[flowKey] || '补充材料');
+    }
+    const sRef =
+      flowKey === 'os_reply'
+        ? 'OS 审贷条件'
+        : flowKey === 'followup'
+        ? '补件跟进共创'
+        : '催件跟进共创';
+    return candidates.map((name) => ({
+      name_zh: name,
+      source_ref: sRef,
+    }));
+  };
+
   // Confirm Version
   const handleConfirmVersion = () => {
+    const conditionItems = sinkConditionChecklist ? getCandidateConditionItems() : null;
     onConfirmed?.({
       flow_key: flowKey,
       subject: currentVersion?.subject,
@@ -425,8 +455,10 @@ export function CoCreateDialog({
       session_id: sessionId,
     });
     if (import.meta.env.VITE_USE_MOCK !== 'false') {
-      showToast('success', `已确认 ${currentVersion?.version || 'V1'}，写入案件历史记录并存入草稿箱`);
+      const suffix = sinkConditionChecklist ? ' + 沉淀追加清单项' : '';
+      showToast('success', `已确认 ${currentVersion?.version || 'V1'}，写入案件历史记录${suffix}并存入草稿箱`);
       window.dispatchEvent(new CustomEvent('drafts_updated'));
+      window.dispatchEvent(new CustomEvent('checklist_updated'));
       onClose();
     } else {
       setLoading(true);
@@ -437,10 +469,12 @@ export function CoCreateDialog({
         session_id: sessionId,
         parent_message_id: currentVersion?.message_id || null,
         create_todo: createTodo,
+        add_checklist_items: conditionItems,
       })
         .then(() => {
           showToast('success', `已确认 ${currentVersion?.version || '此版本'}，写入案件历史 + 草稿箱`);
           window.dispatchEvent(new CustomEvent('drafts_updated'));
+          window.dispatchEvent(new CustomEvent('checklist_updated'));
           onClose();
         })
         .catch((err: any) => {
@@ -712,6 +746,32 @@ export function CoCreateDialog({
                     </ul>
                   </div>
                 )}
+
+                {/* Condition checklist sink preview panel if checked (WO-75b) */}
+                {sinkConditionChecklist && (
+                  <motion.div
+                    initial={reduced ? { opacity: 0 } : { opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={reduced ? { opacity: 0 } : { opacity: 0, height: 0 }}
+                    className="p-3 rounded-xl border bg-[var(--purple-soft)] border-[var(--purple-soft)] text-xs space-y-1.5"
+                    id="co-create-condition-sink-preview"
+                  >
+                    <div className="font-bold text-[var(--purple)] flex items-center space-x-1.5">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>将沉淀为追加清单项（phase=condition）：</span>
+                    </div>
+                    <ul className="list-disc list-inside text-[11px] space-y-0.5" style={{ color: 'var(--text-primary)' }}>
+                      {getCandidateConditionItems().map((it, idx) => (
+                        <li key={idx}>
+                          <span className="font-medium">{it.name_zh}</span>
+                          {it.source_ref && (
+                            <span className="text-muted ml-1.5 text-[10px]">({it.source_ref})</span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </motion.div>
+                )}
               </div>
 
               {/* Bottom Action Bar */}
@@ -741,6 +801,17 @@ export function CoCreateDialog({
                 </div>
 
                 <div className="flex items-center space-x-2 flex-shrink-0">
+                  <label className="flex items-center space-x-1.5 text-xs text-muted cursor-pointer select-none flex-shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={sinkConditionChecklist}
+                      onChange={(e) => setSinkConditionChecklist(e.target.checked)}
+                      className="rounded border-[var(--border)] text-[var(--accent)] focus:ring-[var(--ring)] cursor-pointer"
+                      id="co-create-sink-checklist-checkbox"
+                    />
+                    <span>沉淀为追加清单项</span>
+                  </label>
+
                   <label className="flex items-center space-x-1.5 text-xs text-muted cursor-pointer select-none flex-shrink-0">
                     <input
                       type="checkbox"

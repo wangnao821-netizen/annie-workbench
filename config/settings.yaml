@@ -136,3 +136,8 @@ case_folder:
   auto_gap:
     enabled: false
     interval_hours: 4
+
+# 新建案件欢迎流与自动待办（WO-76）
+onboarding:
+  tasks_enabled: true
+

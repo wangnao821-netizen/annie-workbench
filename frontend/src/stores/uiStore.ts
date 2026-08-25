@@ -29,6 +29,10 @@ interface UiState {
   closeTaskDetail: () => void;
   onboardingOpen: boolean;
   setOnboardingOpen: (open: boolean) => void;
+  welcomeCaseId: string | null;
+  setWelcomeCaseId: (caseId: string | null) => void;
+  dismissedWelcomeCases: string[];
+  dismissWelcomeCase: (caseId: string) => void;
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -60,4 +64,14 @@ export const useUiStore = create<UiState>((set) => ({
   closeTaskDetail: () => set({ taskDetailOpen: false, activeTaskDetailId: null }),
   onboardingOpen: false,
   setOnboardingOpen: (open) => set({ onboardingOpen: open }),
+  welcomeCaseId: null,
+  setWelcomeCaseId: (caseId) => set({ welcomeCaseId: caseId }),
+  dismissedWelcomeCases: [],
+  dismissWelcomeCase: (caseId) =>
+    set((state) => ({
+      dismissedWelcomeCases: state.dismissedWelcomeCases.includes(caseId)
+        ? state.dismissedWelcomeCases
+        : [...state.dismissedWelcomeCases, caseId],
+      welcomeCaseId: state.welcomeCaseId === caseId ? null : state.welcomeCaseId,
+    })),
 }));

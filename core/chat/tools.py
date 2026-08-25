@@ -18,6 +18,41 @@ TOOL_SCHEMAS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "record_fact_find",
+            "description": (
+                "提取或整理客户 Fact Find 信息（雇主历史/居住历史/律师信息/车辆资产/Super养老金），"
+                "生成结构化草稿供 Vera 确认。确认前不直接写入正式账本。"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "section": {
+                        "type": "string",
+                        "enum": [
+                            "employment_history",
+                            "living_history",
+                            "solicitor_info",
+                            "vehicle_asset",
+                            "super_balance",
+                        ],
+                        "description": "采集板块",
+                    },
+                    "data": {
+                        "type": "object",
+                        "description": "结构化内容，符合各 section 契约",
+                    },
+                    "confirm_required": {
+                        "type": "boolean",
+                        "description": "是否需要 Vera 确认（恒为 true）",
+                    },
+                },
+                "required": ["section", "data"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "record_fact",
             "description": (
                 "把用户确认的事实记录进案件账本。"
@@ -164,6 +199,8 @@ def execute_tool(
         return _policy_check(arguments, case_id, db)
     if name == "draft_email":
         return _draft_email(arguments, case_id, db, track=track)
+    if name == "record_fact_find":
+        return _record_fact_find(arguments, case_id, db)
     return {"ok": False, "error": f"unknown tool: {name}"}
 
 
@@ -567,3 +604,49 @@ def _checklist_query(arguments: dict, case_id: str, db: Session) -> dict:
     except Exception as exc:  # noqa: BLE001 — 工具失败不阻断对话
         logger.warning("checklist_query failed: %s", exc)
         return {"ok": False, "error": str(exc)}
+
+def _record_fact_find(arguments: dict, case_id: str | None, db: Session) -> dict:
+    """record_fact_find：对话中提取 Fact Find 结构化草稿（WO-77）。"""
+    if not case_id:
+        return {
+            "status": "error",
+            "tool": "record_fact_find",
+            "message": "Fact Find 信息必须关联具体案件，当前未选择案件。",
+        }
+
+    from server.api.schemas import VALID_FACT_FIND_SECTIONS
+    section = arguments.get("section")
+    data = arguments.get("data")
+    if section not in VALID_FACT_FIND_SECTIONS:
+        return {
+            "status": "error",
+            "tool": "record_fact_find",
+            "message": f"非法板块 '{section}'，有效值为 {sorted(VALID_FACT_FIND_SECTIONS)}",
+        }
+
+    # 脱敏还原/处理（若入参有占位符）
+    import json
+    if isinstance(data, (dict, list)):
+        try:
+            raw_str = json.dumps(data, ensure_ascii=False)
+            raw_str = rehydrate(raw_str, case_id, db)
+            data = json.loads(raw_str)
+        except Exception:  # noqa: BLE001, S110
+            pass
+
+    return {
+        "status": "ok",
+        "tool": "record_fact_find",
+        "action": "confirm_required",
+        "card": {
+            "type": "fact_find_confirm",
+            "title": "Fact Find 结构化信息确认",
+            "payload": {
+                "case_id": case_id,
+                "section": section,
+                "data": data,
+                "confirm_required": True,
+            },
+        },
+        "summary": f"已提取 Fact Find [{section}] 结构化草稿，请在卡片中核对确认。",
+    }

@@ -149,3 +149,14 @@ items:
     capability: "案件文件夹浏览/预览/改名/移动/放入（Vera 确认后执行）"
     permission: "仅当前案件文件夹；Vera 确认后执行；绝不自主操作"
     enabled_default: true
+
+  - key: agent-fact-find
+    name: "Fact Find Agent (Customer Fact Find)"
+    description: "结构化采集客户雇主历史、居住历史、律师信息、车辆资产与 Super 养老金"
+    category: agent
+    status: available
+    triggers: ["补充客户信息", "Fact Find", "记录雇主历史", "记录居住历史", "客户律师信息", "车辆资产", "养老金余额"]
+    flow_key: fact_find
+    capability: "结构化 Fact Find 信息提炼与草稿预览确认"
+    permission: "仅当前案件，确认后记入账本与联动清单"
+    enabled_default: true
