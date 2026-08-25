@@ -34,7 +34,7 @@
 
 ### Step 2 — GET /api/cases/{id}/checklist 补字段（修复断链）
 
-响应每项补齐：`phase`、`deadline`、`source_ref`、`item_kind`、`master_category`、`bank_specific`、`applicable_when`、`matched_file_id`、`matched_file_name`、`file_ids`（= `received_file_ids`）。
+响应每项补齐：`phase`、`deadline`、`source_ref`、`item_kind`、`master_category`、`section`（首次模板 8 大板块 id，派生自模板，WO-74 执行时补充）、`bank_specific`、`applicable_when`、`matched_file_id`、`matched_file_name`、`file_ids`（= `received_file_ids`）。
 
 > 现状问题：前端 `ChecklistDeck` 已读 `matched_file_*` 但后端从未返回，导致"已自动关联"行真机不显示。本步必须闭环。
 
@@ -136,3 +136,15 @@ def generate_initial_checklist(case_id: str, db: Session) -> list[CaseChecklist]
 ---
 
 *v1.1 · 2026-08-25 · WO-74 两段式清单工作台 + 手动匹配闭环（对齐规划文档 §五b）*
+
+## 六、执行记录（2026-08-25 交付）
+
+| 项 | 说明 |
+|---|---|
+| 迁移 | `a4b5c6d7e8f9_add_checklist_phase.py`（down_revision=g7h8i9j0k1l2），4 列带 server_default，downgrade 对称 |
+| 手动匹配 | 3 端点按契约落地（幂等/替换/解绑/404/进度联动），16 专项通过 |
+| 首次种子 | `core/checklist/initial_generator.py` 模板驱动；建案与拓扑导入自动生成；regenerate 只重建 initial |
+| 拓扑导入顺序 | 执行中修复：先种子后自动匹配，避免种子覆盖自动勾选（test_topology_import_repair 回归） |
+| 迁移测试 | `test_checklist_agent.py::TestMigration` head 标记更新为 WO-74 列（WO-41/43 同款最小修整） |
+| 门禁 | 全量 pytest 1271 passed / 1 skipped / 0 failed；ruff 0；tsc 0 error；vite build 通过 |
+| 附加发现 | FastAPI 0.141.1 下根路径无斜杠 404（既有环境问题，前端已用 `/api/cases/` 带斜杠调用，不受影响） |
