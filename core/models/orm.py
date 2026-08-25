@@ -131,6 +131,10 @@ class CaseChecklist(Base):  # type: ignore[misc]
     category = Column(String, nullable=False)
     is_required = Column(Boolean, default=True)
     status = Column(String, default="pending")  # pending / received / needs_selection / waived
+    phase = Column(String, default="initial")  # initial（首次材料）/ condition（银行/OS 追加）
+    deadline = Column(DateTime, nullable=True)  # 追加项截止（condition 常用）
+    source_ref = Column(String, nullable=True)  # 来源说明（flow:draft_email / CBA OS 条件 #12）
+    item_kind = Column(String, default="document")  # document（文档）/ info（结构化信息）
     received_file_id = Column(String, nullable=True)
     candidate_file_ids = Column(Text, nullable=True)  # JSON array: ["file_id1", "file_id2"]
     received_file_ids = Column(JSON, default=list)  # [file_id, ...] 多文件（V5）

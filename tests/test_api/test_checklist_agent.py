@@ -209,7 +209,7 @@ class TestAgentRegistry:
 
 
 class TestMigration:
-    """WO-43/WO-42/WO-71 迁移对称可逆（验收 14 + 最新 head 配套）。"""
+    """WO-43/WO-42/WO-71/WO-74 迁移对称可逆（验收 14 + 最新 head 配套）。"""
 
     def test_migration_reversible(self, tmp_path):
         db_path = tmp_path / "wo43_mig.db"
@@ -224,16 +224,22 @@ class TestMigration:
         assert {"locked_by_user", "disclosure"} <= fact_cols  # WO-42 列已建
         event_cols = {c["name"] for c in sqlalchemy.inspect(engine).get_columns("case_context_events")}
         assert "occurred_at" in event_cols  # WO-71 列已建
+        checklist_cols = {c["name"] for c in sqlalchemy.inspect(engine).get_columns("case_checklist")}
+        assert {"phase", "deadline", "source_ref", "item_kind"} <= checklist_cols  # WO-74 列已建
         engine.dispose()
 
         command.downgrade(cfg, "-1")
         engine = sqlalchemy.create_engine(f"sqlite:///{db_path}")
         event_cols = {c["name"] for c in sqlalchemy.inspect(engine).get_columns("case_context_events")}
-        assert "occurred_at" not in event_cols  # WO-71 downgrade 成功
+        assert "occurred_at" in event_cols  # WO-71 仍在（现为 head-1）
+        checklist_cols = {c["name"] for c in sqlalchemy.inspect(engine).get_columns("case_checklist")}
+        assert "phase" not in checklist_cols  # WO-74 downgrade 成功
         engine.dispose()
 
         command.upgrade(cfg, "head")
         engine = sqlalchemy.create_engine(f"sqlite:///{db_path}")
         event_cols = {c["name"] for c in sqlalchemy.inspect(engine).get_columns("case_context_events")}
         assert "occurred_at" in event_cols
+        checklist_cols = {c["name"] for c in sqlalchemy.inspect(engine).get_columns("case_checklist")}
+        assert "item_kind" in checklist_cols  # WO-74 upgrade 复原
         engine.dispose()

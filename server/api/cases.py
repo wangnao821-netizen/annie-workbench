@@ -41,6 +41,7 @@ from core.checklist.email_draft import (
     generate_preliminary_assessment_email,
     save_preliminary_draft,
 )
+from core.checklist.initial_generator import generate_initial_checklist
 from core.checklist.matcher import (
     CaseNotFoundError,
     check_completeness,
@@ -56,6 +57,7 @@ from core.models.orm import (
     Case,
     CaseChecklist,
     CaseContextEvent,
+    CaseFile,
     CaseKnowledge,
     CaseTimelineEvent,
     ImportRecord,
@@ -64,6 +66,7 @@ from core.models.orm import (
 from core.pipeline.msg_timeline import get_timeline_for_case, sync_timeline_for_case
 from core.policy.engine import check_policy
 from core.policy.prompts import polish_policy_text
+from server.api.files import _get_checklist_item_or_404, _to_checklist_item
 from server.api.schemas import (
     ArchivedCaseResponse,
     BatchTopologyImportItem,
@@ -88,6 +91,8 @@ from server.api.schemas import (
     CaseTimelineResponse,
     ChecklistItemResponse,
     ChecklistMatchFilesResponse,
+    ChecklistMatchRequest,
+    ChecklistUnmatchRequest,
     ContextEventRequest,
     ContextEventResponse,
     DeclarationCheckRequest,
@@ -96,6 +101,7 @@ from server.api.schemas import (
     EmailDraftResponse,
     FactAmendRequest,
     FactDisclosureRequest,
+    FileMatchRequest,
     FolderTopologyScanRequest,
     FolderTopologyScanResponse,
     LegacyImportPreviewRequest,
@@ -154,6 +160,42 @@ def _checklist_stats(case_id: str, db: Session) -> tuple[int, int]:
     items = db.query(CaseChecklist).filter(CaseChecklist.case_id == case_id).all()
     done = sum(1 for i in items if i.status in _COLLECTED)
     return done, len(items)
+
+
+def _refresh_gathering_progress(case_id: str, db: Session) -> int:
+    """按全部必选项重算案件收集进度并写回 Case.gathering_progress。"""
+    items = db.query(CaseChecklist).filter(CaseChecklist.case_id == case_id).all()
+    total = sum(1 for it in items if it.is_required)
+    received = sum(1 for it in items if it.is_required and it.status == "received")
+    progress = int((received / total) * 100) if total else 0
+    case = db.query(Case).filter(Case.id == case_id).first()
+    if case:
+        case.gathering_progress = progress
+    return progress
+
+
+def _get_case_file_or_404(file_id: str, case_id: str, db: Session) -> CaseFile:
+    f = (
+        db.query(CaseFile)
+        .filter(CaseFile.id == file_id, CaseFile.case_id == case_id)
+        .first()
+    )
+    if not f:
+        raise HTTPException(status_code=404, detail=f"文件 {file_id} 不存在")
+    return f
+
+
+def _apply_manual_match(item: CaseChecklist, file_id: str, replace: bool) -> None:
+    """绑定文件到清单项：replace=True 清空旧绑定；否则追加（幂等）。"""
+    if replace:
+        item.received_file_ids = [file_id]
+    else:
+        ids = list(item.received_file_ids or [])
+        if file_id not in ids:
+            ids.append(file_id)
+        item.received_file_ids = ids
+    item.received_file_id = file_id
+    item.status = "received"
 
 
 def _to_case_response(case: Case, db: Session) -> CaseResponse:
@@ -588,6 +630,11 @@ def create_case(req: CaseCreateRequest, db: Session = Depends(get_db)):  # noqa:
         )
     db.commit()
     db.refresh(case)
+    # ── WO-74：首次材料清单种子（模板驱动，失败不阻断建档） ──
+    try:
+        generate_initial_checklist(case.id, db, replace=True)
+    except Exception as exc:  # noqa: BLE001 — 首次清单生成失败不阻断建档
+        logger.warning("generate initial checklist failed for %s: %s", case.id, exc)
     return _to_case_detail(case)
 
 
@@ -1166,6 +1213,16 @@ def batch_topology_import(
             case.special_circumstances = f"暂停原因：{item.onhold_reason}"
         db.flush()
 
+        # WO-74：首次材料清单种子（模板驱动，失败不阻断建档）
+        try:
+            generate_initial_checklist(case.id, db, replace=True)
+        except Exception as exc:  # noqa: BLE001 — 首次清单生成失败不阻断建档
+            logger.warning(
+                "generate initial checklist on import failed for %s: %s",
+                case.id,
+                exc,
+            )
+
         # 核心修复 1：路径回填后立即触发清单文件快速匹配与自动勾选
         if item.folder_path and Path(item.folder_path).is_dir():
             try:
@@ -1225,32 +1282,89 @@ def match_case_checklist_files(
     )
 
 
+@router.post("/{case_id}/checklist/{item_id}/match", response_model=ChecklistItemResponse)
+def match_checklist_item_endpoint(
+    case_id: str,
+    item_id: int,
+    req: ChecklistMatchRequest,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> ChecklistItemResponse:
+    """手动绑定文件到清单项（多文件追加 / replace 替换，幂等）。"""
+    _get_case_or_404(case_id, db)
+    item = _get_checklist_item_or_404(item_id, case_id, db)
+    _get_case_file_or_404(req.file_id, case_id, db)
+    _apply_manual_match(item, req.file_id, req.replace)
+    db.commit()
+    db.refresh(item)
+    _refresh_gathering_progress(case_id, db)
+    db.commit()
+    mark_case_summary_dirty(case_id, db)
+    return _to_checklist_item(item, db)
+
+
+@router.post("/{case_id}/checklist/{item_id}/unmatch", response_model=ChecklistItemResponse)
+def unmatch_checklist_item_endpoint(
+    case_id: str,
+    item_id: int,
+    req: ChecklistUnmatchRequest | None = None,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> ChecklistItemResponse:
+    """解绑清单项文件；file_id 缺省 = 解绑全部；清空后回 pending。"""
+    _get_case_or_404(case_id, db)
+    item = _get_checklist_item_or_404(item_id, case_id, db)
+    ids = list(item.received_file_ids or [])
+    if req and req.file_id:
+        ids = [fid for fid in ids if fid != req.file_id]
+        if item.received_file_id == req.file_id:
+            item.received_file_id = None
+    else:
+        ids = []
+        item.received_file_id = None
+    item.received_file_ids = ids
+    if not ids:
+        item.status = "pending"
+    db.commit()
+    db.refresh(item)
+    _refresh_gathering_progress(case_id, db)
+    db.commit()
+    mark_case_summary_dirty(case_id, db)
+    return _to_checklist_item(item, db)
+
+
+@router.post("/{case_id}/files/{file_id}/match", response_model=ChecklistItemResponse)
+def match_file_to_item_endpoint(
+    case_id: str,
+    file_id: str,
+    req: FileMatchRequest,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> ChecklistItemResponse:
+    """文件侧绑定清单项（等价于清单侧 match）。"""
+    _get_case_or_404(case_id, db)
+    _get_case_file_or_404(file_id, case_id, db)
+    item = _get_checklist_item_or_404(req.item_id, case_id, db)
+    _apply_manual_match(item, file_id, req.replace)
+    db.commit()
+    db.refresh(item)
+    _refresh_gathering_progress(case_id, db)
+    db.commit()
+    mark_case_summary_dirty(case_id, db)
+    return _to_checklist_item(item, db)
+
+
 @router.post("/{case_id}/checklist/regenerate", response_model=list[ChecklistItemResponse])
 def regenerate_case_checklist(
     case_id: str,
     db: Session = Depends(get_db),  # noqa: B008
 ) -> list[ChecklistItemResponse]:
-    """重新生成材料清单：AI 推荐 + master_id 落库；LLM 失败回退规则预选。"""
+    """重新生成清单：只重建 initial（按首次材料模板），condition 项一律不动。"""
     _get_case_or_404(case_id, db)
-    from core.checklist.generator import regenerate_checklist
-
     try:
-        items = regenerate_checklist(case_id, db)
+        rows = generate_initial_checklist(case_id, db, replace=True)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    return [
-        ChecklistItemResponse(
-            id=0,
-            case_id=case_id,
-            item_name=it.get("item_name", ""),
-            category=it.get("category", "other"),
-            is_required=bool(it.get("is_required", True)),
-            status="pending",
-            ai_suggestion=it.get("ai_suggestion"),
-            updated_at=None,
-        )
-        for it in items
-    ]
+    _refresh_gathering_progress(case_id, db)
+    db.commit()
+    return [_to_checklist_item(r, db) for r in rows]
 
 
 @router.get("/{case_id}/timeline", response_model=CaseTimelineResponse)

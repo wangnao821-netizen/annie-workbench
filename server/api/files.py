@@ -1,6 +1,7 @@
 """文件操作 + 清单路由（接通 core.checklist）。"""
 from __future__ import annotations
 
+import json
 import uuid
 from pathlib import Path
 
@@ -20,6 +21,17 @@ from server.api.schemas import (
 from server.deps import get_db, get_settings
 
 router = APIRouter(prefix="/api", tags=["files"])
+
+_CATEGORY_LABELS = {
+    "identity": "身份",
+    "income_payg": "收入（PAYG）",
+    "income_self_employed": "收入（自雇）",
+    "bank_specific": "银行特定",
+    "special": "特殊情况",
+    "property": "房产",
+    "settlement": "结算",
+    "other": "其他",
+}
 
 
 def _get_case_or_404(case_id: str, db: Session) -> Case:
@@ -44,16 +56,61 @@ def _to_file_item(f: CaseFile) -> FileItemResponse:
     )
 
 
-def _to_checklist_item(it: CaseChecklist) -> ChecklistItemResponse:
+def _to_checklist_item(it: CaseChecklist, db: Session | None = None) -> ChecklistItemResponse:
+    """序列化清单项（WO-74：补齐 phase/deadline/source_ref/item_kind 与已匹配文件信息）。"""
+    master_meta: dict = {}
+    if it.master_id:
+        try:
+            from core.checklist.master_picker import _load_master
+
+            for row in _load_master(db):
+                if row.get("id") == it.master_id:
+                    master_meta = row
+                    break
+        except Exception:  # noqa: BLE001, S110 — 主库查询失败不阻断
+            pass
+
+    file_ids = list(it.received_file_ids or [])
+    if it.received_file_id and it.received_file_id not in file_ids:
+        file_ids.insert(0, it.received_file_id)
+    matched_file_id = file_ids[0] if file_ids else None
+    matched_file_name = None
+    if matched_file_id and db is not None:
+        f = db.query(CaseFile).filter(CaseFile.id == matched_file_id).first()
+        if f:
+            matched_file_name = f.original_name
+
+    aw = master_meta.get("applicable_when")
+    aw_str: str | None = None
+    if isinstance(aw, dict):
+        aw_str = json.dumps(aw, ensure_ascii=False)
+    elif aw:
+        aw_str = str(aw)
+
+    category = it.category or "other"
+    label = _CATEGORY_LABELS.get(category)
+    if not label:
+        label = _CATEGORY_LABELS.get(master_meta.get("category", ""), "其他")
+
     return ChecklistItemResponse(
         id=it.id,
         case_id=it.case_id,
         item_name=it.item_name,
-        category=it.category,
+        category=category,
         is_required=it.is_required,
         status=it.status,
         ai_suggestion=it.ai_suggestion,
         updated_at=it.updated_at,
+        phase=it.phase or "initial",
+        deadline=it.deadline,
+        source_ref=it.source_ref,
+        item_kind=it.item_kind or "document",
+        master_category=label,
+        bank_specific=master_meta.get("bank_specific"),
+        applicable_when=aw_str,
+        matched_file_id=matched_file_id,
+        matched_file_name=matched_file_name,
+        file_ids=file_ids,
     )
 
 
@@ -138,7 +195,7 @@ def get_checklist(
             )
             for it in draft
         ]
-    return [_to_checklist_item(it) for it in items]
+    return [_to_checklist_item(it, db) for it in items]
 
 
 def _get_checklist_item_or_404(item_id: int, case_id: str, db: Session) -> CaseChecklist:
@@ -167,7 +224,7 @@ def confirm_checklist_item(
     db.commit()
     db.refresh(item)
     mark_case_summary_dirty(case_id, db)
-    return _to_checklist_item(item)
+    return _to_checklist_item(item, db)
 
 
 @router.post("/cases/{case_id}/checklist/{item_id}/revoke", response_model=ChecklistItemResponse)
@@ -184,7 +241,7 @@ def revoke_checklist_item(
     db.commit()
     db.refresh(item)
     mark_case_summary_dirty(case_id, db)
-    return _to_checklist_item(item)
+    return _to_checklist_item(item, db)
 
 
 @router.post("/cases/{case_id}/checklist", response_model=ChecklistItemResponse, status_code=201)
@@ -204,6 +261,8 @@ def add_checklist_item(
     }
     if req.category not in allowed_categories:
         raise HTTPException(status_code=422, detail=f"category 不合法，必须为 {sorted(allowed_categories)} 之一")
+    if req.phase not in {"initial", "condition"}:
+        raise HTTPException(status_code=422, detail="phase 必须为 initial 或 condition")
     try:
         norm = "".join(name.split()).lower()
         existing = None
@@ -233,11 +292,14 @@ def add_checklist_item(
             is_required=req.is_required,
             status="pending",
             master_id=custom_id,
+            phase=req.phase,
+            deadline=req.deadline,
+            source_ref=req.source_ref,
         )
         db.add(new_item)
         db.commit()
         db.refresh(new_item)
-        return _to_checklist_item(new_item)
+        return _to_checklist_item(new_item, db)
     except Exception:  # noqa: BLE001 — 事务失败回滚并报 500
         db.rollback()
         raise HTTPException(status_code=500, detail="新增清单项失败")

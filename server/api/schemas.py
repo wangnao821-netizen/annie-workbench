@@ -353,6 +353,16 @@ class ChecklistItemResponse(BaseModel):
     status: str
     ai_suggestion: str | None = None
     updated_at: datetime | None = None
+    phase: str = "initial"                       # initial / condition（WO-74）
+    deadline: datetime | None = None
+    source_ref: str | None = None
+    item_kind: str = "document"                  # document / info
+    master_category: str | None = None           # 中文主分类（身份/收入（PAYG）/…）
+    bank_specific: str | None = None
+    applicable_when: str | None = None           # JSON 字符串
+    matched_file_id: str | None = None
+    matched_file_name: str | None = None
+    file_ids: list[str] = Field(default_factory=list)
 
 
 class ChecklistConfirmRequest(BaseModel):
@@ -366,6 +376,29 @@ class ChecklistAddRequest(BaseModel):
     is_required: bool = True
     applicable_when: dict | None = None
     bank_specific: str | None = None
+    phase: str = "initial"              # initial / condition（WO-74）
+    deadline: datetime | None = None
+    source_ref: str | None = None
+
+
+class ChecklistMatchRequest(BaseModel):
+    """手动绑定文件到清单项（WO-74）。"""
+
+    file_id: str
+    replace: bool = False               # True = 清空旧绑定只留新文件
+
+
+class ChecklistUnmatchRequest(BaseModel):
+    """解绑清单项文件；file_id 缺省 = 解绑全部。"""
+
+    file_id: str | None = None
+
+
+class FileMatchRequest(BaseModel):
+    """文件侧绑定清单项（WO-74）。"""
+
+    item_id: int
+    replace: bool = False
 
 
 class FileItemResponse(BaseModel):
