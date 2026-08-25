@@ -358,6 +358,7 @@ class ChecklistItemResponse(BaseModel):
     source_ref: str | None = None
     item_kind: str = "document"                  # document / info
     master_category: str | None = None           # 中文主分类（身份/收入（PAYG）/…）
+    section: str | None = None                   # 首次模板 8 大板块 id（ID/Income/…）
     bank_specific: str | None = None
     applicable_when: str | None = None           # JSON 字符串
     matched_file_id: str | None = None

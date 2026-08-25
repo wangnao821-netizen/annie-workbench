@@ -19,11 +19,15 @@ import {
   X,
   Mail,
   Smartphone,
+  Paperclip,
+  Eye,
+  FileText,
+  Search,
 } from 'lucide-react';
 import { useUiStore } from '../../stores/uiStore';
 import { useToastStore } from '../../stores/toastStore';
 import { useCaseStore } from '../../stores/caseStore';
-import { ChecklistItemResponse, ChecklistLibraryItem } from '../../types/api';
+import { ChecklistItemResponse, ChecklistLibraryItem, FileItem } from '../../types/api';
 import {
   getChecklist,
   confirmChecklistItem,
@@ -31,8 +35,11 @@ import {
   addChecklistItem,
   regenerateChecklist,
   matchChecklistFiles,
+  matchChecklistItem,
+  unmatchChecklistItem,
 } from '../../services/api/cases';
 import { getChecklistLibrary, FALLBACK_CHECKLIST_LIBRARY } from '../../services/api/checklist';
+import { getCaseFolderFiles } from '../../services/api/fileOps';
 import { FilePreviewPanel } from '../panel/details/FilePreviewPanel';
 
 interface ChecklistDeckProps {
@@ -49,6 +56,29 @@ const MASTER_CATEGORIES = [
   '结算',
   '其他',
 ] as const;
+
+// WO-74：首次材料 8 大板块（对齐 preliminary_assessment 模板）
+const SECTION_ORDER = [
+  'id',
+  'income',
+  'employment_history',
+  'living_expense',
+  'liability',
+  'living_history',
+  'asset',
+  'solicitor',
+] as const;
+
+const SECTION_LABELS: Record<string, string> = {
+  id: '身份证明',
+  income: '收入',
+  employment_history: '雇主历史（3 年）',
+  living_expense: '生活开支',
+  liability: '负债',
+  living_history: '居住历史（3 年）',
+  asset: '资产',
+  solicitor: '律师/过户师',
+};
 
 // 中文分类 → 后端枚举
 const CATEGORY_TO_EN: Record<string, string> = {
@@ -109,6 +139,12 @@ export function ChecklistDeck({ caseId }: ChecklistDeckProps) {
   const [isMatching, setIsMatching] = useState(false);
   const [previewFile, setPreviewFile] = useState<{ fileId?: string; filename: string } | null>(null);
   const [showMissingOnly, setShowMissingOnly] = useState(false);
+  // WO-74：两段式（首次材料 / 追加要求）+ 手动匹配
+  const [activePhase, setActivePhase] = useState<'initial' | 'condition'>('initial');
+  const [matchTarget, setMatchTarget] = useState<ChecklistItemResponse | null>(null);
+  const [caseFiles, setCaseFiles] = useState<FileItem[]>([]);
+  const [loadingFiles, setLoadingFiles] = useState(false);
+  const [fileSearch, setFileSearch] = useState('');
 
   // Chaser Box states
   const [showChaserBox, setShowChaserBox] = useState(false);
@@ -140,6 +176,8 @@ export function ChecklistDeck({ caseId }: ChecklistDeckProps) {
   const [newBank, setNewBank] = useState<string>('');
   const [newCondition, setNewCondition] = useState<string>('');
   const [newRequired, setNewRequired] = useState<boolean>(true);
+  const [newSourceRef, setNewSourceRef] = useState<string>('');
+  const [newDeadline, setNewDeadline] = useState<string>('');
 
   const fetchChecklistData = useCallback(async () => {
     if (!caseId) {
@@ -235,11 +273,32 @@ export function ChecklistDeck({ caseId }: ChecklistDeckProps) {
     return '其他';
   };
 
-  // Group items by master category
-  const grouped = MASTER_CATEGORIES.reduce((acc, cat) => {
-    acc[cat] = items.filter((item) => getMasterCategory(item) === cat);
+  // WO-74：按 phase 分流（两段式）
+  const initialItems = items.filter((i) => (i.phase || 'initial') === 'initial');
+  const conditionItems = items.filter((i) => i.phase === 'condition');
+  const phaseItems = activePhase === 'initial' ? initialItems : conditionItems;
+  const initialDone = initialItems.filter(
+    (i) => i.status === 'received' || i.status === 'confirmed'
+  ).length;
+  const conditionDone = conditionItems.filter(
+    (i) => i.status === 'received' || i.status === 'confirmed'
+  ).length;
+
+  // 首次材料按模板 8 大板块分组；追加要求平铺
+  const initialBySection = SECTION_ORDER.reduce((acc, sec) => {
+    acc[sec] = initialItems.filter(
+      (item) => (item.section || getMasterCategory(item)) === sec
+    );
     return acc;
   }, {} as Record<string, ChecklistItemResponse[]>);
+  const sortedConditionItems = [...conditionItems].sort((a, b) => {
+    const aDone = a.status === 'received' || a.status === 'confirmed' ? 1 : 0;
+    const bDone = b.status === 'received' || b.status === 'confirmed' ? 1 : 0;
+    if (aDone !== bDone) return aDone - bDone;
+    const ad = a.deadline ? new Date(a.deadline).getTime() : Number.MAX_SAFE_INTEGER;
+    const bd = b.deadline ? new Date(b.deadline).getTime() : Number.MAX_SAFE_INTEGER;
+    return ad - bd;
+  });
 
   // Toggle Confirm / Revoke
   const handleToggleStatus = async (item: ChecklistItemResponse) => {
@@ -264,14 +323,53 @@ export function ChecklistDeck({ caseId }: ChecklistDeckProps) {
     e.stopPropagation();
     if (!caseId) return;
     try {
-      await revokeChecklistItem(caseId, item.id);
-      useToastStore.getState().showToast('success', '已撤销文件自动匹配');
+      await unmatchChecklistItem(caseId, item.id);
+      useToastStore.getState().showToast('success', '已解绑关联文件');
       await fetchChecklistData();
       window.dispatchEvent(new CustomEvent('checklist_updated'));
     } catch {
-      useToastStore.getState().showToast('error', '撤销匹配失败');
+      useToastStore.getState().showToast('error', '解绑失败');
     }
   };
+
+  const handleOpenMatchPicker = async (item: ChecklistItemResponse) => {
+    setMatchTarget(item);
+    setFileSearch('');
+    setLoadingFiles(true);
+    try {
+      const files = await getCaseFolderFiles(caseId || '');
+      setCaseFiles(files.items || []);
+    } catch {
+      useToastStore.getState().showToast('error', '加载案件文件失败');
+      setCaseFiles([]);
+    } finally {
+      setLoadingFiles(false);
+    }
+  };
+
+  const handlePickFile = async (f: FileItem) => {
+    if (!caseId || !matchTarget) return;
+    if (!f.file_id) {
+      useToastStore.getState().showToast('error', '该文件未入库（无 file_id），暂不可匹配');
+      return;
+    }
+    try {
+      await matchChecklistItem(caseId, matchTarget.id, f.file_id);
+      useToastStore.getState().showToast('success', `已关联：${f.name}`);
+      setMatchTarget(null);
+      setFileSearch('');
+      await fetchChecklistData();
+      window.dispatchEvent(new CustomEvent('checklist_updated'));
+    } catch (err: any) {
+      useToastStore.getState().showToast('error', `关联失败: ${err?.message || '未知错误'}`);
+    }
+  };
+
+  const filteredFiles = fileSearch
+    ? caseFiles.filter((f) =>
+        f.name.toLowerCase().includes(fileSearch.toLowerCase())
+      )
+    : caseFiles;
 
   const handleAddItem = async () => {
     if (!newName.trim()) {
@@ -304,6 +402,11 @@ export function ChecklistDeck({ caseId }: ChecklistDeckProps) {
         bank_specific: newBank || undefined,
         applicable_when: newCondition || undefined,
         is_required: newRequired,
+        phase: activePhase,
+        source_ref:
+          activePhase === 'condition' ? newSourceRef.trim() || undefined : undefined,
+        deadline:
+          activePhase === 'condition' && newDeadline ? newDeadline : undefined,
       });
       useToastStore.getState().showToast(
         'success',
@@ -312,6 +415,8 @@ export function ChecklistDeck({ caseId }: ChecklistDeckProps) {
       setNewName('');
       setNewBank('');
       setNewCondition('');
+      setNewSourceRef('');
+      setNewDeadline('');
       setSelectedLibraryId('');
       setAddMode('library');
       setShowAddForm(false);
@@ -325,7 +430,7 @@ export function ChecklistDeck({ caseId }: ChecklistDeckProps) {
   };
 
   // Missing required items for Chaser
-  const missingRequiredItems = items.filter(
+  const missingRequiredItems = phaseItems.filter(
     (item) => item.status !== 'received' && item.is_required !== false
   );
 
@@ -366,6 +471,188 @@ export function ChecklistDeck({ caseId }: ChecklistDeckProps) {
     useToastStore.getState().showToast('success', '催件清单已填入中栏聊天框');
   };
 
+  // WO-74：清单项卡片（三图标常显：📎 手动匹配 / 预览 / 解绑）
+  const renderItem = (item: ChecklistItemResponse) => {
+    const isDone = item.status === 'received' || item.status === 'confirmed';
+    const isRequired = item.is_required || item.category === 'required';
+    const isAiSuggested = item.category === 'ai_suggested';
+    const isInfoItem = item.item_kind === 'info';
+    const hasMatchedFile =
+      Boolean(item.matched_file_id) ||
+      Boolean(item.matched_file_name) ||
+      (item.file_ids && item.file_ids.length > 0);
+    const firstFile =
+      item.matched_file_name || (item.file_ids && item.file_ids[0]) || '附件';
+    const firstFileId = item.matched_file_id || (item.file_ids && item.file_ids[0]);
+
+    return (
+      <div
+        key={item.id}
+        onClick={() => {
+          if (hasMatchedFile) {
+            setPreviewFile({ fileId: firstFileId, filename: firstFile });
+          }
+        }}
+        className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-start space-x-2.5 ${
+          isDone
+            ? 'bg-[var(--green-soft)] border-[var(--green-soft)] text-muted'
+            : 'bg-[var(--bg-card)] border-[var(--border)] hover:border-[var(--green-soft)] text-[var(--text-primary)]'
+        }`}
+        id={`checklist-deck-item-${item.id}`}
+      >
+        {/* Checkbox */}
+        <button
+          type="button"
+          className="mt-0.5 flex-shrink-0 focus:outline-none cursor-pointer"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (isInfoItem) {
+              useToastStore.getState().showToast('info', '该信息请在全景 Fact Find 填写（WO-77 后启用）');
+              return;
+            }
+            handleToggleStatus(item);
+          }}
+          id={`checklist-deck-check-${item.id}`}
+        >
+          {isDone ? (
+            <CheckCircle2 className="w-4 h-4 text-[var(--green)]" />
+          ) : (
+            <Circle className="w-4 h-4 text-muted hover:text-[var(--green)]" />
+          )}
+        </button>
+
+        {/* Main Info */}
+        <div className="flex-1 min-w-0 space-y-1">
+          <div className="flex items-center justify-between space-x-2">
+            <span
+              className={`text-xs font-medium truncate ${
+                isDone ? 'line-through text-muted' : 'font-semibold'
+              }`}
+            >
+              {item.item_name || item.name_zh || item.name}
+            </span>
+
+            {/* Badges + 三图标常显 */}
+            <div className="flex items-center space-x-1 flex-shrink-0 text-[11px]">
+              {isInfoItem ? (
+                <span className="px-1.5 py-0.2 rounded bg-[var(--purple-soft)] text-[var(--purple)] font-bold border border-[var(--purple-soft)]">
+                  ✍️ 填写
+                </span>
+              ) : isRequired ? (
+                <span className="px-1.5 py-0.2 rounded bg-[var(--red-soft)] text-[var(--red)] font-bold border border-[var(--red-soft)]">
+                  必选
+                </span>
+              ) : isAiSuggested ? (
+                <span className="px-1.5 py-0.2 rounded bg-[var(--purple-soft)] text-[var(--purple)] font-semibold border border-[var(--purple-soft)]">
+                  AI 建议
+                </span>
+              ) : (
+                <span className="px-1.5 py-0.2 rounded bg-[var(--bg-subtle)] text-[var(--text-secondary)] font-medium border border-[var(--border)]/20">
+                  可选
+                </span>
+              )}
+              {!isInfoItem && (
+                <button
+                  type="button"
+                  title="手动关联文件"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenMatchPicker(item);
+                  }}
+                  className="p-1 rounded-md border bg-[var(--bg-card)] hover:border-[var(--green-soft)] text-[var(--text-secondary)] hover:text-[var(--green)] cursor-pointer"
+                  style={{ borderColor: 'var(--border)' }}
+                  id={`deck-match-btn-${item.id}`}
+                >
+                  <Paperclip className="w-3 h-3" />
+                </button>
+              )}
+              {hasMatchedFile && (
+                <button
+                  type="button"
+                  title="预览已关联文件"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPreviewFile({ fileId: firstFileId, filename: firstFile });
+                  }}
+                  className="p-1 rounded-md border bg-[var(--bg-card)] hover:border-[var(--green-soft)] text-[var(--text-secondary)] hover:text-[var(--green)] cursor-pointer"
+                  style={{ borderColor: 'var(--border)' }}
+                  id={`deck-preview-btn-${item.id}`}
+                >
+                  <Eye className="w-3 h-3" />
+                </button>
+              )}
+              {hasMatchedFile && (
+                <button
+                  type="button"
+                  title="解绑文件"
+                  onClick={(e) => handleRevokeMatch(item, e)}
+                  className="p-1 rounded-md border bg-[var(--bg-card)] hover:border-[var(--red-soft)] text-[var(--text-secondary)] hover:text-[var(--red)] cursor-pointer"
+                  style={{ borderColor: 'var(--border)' }}
+                  id={`deck-revoke-match-btn-${item.id}`}
+                >
+                  <RotateCcw className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* 截止日 / 来源（追加要求） */}
+          {item.deadline && (
+            <div className="text-[11px] text-muted flex items-center space-x-1.5">
+              <AlertCircle className="w-3 h-3 text-[var(--yellow)] flex-shrink-0" />
+              <span>截止: {new Date(item.deadline).toLocaleDateString('zh-CN')}</span>
+              {item.source_ref && (
+                <span className="bg-[var(--bg-subtle)] px-1.5 py-0.2 rounded-full">
+                  {item.source_ref}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Sub Info / Bank / Condition */}
+          {(item.bank_specific || item.applicable_when || item.reason || item.ai_suggestion) && (
+            <div className="text-[11px] text-muted space-y-0.5 opacity-90">
+              {item.bank_specific && (
+                <div className="flex items-center space-x-1">
+                  <Building2 className="w-3 h-3 text-[var(--green)] flex-shrink-0" />
+                  <span>限定银行: {item.bank_specific}</span>
+                </div>
+              )}
+              {(item.ai_suggestion || item.reason) && (
+                <p className="italic">理由: {item.ai_suggestion || item.reason}</p>
+              )}
+            </div>
+          )}
+
+          {/* Matched File Row */}
+          {hasMatchedFile && (
+            <div className="flex items-center mt-1 pt-1 border-t border-[var(--border)]/40">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPreviewFile({ fileId: firstFileId, filename: firstFile });
+                }}
+                title={`点击查看已匹配文件: ${firstFile}`}
+                className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-[var(--green-soft)] text-[var(--green)] border border-[var(--green-soft)] hover:border-[var(--green)] hover:shadow-xs transition-all cursor-pointer max-w-full truncate"
+                id={`deck-matched-file-${item.id}`}
+              >
+                <FileCheck className="w-3 h-3 flex-shrink-0" />
+                <span className="truncate">
+                  ✓ 已关联: {firstFile}
+                  {item.file_ids && item.file_ids.length > 1
+                    ? ` +${item.file_ids.length - 1}`
+                    : ''}
+                </span>
+                <ExternalLink className="w-2.5 h-2.5 opacity-70 flex-shrink-0 ml-0.5" />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div
       className="w-full h-full flex flex-col overflow-hidden relative select-none"
@@ -380,13 +667,38 @@ export function ChecklistDeck({ caseId }: ChecklistDeckProps) {
           borderColor: 'var(--border)',
         }}
       >
-        <div className="flex items-center space-x-1.5 min-w-0">
+        <div className="flex items-center space-x-2 min-w-0">
           <span className="font-extrabold text-xs tracking-tight truncate" style={{ color: 'var(--text-primary)' }}>
             材料清单台账
           </span>
-          <span className="text-[11px] font-mono font-bold text-muted bg-[var(--bg-subtle)] px-1.5 py-0.2 rounded-full">
-            {items.length}
-          </span>
+          <div
+            className="flex items-center space-x-0.5 bg-[var(--bg-subtle)] p-0.5 rounded-lg border flex-shrink-0"
+            style={{ borderColor: 'var(--border)' }}
+            id="checklist-deck-phase-tabs"
+          >
+            <button
+              type="button"
+              onClick={() => setActivePhase('initial')}
+              className={`px-2 py-0.5 rounded-md text-[11px] font-bold transition-colors cursor-pointer ${
+                activePhase === 'initial'
+                  ? 'bg-[var(--accent)] text-white'
+                  : 'text-muted hover:text-[var(--text-primary)]'
+              }`}
+            >
+              首次材料 {initialDone}/{initialItems.length}
+            </button>
+            <button
+              type="button"
+              onClick={() => setActivePhase('condition')}
+              className={`px-2 py-0.5 rounded-md text-[11px] font-bold transition-colors cursor-pointer ${
+                activePhase === 'condition'
+                  ? 'bg-[var(--accent)] text-white'
+                  : 'text-muted hover:text-[var(--text-primary)]'
+              }`}
+            >
+              追加要求 {conditionDone}/{conditionItems.length}
+            </button>
+          </div>
         </div>
 
         <div className="flex items-center space-x-1 flex-shrink-0">
@@ -417,17 +729,19 @@ export function ChecklistDeck({ caseId }: ChecklistDeckProps) {
             <span>新增</span>
           </motion.button>
 
-          <motion.button
-            whileTap={reduced ? undefined : { scale: 0.94 }}
-            onClick={() => setShowConfirmRegen(true)}
-            disabled={isRegenerating}
-            className="p-1 rounded-lg border text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer disabled:opacity-50"
-            style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}
-            id="checklist-deck-regen-btn"
-            title="重新生成清单（覆盖现有项）"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isRegenerating ? 'animate-spin' : ''}`} />
-          </motion.button>
+          {activePhase === 'initial' && (
+            <motion.button
+              whileTap={reduced ? undefined : { scale: 0.94 }}
+              onClick={() => setShowConfirmRegen(true)}
+              disabled={isRegenerating}
+              className="p-1 rounded-lg border text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer disabled:opacity-50"
+              style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}
+              id="checklist-deck-regen-btn"
+              title="重新生成首次材料清单（追加要求不受影响）"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isRegenerating ? 'animate-spin' : ''}`} />
+            </motion.button>
+          )}
         </div>
       </div>
 
@@ -476,6 +790,84 @@ export function ChecklistDeck({ caseId }: ChecklistDeckProps) {
           <span>生成催件清单 / 复制话术</span>
         </motion.button>
       </div>
+
+      {/* 2b. Manual Match Picker (WO-74) */}
+      <AnimatePresence>
+        {matchTarget && (
+          <motion.div
+            initial={reduced ? { opacity: 0 } : { opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={reduced ? { opacity: 0 } : { opacity: 0, height: 0 }}
+            className="border-b overflow-hidden flex-shrink-0 z-20"
+            style={{
+              backgroundColor: 'var(--bg-subtle)',
+              borderColor: 'var(--border)',
+            }}
+            id="checklist-match-picker"
+          >
+            <div className="p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold truncate" style={{ color: 'var(--text-primary)' }}>
+                  📎 为「{matchTarget.item_name || matchTarget.name_zh || matchTarget.name}」关联文件
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMatchTarget(null);
+                    setFileSearch('');
+                  }}
+                  className="p-1 rounded text-muted hover:text-primary cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <div className="relative">
+                <Search className="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 text-muted" />
+                <input
+                  value={fileSearch}
+                  onChange={(e) => setFileSearch(e.target.value)}
+                  placeholder="搜索文件名…"
+                  className="w-full pl-7 pr-2 py-1.5 rounded-lg border bg-[var(--bg-card)] border-[var(--border)] text-xs outline-none focus:border-[var(--green)]"
+                  id="checklist-match-picker-search"
+                />
+              </div>
+              <div className="max-h-44 overflow-y-auto space-y-1 no-scrollbar">
+                {loadingFiles ? (
+                  <div className="text-xs text-muted p-2">加载文件中…</div>
+                ) : filteredFiles.length === 0 ? (
+                  <div className="text-xs text-muted p-2">
+                    暂无案件文件，请先在文件面板放入/导入文件
+                  </div>
+                ) : (
+                  filteredFiles.map((f) => {
+                    const already = (matchTarget.file_ids || []).includes(f.file_id || '');
+                    return (
+                      <button
+                        key={f.file_id || f.rel_path}
+                        type="button"
+                        disabled={already}
+                        onClick={() => handlePickFile(f)}
+                        className={`w-full flex items-center space-x-2 px-2 py-1.5 rounded-lg border text-xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-default ${
+                          already
+                            ? 'bg-[var(--green-soft)] border-[var(--green-soft)] text-[var(--green)]'
+                            : 'bg-[var(--bg-card)] border-[var(--border)] hover:border-[var(--green-soft)] text-[var(--text-primary)]'
+                        }`}
+                        id={`match-picker-file-${f.file_id || 'unbound'}`}
+                      >
+                        <FileText className="w-3.5 h-3.5 flex-shrink-0 text-muted" />
+                        <span className="truncate">{f.name}</span>
+                        {already && (
+                          <span className="ml-auto text-[10px] font-bold flex-shrink-0">已关联</span>
+                        )}
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* 3. In-Deck Lightweight Chaser Bubble / Popover */}
       <AnimatePresence>
@@ -797,6 +1189,32 @@ export function ChecklistDeck({ caseId }: ChecklistDeckProps) {
                   </div>
                 </div>
 
+                {activePhase === 'condition' && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-bold text-muted mb-1">来源（如：CBA OS 条件）</label>
+                      <input
+                        type="text"
+                        value={newSourceRef}
+                        onChange={(e) => setNewSourceRef(e.target.value)}
+                        placeholder="如：CBA OS 条件 #12"
+                        className="w-full p-1.5 rounded-lg border bg-[var(--bg-card)] border-[var(--border)] text-xs outline-none"
+                        id="new-checklist-source-deck-input"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-muted mb-1">截止日（可选）</label>
+                      <input
+                        type="date"
+                        value={newDeadline}
+                        onChange={(e) => setNewDeadline(e.target.value)}
+                        className="w-full p-1.5 rounded-lg border bg-[var(--bg-card)] border-[var(--border)] text-xs outline-none"
+                        id="new-checklist-deadline-deck-input"
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between pt-1">
                   <span className="text-[10px] text-muted">💡 提交后将自动沉淀至总库</span>
                   <div className="flex items-center space-x-2">
@@ -842,188 +1260,61 @@ export function ChecklistDeck({ caseId }: ChecklistDeckProps) {
             <p className="text-xs font-medium">暂无清单材料，可点击右上角"新增"</p>
           </div>
         ) : (
-          MASTER_CATEGORIES.map((cat) => {
-            let groupItems = grouped[cat] || [];
-            if (showMissingOnly) {
-              groupItems = groupItems.filter(
-                (i) => i.status !== 'received' && i.status !== 'confirmed'
-              );
-            }
-            if (groupItems.length === 0) return null;
+          activePhase === 'initial' ? (
+            SECTION_ORDER.map((sec) => {
+              let groupItems = initialBySection[sec] || [];
+              if (showMissingOnly) {
+                groupItems = groupItems.filter(
+                  (i) => i.status !== 'received' && i.status !== 'confirmed'
+                );
+              }
+              if (groupItems.length === 0) return null;
 
-            const sortedItems = [...groupItems].sort((a, b) => {
-              const aDone = a.status === 'received' || a.status === 'confirmed' ? 1 : 0;
-              const bDone = b.status === 'received' || b.status === 'confirmed' ? 1 : 0;
-              if (aDone !== bDone) return aDone - bDone; // 缺件优先置顶
-              const reqA = a.is_required || a.category === 'required' ? 1 : 0;
-              const reqB = b.is_required || b.category === 'required' ? 1 : 0;
-              return reqB - reqA;
-            });
+              const sortedItems = [...groupItems].sort((a, b) => {
+                const aDone = a.status === 'received' || a.status === 'confirmed' ? 1 : 0;
+                const bDone = b.status === 'received' || b.status === 'confirmed' ? 1 : 0;
+                if (aDone !== bDone) return aDone - bDone; // 缺件优先置顶
+                return (a.is_required ? 0 : 1) - (b.is_required ? 0 : 1);
+              });
 
-            const receivedCount = (grouped[cat] || []).filter(
-              (i) => i.status === 'received' || i.status === 'confirmed'
-            ).length;
+              const receivedCount = (initialBySection[sec] || []).filter(
+                (i) => i.status === 'received' || i.status === 'confirmed'
+              ).length;
 
-            return (
-              <div key={cat} className="space-y-2" id={`checklist-group-${cat}`}>
-                {/* Category Header */}
-                <div
-                  className="flex items-center justify-between px-1 text-xs font-extrabold"
-                  style={{ color: 'var(--text-primary)' }}
-                >
-                  <div className="flex items-center space-x-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[var(--green)]" />
-                    <span>{cat}</span>
+              return (
+                <div key={sec} className="space-y-2" id={`checklist-group-${sec}`}>
+                  {/* Section Header */}
+                  <div
+                    className="flex items-center justify-between px-1 text-xs font-extrabold"
+                    style={{ color: 'var(--text-primary)' }}
+                  >
+                    <div className="flex items-center space-x-1.5">
+                      <span className="w-2 h-2 rounded-full bg-[var(--green)]" />
+                      <span>{SECTION_LABELS[sec] || sec}</span>
+                    </div>
+                    <span className="text-[11px] font-mono text-muted bg-[var(--bg-subtle)] px-2 py-0.5 rounded-full">
+                      {receivedCount} / {groupItems.length}
+                    </span>
                   </div>
-                  <span className="text-[11px] font-mono text-muted bg-[var(--bg-subtle)] px-2 py-0.5 rounded-full">
-                    {receivedCount} / {groupItems.length}
-                  </span>
+
+                  {/* Group Items */}
+                  <div className="space-y-1.5">
+                    {sortedItems.map((item) => renderItem(item))}
+                  </div>
                 </div>
-
-                {/* Group Items */}
-                <div className="space-y-1.5">
-                  {sortedItems.map((item) => {
-                    const isDone = item.status === 'received' || item.status === 'confirmed';
-                    const isRequired = item.is_required || item.category === 'required';
-                    const isAiSuggested = item.category === 'ai_suggested';
-                    const hasMatchedFile =
-                      Boolean(item.matched_file_id) ||
-                      Boolean(item.matched_file_name) ||
-                      (item.file_ids && item.file_ids.length > 0);
-
-                    return (
-                      <div
-                        key={item.id}
-                        onClick={() => {
-                          // 防误触：整卡点击只看已匹配文件预览，状态切换只走 checkbox
-                          if (hasMatchedFile) {
-                            const filename =
-                              item.matched_file_name ||
-                              (item.file_ids && item.file_ids[0]) ||
-                              '附件';
-                            const fileId =
-                              item.matched_file_id || (item.file_ids && item.file_ids[0]);
-                            setPreviewFile({ fileId, filename });
-                          }
-                        }}
-                        className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-start space-x-2.5 ${
-                          isDone
-                            ? 'bg-[var(--green-soft)] border-[var(--green-soft)] text-muted'
-                            : 'bg-[var(--bg-card)] border-[var(--border)] hover:border-[var(--green-soft)] text-[var(--text-primary)]'
-                        }`}
-                        id={`checklist-deck-item-${item.id}`}
-                      >
-                        {/* Checkbox */}
-                        <button
-                          type="button"
-                          className="mt-0.5 flex-shrink-0 focus:outline-none cursor-pointer"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleToggleStatus(item);
-                          }}
-                          id={`checklist-deck-check-${item.id}`}
-                        >
-                          {isDone ? (
-                            <CheckCircle2 className="w-4 h-4 text-[var(--green)]" />
-                          ) : (
-                            <Circle className="w-4 h-4 text-muted hover:text-[var(--green)]" />
-                          )}
-                        </button>
-
-                        {/* Main Info */}
-                        <div className="flex-1 min-w-0 space-y-1">
-                          <div className="flex items-center justify-between space-x-2">
-                            <span
-                              className={`text-xs font-medium truncate ${
-                                isDone ? 'line-through text-muted' : 'font-semibold'
-                              }`}
-                            >
-                              {item.item_name || item.name_zh || item.name}
-                            </span>
-
-                            {/* Badges */}
-                            <div className="flex items-center space-x-1 flex-shrink-0 text-[11px]">
-                              {isRequired ? (
-                                <span className="px-1.5 py-0.2 rounded bg-[var(--red-soft)] text-[var(--red)] font-bold border border-[var(--red-soft)]">
-                                  必选
-                                </span>
-                              ) : isAiSuggested ? (
-                                <span className="px-1.5 py-0.2 rounded bg-[var(--purple-soft)] text-[var(--purple)] font-semibold border border-[var(--purple-soft)]">
-                                  AI 建议
-                                </span>
-                              ) : (
-                                <span className="px-1.5 py-0.2 rounded bg-[var(--bg-subtle)] text-[var(--text-secondary)] font-medium border border-[var(--border)]/20">
-                                  可选
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Sub Info / Bank / Condition */}
-                          {(item.bank_specific || item.applicable_when || item.reason || item.ai_suggestion) && (
-                            <div className="text-[11px] text-muted space-y-0.5 opacity-90">
-                              {item.bank_specific && (
-                                <div className="flex items-center space-x-1">
-                                  <Building2 className="w-3 h-3 text-[var(--green)] flex-shrink-0" />
-                                  <span>限定银行: {item.bank_specific}</span>
-                                </div>
-                              )}
-                              {(item.ai_suggestion || item.reason) && (
-                                <p className="italic">理由: {item.ai_suggestion || item.reason}</p>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Matched File Row & Revoke Match Button */}
-                          {hasMatchedFile && (
-                            <div className="flex items-center justify-between mt-1 pt-1 border-t border-[var(--border)]/40 flex-wrap gap-1.5">
-                              <motion.button
-                                type="button"
-                                whileTap={reduced ? undefined : { scale: 0.96 }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const filename =
-                                    item.matched_file_name ||
-                                    (item.file_ids && item.file_ids[0]) ||
-                                    '附件';
-                                  const fileId =
-                                    item.matched_file_id || (item.file_ids && item.file_ids[0]);
-                                  setPreviewFile({ fileId, filename });
-                                }}
-                                title={`点击查看已匹配文件: ${
-                                  item.matched_file_name ||
-                                  (item.file_ids ? `${item.file_ids.length} 个附件` : '已匹配')
-                                }`}
-                                className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-[var(--green-soft)] text-[var(--green)] border border-[var(--green-soft)] hover:border-[var(--green)] hover:shadow-xs transition-all cursor-pointer max-w-[240px] truncate"
-                                id={`deck-matched-file-${item.id}`}
-                              >
-                                <FileCheck className="w-3 h-3 flex-shrink-0" />
-                                <span className="truncate">
-                                  ✓ 已自动关联: {item.matched_file_name || (item.file_ids ? `${item.file_ids.length} 个附件` : '已核匹配')}
-                                </span>
-                                <ExternalLink className="w-2.5 h-2.5 opacity-70 flex-shrink-0 ml-0.5" />
-                              </motion.button>
-                              <motion.button
-                                type="button"
-                                whileTap={reduced ? undefined : { scale: 0.94 }}
-                                onClick={(e) => handleRevokeMatch(item, e)}
-                                className="px-2 py-0.5 rounded-md text-xs bg-[var(--red-soft)] text-[var(--red)] hover:bg-[var(--red-soft)] cursor-pointer flex items-center space-x-1 font-bold flex-shrink-0 ml-auto"
-                                title="撤销文件自动匹配"
-                                id={`deck-revoke-match-btn-${item.id}`}
-                              >
-                                <RotateCcw className="w-2.5 h-2.5" />
-                                <span>撤销</span>
-                              </motion.button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })
+              );
+            })
+          ) : (
+            <div className="space-y-1.5">
+              {sortedConditionItems
+                .filter(
+                  (i) =>
+                    !showMissingOnly ||
+                    (i.status !== 'received' && i.status !== 'confirmed')
+                )
+                .map((item) => renderItem(item))}
+            </div>
+          )
         )}
       </div>
 

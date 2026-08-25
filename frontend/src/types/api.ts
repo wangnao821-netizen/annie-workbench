@@ -308,6 +308,11 @@ export interface ChecklistItemResponse {
   item_name?: string;        // 后端材料名称
   category: string;         // "required" | "ai_suggested" | "optional" 或业务分类
   master_category?: string;
+  section?: string;         // 首次模板 8 大板块 id（WO-74）
+  phase?: string;           // initial / condition（WO-74）
+  deadline?: string | null;
+  source_ref?: string | null;
+  item_kind?: string;       // document / info（WO-74）
   status: string;           // "received" | "missing" | "expired" | "pending_confirm" | "confirmed"
   is_required?: boolean;
   reason?: string;          // AI 建议理由
@@ -345,6 +350,9 @@ export interface AddChecklistItemRequest {
   is_required?: boolean;
   applicable_when?: string;
   bank_specific?: string;
+  phase?: 'initial' | 'condition';
+  deadline?: string | null;
+  source_ref?: string | null;
 }
 
 // GET /api/cases/{id}/timeline
@@ -1494,7 +1502,6 @@ export interface MailPreviewResponse {
   body_html?: string | null;
   attachments: string[];
 }
-
 
 
 

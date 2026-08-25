@@ -20,10 +20,17 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCw,
+  Paperclip,
 } from 'lucide-react';
 import { useCaseStore } from '../../stores/caseStore';
 import { useToastStore } from '../../stores/toastStore';
-import { FileItem, FilePreviewResponse, NamingSuggestResponse } from '../../types/api';
+import {
+  FileItem,
+  FilePreviewResponse,
+  NamingSuggestResponse,
+  ChecklistItemResponse,
+} from '../../types/api';
+import { getChecklist, matchFileToItem } from '../../services/api/cases';
 import {
   getCaseFolderFiles,
   getCaseFilePreview,
@@ -75,9 +82,43 @@ export function FileDeckContent({ caseId }: FileDeckContentProps) {
   const [selectedMoveDir, setSelectedMoveDir] = useState<string>('');
   const [moveSubmitting, setMoveSubmitting] = useState<boolean>(false);
 
+  // WO-74: 文件 → 清单手动匹配
+  const [matchFileTarget, setMatchFileTarget] = useState<FileItem | null>(null);
+  const [pendingItems, setPendingItems] = useState<ChecklistItemResponse[]>([]);
+  const [loadingItems, setLoadingItems] = useState<boolean>(false);
+
   // Import Modal State
   const [showImportModal, setShowImportModal] = useState<boolean>(false);
   const [importFileObj, setImportFileObj] = useState<File | null>(null);
+
+  const handleOpenMatchPicker = async (file: FileItem) => {
+    setMatchFileTarget(file);
+    setLoadingItems(true);
+    try {
+      const items = await getChecklist(activeCaseId);
+      setPendingItems(items.filter((i) => (i.item_kind || 'document') !== 'info'));
+    } catch {
+      useToastStore.getState().showToast('error', '加载清单失败');
+      setPendingItems([]);
+    } finally {
+      setLoadingItems(false);
+    }
+  };
+
+  const handlePickChecklistItem = async (item: ChecklistItemResponse) => {
+    if (!matchFileTarget?.file_id) return;
+    try {
+      await matchFileToItem(activeCaseId, matchFileTarget.file_id, item.id);
+      useToastStore
+        .getState()
+        .showToast('success', `已匹配到「${item.item_name || item.name_zh || item.name}」`);
+      setMatchFileTarget(null);
+      window.dispatchEvent(new CustomEvent('checklist_updated'));
+      loadFiles(currentPath);
+    } catch (err: any) {
+      useToastStore.getState().showToast('error', `匹配失败: ${err?.message || '未知错误'}`);
+    }
+  };
   const [importTargetDir, setImportTargetDir] = useState<string>('');
   const [importSubmitting, setImportSubmitting] = useState<boolean>(false);
 
@@ -472,12 +513,73 @@ export function FileDeckContent({ caseId }: FileDeckContentProps) {
                       >
                         <FolderInput className="w-3 h-3" />
                       </button>
+
+                      <button
+                        type="button"
+                        disabled={!fileItem.file_id}
+                        onClick={() => handleOpenMatchPicker(fileItem)}
+                        title={fileItem.file_id ? '匹配到材料清单' : '该文件未入库（无 file_id），暂不可匹配'}
+                        className="p-1.5 rounded-lg border border-[var(--green-soft)] bg-[var(--green-soft)] text-[var(--green)] hover:opacity-85 cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        id={`deck-btn-match-${idx}`}
+                      >
+                        <Paperclip className="w-3 h-3" />
+                      </button>
                     </div>
                   </div>
                 </div>
               ))}
           </div>
         )}
+
+        {/* WO-74: 文件 → 清单手动匹配选择器 */}
+        <AnimatePresence>
+          {matchFileTarget && (
+            <motion.div
+              initial={reduced ? { opacity: 0 } : { opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={reduced ? { opacity: 0 } : { opacity: 0, y: 10 }}
+              className="p-3 rounded-2xl border bg-[var(--bg-subtle)] border-[var(--border)] space-y-2 mt-3"
+              id="deck-file-match-picker"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold truncate" style={{ color: 'var(--text-primary)' }}>
+                  📎 将「{matchFileTarget.name}」匹配到清单项
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setMatchFileTarget(null)}
+                  className="p-1 rounded text-muted hover:text-primary cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <div className="max-h-40 overflow-y-auto space-y-1 no-scrollbar">
+                {loadingItems ? (
+                  <div className="text-xs text-muted p-2">加载清单中…</div>
+                ) : pendingItems.length === 0 ? (
+                  <div className="text-xs text-muted p-2">暂无文档类清单项</div>
+                ) : (
+                  pendingItems.map((it) => (
+                    <button
+                      key={it.id}
+                      type="button"
+                      onClick={() => handlePickChecklistItem(it)}
+                      className="w-full flex items-center space-x-2 px-2 py-1.5 rounded-lg border text-xs bg-[var(--bg-card)] border-[var(--border)] hover:border-[var(--green-soft)] text-[var(--text-primary)] cursor-pointer transition-colors"
+                      id={`file-match-item-${it.id}`}
+                    >
+                      <span className="truncate">{it.item_name || it.name_zh || it.name}</span>
+                      {it.status === 'received' && (
+                        <span className="ml-auto text-[10px] font-bold text-[var(--green)] flex-shrink-0">
+                          已收
+                        </span>
+                      )}
+                    </button>
+                  ))
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* In-line Dual-Tab Preview Panel */}
         <AnimatePresence>

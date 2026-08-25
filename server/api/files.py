@@ -33,6 +33,27 @@ _CATEGORY_LABELS = {
     "other": "其他",
 }
 
+_TEMPLATE_SECTION_MAP: dict[str, str] | None = None
+
+
+def _template_section_map() -> dict[str, str]:
+    """首次模板 {master_id → section_id}，供清单按 8 大板块分组。"""
+    global _TEMPLATE_SECTION_MAP
+    if _TEMPLATE_SECTION_MAP is None:
+        from core.checklist.email_draft import _load_template
+
+        mapping: dict[str, str] = {}
+        try:
+            template = _load_template()
+            for sec in template.get("sections", []):
+                for raw in sec.get("items", []):
+                    ref = raw["ref"] if isinstance(raw, dict) else raw
+                    mapping[ref] = sec["id"]
+        except Exception:  # noqa: BLE001, S110 — 模板缺失时分组为空
+            pass
+        _TEMPLATE_SECTION_MAP = mapping
+    return _TEMPLATE_SECTION_MAP
+
 
 def _get_case_or_404(case_id: str, db: Session) -> Case:
     case = db.query(Case).filter(Case.id == case_id).first()
@@ -106,6 +127,7 @@ def _to_checklist_item(it: CaseChecklist, db: Session | None = None) -> Checklis
         source_ref=it.source_ref,
         item_kind=it.item_kind or "document",
         master_category=label,
+        section=_template_section_map().get(it.master_id or ""),
         bank_specific=master_meta.get("bank_specific"),
         applicable_when=aw_str,
         matched_file_id=matched_file_id,

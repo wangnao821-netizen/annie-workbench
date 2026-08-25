@@ -242,6 +242,53 @@ export function revokeChecklistItem(caseId: string, itemId: string): Promise<Che
   });
 }
 
+export function matchChecklistItem(
+  caseId: string,
+  itemId: string | number,
+  fileId: string,
+  replace = false,
+): Promise<ChecklistItemResponse> {
+  return request<ChecklistItemResponse>(
+    `/api/cases/${encodeURIComponent(caseId)}/checklist/${encodeURIComponent(String(itemId))}/match`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ file_id: fileId, replace }),
+    }
+  );
+}
+
+export function unmatchChecklistItem(
+  caseId: string,
+  itemId: string | number,
+  fileId?: string,
+): Promise<ChecklistItemResponse> {
+  return request<ChecklistItemResponse>(
+    `/api/cases/${encodeURIComponent(caseId)}/checklist/${encodeURIComponent(String(itemId))}/unmatch`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(fileId ? { file_id: fileId } : {}),
+    }
+  );
+}
+
+export function matchFileToItem(
+  caseId: string,
+  fileId: string,
+  itemId: string | number,
+  replace = false,
+): Promise<ChecklistItemResponse> {
+  return request<ChecklistItemResponse>(
+    `/api/cases/${encodeURIComponent(caseId)}/files/${encodeURIComponent(fileId)}/match`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ item_id: itemId, replace }),
+    }
+  );
+}
+
 export function matchChecklistFiles(caseId: string): Promise<ChecklistMatchFilesResponse> {
   if (import.meta.env.VITE_USE_MOCK !== 'false') {
     return Promise.resolve({
@@ -2541,7 +2588,6 @@ export async function getCaseMailPreview(caseId: string, filename: string): Prom
     `/api/cases/${encodeURIComponent(caseId)}/mail-preview?filename=${encodeURIComponent(filename)}`
   );
 }
-
 
 
 
