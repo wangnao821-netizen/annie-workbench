@@ -1321,6 +1321,7 @@ class CaseSubfolderMeta(BaseModel):
     existing_stage: str | None = None
     referrer_name: str | None = None
     co_borrowers: list[str] = Field(default_factory=list)
+    broker_name: str | None = None
 
 
 class ClientTopologyMeta(BaseModel):
@@ -1329,6 +1330,7 @@ class ClientTopologyMeta(BaseModel):
     client_category: str = "multi_case"  # multi_case / single_case / lead
     referrer_name: str | None = None
     co_borrowers: list[str] = Field(default_factory=list)
+    broker_name: str | None = None
     total_cases: int = 0
     active_cases: int = 0
     cases: list[CaseSubfolderMeta] = Field(default_factory=list)

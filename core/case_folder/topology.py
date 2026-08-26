@@ -21,6 +21,9 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from core.case_folder.legacy_import import find_broker_notes
+from core.logger import get_logger
+
+logger = get_logger(__name__)
 
 # 忽略的文件和目录黑名单
 _IGNORED_FILES = frozenset({
@@ -28,7 +31,9 @@ _IGNORED_FILES = frozenset({
 })
 
 _BLACKLIST_DIR_NAMES = frozenset({
-    "template", "anbc- test", "test", "0", ".davfs.tmp", "__pycache__"
+    "template", "anbc- test", "test", "0", ".davfs.tmp", "__pycache__",
+    "process and template", "signature", "template - email", "create folder",
+    "don't send", "dont send", "resend 2 - dl address"
 })
 
 # 常见机构关键字
@@ -71,11 +76,29 @@ for _doc in DOC_TYPES:
     _DOC_CANON.setdefault(_doc.lower(), _doc)
 
 
+def _is_broker_folder(name: str) -> bool:
+    """判定是否为其他 Broker 汇聚目录（如 0. Lily S - Clients 或 Boning He (Brandon) Client）。"""
+    lower = name.lower().strip()
+    if _is_blacklisted_dir(name):
+        return False
+    return bool(re.search(r"[-_\s]clients?\b|\bclient\s*-\s*rb\b|\bclients\b", lower))
+
+
+def _clean_broker_name(name: str) -> str:
+    """清洗提取 Broker 姓名（如 '0. Lily S - Clients' ➔ 'Lily S'）。"""
+    raw = re.sub(r"^\s*\d+[\.\s、_-]+", "", name).strip()
+    raw = re.sub(r"[-_\s]*(?:clients?|client\s*-\s*rb)\b.*$", "", raw, flags=re.IGNORECASE).strip()
+    return raw or name
+
+
 def _parse_client_folder_name(name: str) -> dict[str, Any]:
     """从客户目录名中提取纯净客户姓名、联名借款人、转介绍渠道与昵称。"""
     raw = name.strip()
+    # 1. 脱掉开头的数字序号（如 "1. ", "17. ", "01- " 等）
+    raw = re.sub(r"^\s*\d+[\.\s、_-]+", "", raw).strip()
+
     referrer = None
-    # 提取推荐人 - ... 推荐 / ... Ref / ... referral
+    # 2. 提取推荐人 - ... 推荐 / ... Ref / ... referral
     ref_match = re.search(r"[-–—]\s*([^–—]+?)\s*(?:推荐|referral|refer|ref|的朋友|朋友)\b", raw, re.IGNORECASE)
     if ref_match:
         referrer = ref_match.group(1).strip()
@@ -197,11 +220,21 @@ def parse_case_folder_name(dir_name: str) -> dict[str, Any]:
 
 
 def _is_case_dir(name: str) -> bool:
-    """判定是否为案卷子目录：数字序号开头，或包含贷款方案/已知机构名。"""
-    lower = name.lower()
-    return bool(_SEQ_RE.match(name)) or _match_lender(name) is not None or any(
-        kw in lower for kw in ["refi", "purchase", "cash out", "pre approval", "construction", "commercial", "car loan"]
+    """判定是否为案卷子目录：包含明确贷款类型或已知机构名或业务阶段（解耦纯数字序号）。"""
+    lower = name.lower().strip()
+    if _is_blacklisted_dir(name):
+        return False
+    has_loan_kw = any(
+        kw in lower for kw in [
+            "refi", "refinance", "purchase", "cash out", "cashout",
+            "pre approval", "pre-approval", "preapproval", "construction",
+            "commercial", "car loan", "equity", "top up", "variation",
+            "买房", "转贷", "预批", "商贷", "建房"
+        ]
     )
+    has_lender = _match_lender(name) is not None
+    has_stage = _is_business_stage_dir(name)
+    return has_loan_kw or has_lender or has_stage
 
 
 def _is_business_stage_dir(name: str) -> bool:
@@ -229,9 +262,12 @@ def _count_files(folder: Path) -> int:
             if p.is_file() and p.name not in _IGNORED_FILES and not p.name.startswith("."):
                 count += 1
             elif p.is_dir() and not p.name.startswith("."):
-                for sub in p.iterdir():
-                    if sub.is_file() and sub.name not in _IGNORED_FILES and not sub.name.startswith("."):
-                        count += 1
+                try:
+                    for sub in p.iterdir():
+                        if sub.is_file() and sub.name not in _IGNORED_FILES and not sub.name.startswith("."):
+                            count += 1
+                except OSError:
+                    pass
     except OSError:
         pass
     return count
@@ -248,9 +284,12 @@ def _submitted_platforms(folder: Path) -> list[str]:
         for d in dirs:
             if d.name.lower() == "send to lender":
                 continue
-            has_files = any(f.is_file() for f in d.iterdir() if f.name not in _IGNORED_FILES and not f.name.startswith("."))
-            if has_files:
-                platforms.append(d.name[len("Send to "):])
+            try:
+                has_files = any(f.is_file() for f in d.iterdir() if f.name not in _IGNORED_FILES and not f.name.startswith("."))
+                if has_files:
+                    platforms.append(d.name[len("Send to "):])
+            except OSError:
+                pass
     except OSError:
         pass
     return platforms
@@ -277,9 +316,9 @@ def _quick_rule_extract_notes(notes_file: Path) -> dict[str, Any]:
                 reader = pypdf.PdfReader(str(notes_file))
                 if reader.pages:
                     text = reader.pages[0].extract_text() or ""
-            except Exception:  # noqa: BLE001 — PDF 解析失败降级为空文本
+            except Exception:  # noqa: BLE001
                 text = ""
-    except Exception:  # noqa: BLE001 — Broker Notes 读取失败降级为空文本
+    except Exception:  # noqa: BLE001
         text = ""
 
     if not text:
@@ -335,6 +374,7 @@ def _build_case_meta(
     client_category: str = "standard",
     referrer_name: str | None = None,
     co_borrowers: list[str] | None = None,
+    broker_name: str | None = None,
 ) -> dict[str, Any]:
     """构建单个案卷的元数据字典。"""
     parsed = parse_case_folder_name(case_dir.name)
@@ -385,10 +425,11 @@ def _build_case_meta(
         "existing_stage": existing_stage,
         "referrer_name": referrer_name,
         "co_borrowers": co_borrowers or [],
+        "broker_name": broker_name,
     }
 
 
-def _scan_single_client(client_dir: Path, db: Session | None) -> dict[str, Any]:
+def _scan_single_client(client_dir: Path, db: Session | None, broker_name: str | None = None) -> dict[str, Any]:
     """扫描单个客户文件夹下的案卷拓扑，自动识别多案卷/单案卷/潜客形态。"""
     c_info = _parse_client_folder_name(client_dir.name)
     clean_client_name = c_info["client_name"]
@@ -417,6 +458,7 @@ def _scan_single_client(client_dir: Path, db: Session | None) -> dict[str, Any]:
                 client_category="multi_case",
                 referrer_name=referrer_name,
                 co_borrowers=co_borrowers,
+                broker_name=broker_name,
             )
             cases.append(meta)
     elif business_subdirs or (len(direct_files) > 3):
@@ -428,6 +470,7 @@ def _scan_single_client(client_dir: Path, db: Session | None) -> dict[str, Any]:
             client_category="single_case",
             referrer_name=referrer_name,
             co_borrowers=co_borrowers,
+            broker_name=broker_name,
         )
         cases.append(meta)
     elif direct_files:
@@ -439,6 +482,7 @@ def _scan_single_client(client_dir: Path, db: Session | None) -> dict[str, Any]:
             client_category="lead",
             referrer_name=referrer_name,
             co_borrowers=co_borrowers,
+            broker_name=broker_name,
         )
         meta["status"] = "lead"
         cases.append(meta)
@@ -455,6 +499,7 @@ def _scan_single_client(client_dir: Path, db: Session | None) -> dict[str, Any]:
         "client_category": category,
         "referrer_name": referrer_name,
         "co_borrowers": co_borrowers,
+        "broker_name": broker_name,
         "total_cases": len(cases),
         "active_cases": sum(1 for c in cases if c["is_recommended_active"] or c["status"] in ("active", "onhold")),
         "cases": cases,
@@ -469,13 +514,19 @@ def scan_customer_topology(folder_path: str, db: Session | None = None) -> dict[
 
     try:
         top_subdirs = sorted(p for p in root.iterdir() if p.is_dir() and not _is_blacklisted_dir(p.name))
-    except OSError:
-        top_subdirs = []
+    except OSError as e:
+        return {"ok": False, "message": f"读取目录失败: {e}"}
 
-    # 智能判定是否为「多客户顶级根目录」：
-    # 如果顶层子文件夹数量 >= 5，且大部分顶层目录不是以 1. 2. 案卷序号命名，判定为顶级多客户根目录
     case_like_count = sum(1 for p in top_subdirs if _is_case_dir(p.name))
-    is_root_multi_client = len(top_subdirs) >= 4 and (case_like_count / max(len(top_subdirs), 1)) < 0.4
+    total_subdirs = len(top_subdirs)
+
+    # 智能判定是否为「多客户大根目录」：
+    # 1. 包含 Broker 汇聚夹（如 0. Lily S - Clients）；
+    # 2. 或包含多个子目录，且大部分子目录不是业务案卷（即它们是客户主体文件夹而非 Purchase/Refinance 案卷目录）。
+    is_root_multi_client = bool(
+        any(_is_broker_folder(p.name) for p in top_subdirs)
+        or (total_subdirs >= 2 and (case_like_count / max(total_subdirs, 1)) < 0.5)
+    )
 
     if is_root_multi_client:
         clients_meta: list[dict[str, Any]] = []
@@ -489,10 +540,7 @@ def scan_customer_topology(folder_path: str, db: Session | None = None) -> dict[
             "recommended_active_cases": 0,
         }
 
-        for client_dir in top_subdirs:
-            c_meta = _scan_single_client(client_dir, db)
-            if not c_meta["cases"]:
-                continue
+        def _append_client(c_meta: dict[str, Any]) -> None:
             summary["total_clients"] += 1
             if c_meta["client_category"] == "multi_case":
                 summary["multi_case_clients"] += 1
@@ -503,9 +551,34 @@ def scan_customer_topology(folder_path: str, db: Session | None = None) -> dict[
 
             summary["total_cases"] += c_meta["total_cases"]
             summary["recommended_active_cases"] += sum(1 for c in c_meta["cases"] if c.get("is_recommended_active"))
-
             clients_meta.append(c_meta)
             all_cases.extend(c_meta["cases"])
+
+        for item in top_subdirs:
+            if _is_broker_folder(item.name):
+                # 穿透展开 Broker 文件夹
+                b_name = _clean_broker_name(item.name)
+                try:
+                    broker_clients = sorted(p for p in item.iterdir() if p.is_dir() and not _is_blacklisted_dir(p.name))
+                except OSError:
+                    broker_clients = []
+
+                for c_dir in broker_clients:
+                    try:
+                        c_meta = _scan_single_client(c_dir, db, broker_name=b_name)
+                        if not c_meta["cases"]:
+                            continue
+                        _append_client(c_meta)
+                    except Exception as exc:  # noqa: BLE001
+                        logger.debug("scan client failed for %s: %s", c_dir, exc)
+            else:
+                try:
+                    c_meta = _scan_single_client(item, db, broker_name=None)
+                    if not c_meta["cases"]:
+                        continue
+                    _append_client(c_meta)
+                except Exception as exc:  # noqa: BLE001
+                    logger.debug("scan client failed for %s: %s", item, exc)
 
         return {
             "ok": True,

@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 # ── 环境变量 ───────────────────────────────────────────
 VERA_PORT = int(os.getenv("VERA_PORT", "8000"))
 VERA_DATA_DIR = os.getenv("VERA_DATA_DIR", "")  # 空 = 默认 data/
-APP_VERSION = "2.3.0"
+APP_VERSION = "2.3.1"
 
 # ── 后台调度（Phase 2 数据保命） ───────────────────────
 @asynccontextmanager

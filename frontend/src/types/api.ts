@@ -1226,6 +1226,7 @@ export interface ClientTopologyMeta {
   client_category: 'multi_case' | 'single_case' | 'lead';
   referrer_name?: string;
   co_borrowers?: string[];
+  broker_name?: string;
   cases: CaseSubfolderMeta[];
 }
 
@@ -1246,6 +1247,7 @@ export interface CaseSubfolderMeta {
   file_count: number;
   prefilled?: Record<string, any>;
   submitted_platforms?: string[];
+  broker_name?: string;
 }
 
 export interface FolderTopologyScanResponse {

@@ -149,6 +149,21 @@ export function ClientAccordionCard({
               </span>
               {getCategoryBadge()}
 
+              {/* 所属 Broker */}
+              {client.broker_name && (
+                <span
+                  className="px-2 py-0.5 rounded-md text-[10px] font-semibold border flex items-center space-x-1"
+                  style={{
+                    backgroundColor: 'var(--accent-soft)',
+                    borderColor: 'rgba(14, 165, 233, 0.3)',
+                    color: 'var(--accent)',
+                  }}
+                  title={`所属 Broker：${client.broker_name}`}
+                >
+                  <span>Broker: {client.broker_name}</span>
+                </span>
+              )}
+
               {/* 推荐人渠道 */}
               {client.referrer_name && (
                 <span
