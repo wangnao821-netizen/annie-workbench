@@ -187,13 +187,25 @@ logs/      日志
 
 ---
 
-## 十一、版本发布与升级规范
+## 十一、版本发布与升级规范（含 GitHub Release 自动静默更新）
 
 1. **版本号 4 处同步**：`pyproject.toml` + `frontend/package.json` + `electron/package.json` + `server/main.py`（APP_VERSION）。
 2. **构建与检查**：前端改动必须 `tsc --noEmit` + `vite build` 全绿；后端必须全量 pytest 0 failed；ruff 全绿。
-3. **dist 不入库**：`frontend/dist` 为构建产物（.gitignore 忽略），由 `cd electron && npm run build-web` 自动构建；发布产物为 electron-builder 安装包/免安装目录（`npm run build` / `npm run pack`）。
-4. **安装包一致性**：开发期手动同步 win-unpacked 时，`resources/web` 与 `frontend/dist`、`resources/backend` 与源码头必须一致（diff 检查）；正式发布以 electron-builder 产物为准。
-5. **提交与标记**：本地 `data/`、`.env` 绝不提交；提交信息规范，发布用 `git tag vX.Y.Z`。
+3. **打包产物**：
+   - 调试/免安装版：`cd electron && npm run pack` → 生成 `electron/release/win-unpacked/Annie.exe`；
+   - 正式单文件安装包：`cd electron && npm run build` → 生成 `electron/release/Annie Setup X.Y.Z.exe`。
+4. **GitHub Release 全自动静默更新标准（永久免费 · 开箱即用）**：
+   - **架构**：客户端基于 `electron-updater`，启动时静默拉取 GitHub Releases 的 `latest.yml`，比对版本后后台下载增量 `.blockmap`；下载完成后弹出 Windows 系统通知，重启即无缝升级；
+   - **发版三步法**：
+     1. 本地执行 `cd electron && npm run build` 产出安装包与元数据；
+     2. 在 GitHub 仓库（`everstones/annie-workbench`）创建对应 Tag（如 `vX.Y.Z`）的 Release；
+     3. 将 `electron/release/` 下的 3 个核心产物上传至 Release 并发布：
+        - `Annie Setup X.Y.Z.exe`（单文件完整安装包）
+        - `Annie Setup X.Y.Z.exe.blockmap`（增量差分块索引）
+        - `latest.yml`（版本描述与 SHA512 校验信息）
+     4. 发布后，所有客户端启动 8 秒后将自动在后台静默拉取更新，无需人工干预。
+5. **数据绝对安全原则**：升级过程只覆盖程序代码，运行时数据库（`data/assistant.db`）与客户资料目录永久隔离，100% 保证用户历史案件、API Key 与已录入数据不丢失。
+6. **提交与标记**：本地 `data/`、`.env` 绝不上库；提交信息规范，发布用 `git tag vX.Y.Z`。
 
 ---
 

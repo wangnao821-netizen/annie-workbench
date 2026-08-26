@@ -8,6 +8,7 @@ import { CalculatorManager } from '../components/settings/CalculatorManager';
 import { BankPlatformPanel } from '../components/settings/BankPlatformPanel';
 import { AssistantSettingsCard } from '../components/settings/AssistantSettingsCard';
 import { AiConfigCard } from '../components/settings/AiConfigCard';
+import { AppUpdateCard } from '../components/settings/AppUpdateCard';
 import { getVersion } from '../services/api/system';
 
 export function Settings() {
@@ -148,6 +149,9 @@ export function Settings() {
       {activeTab === 'system' && (
 
         <div className="space-y-6">
+          {/* Software Version & Auto Update */}
+          <AppUpdateCard />
+
           {/* AI Model Configuration Card (F-48) */}
           <AiConfigCard />
 
