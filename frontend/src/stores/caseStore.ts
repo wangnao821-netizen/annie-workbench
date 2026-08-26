@@ -21,6 +21,7 @@ export interface CaseInfo {
   osPendingCount?: number;
   folderPath?: string | null;
   folderMode?: string | null;
+  isImported?: boolean;
   hasBossPending?: boolean;
   assessorName?: string | null;
   lenderRef?: string | null;

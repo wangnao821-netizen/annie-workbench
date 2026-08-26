@@ -367,6 +367,78 @@ def _quick_rule_extract_notes(notes_file: Path) -> dict[str, Any]:
     return res
 
 
+def _infer_folder_stage(case_dir: Path, status: str) -> tuple[str, float]:
+    """根据案卷物理子目录与文件智能推断案件当前所处的细分阶段与进度百分比。"""
+    if status == "settled":
+        return ("已结算", 100.0)
+    if status == "closed":
+        return ("已终止", 100.0)
+    if status == "lead":
+        return ("初步咨询", 10.0)
+    if status == "onhold":
+        return ("待递交", 30.0)
+
+    try:
+        subdirs = [p for p in case_dir.iterdir() if p.is_dir() and not p.name.startswith(".")]
+    except OSError:
+        subdirs = []
+
+    sub_names = {d.name.lower(): d for d in subdirs}
+
+    # 1. 检查是否有 Settlement / Post Settlement 目录且有文件
+    for name, d in sub_names.items():
+        if "settlement" in name:
+            try:
+                has_files = any(f.is_file() for f in d.iterdir() if not f.name.startswith("."))
+                if has_files:
+                    return ("已结算", 100.0)
+            except OSError:
+                pass
+
+    # 2. 检查是否有 Loan Documents / To be signed
+    for name, d in sub_names.items():
+        if any(k in name for k in ("loan document", "loan doc", "to be signed", "signed")):
+            try:
+                has_files = any(f.is_file() for f in d.iterdir() if not f.name.startswith("."))
+                if has_files:
+                    return ("结算中", 85.0)
+            except OSError:
+                pass
+
+    # 3. 检查是否有 Approval
+    for name, d in sub_names.items():
+        if "approval" in name or "approved" in name:
+            try:
+                has_files = any(f.is_file() for f in d.iterdir() if not f.name.startswith("."))
+                if has_files:
+                    return ("已批准", 70.0)
+            except OSError:
+                pass
+
+    # 4. 检查是否有 Send to Lender / Send to *
+    for name, d in sub_names.items():
+        if "send to" in name or "submitted" in name:
+            try:
+                has_files = any(f.is_file() for f in d.iterdir() if not f.name.startswith("."))
+                if has_files:
+                    return ("已递交(等银行)", 45.0)
+            except OSError:
+                pass
+
+    # 5. 检查是否有 Valuation / Internal Compliance
+    for name, d in sub_names.items():
+        if "valuation" in name or "compliance" in name:
+            try:
+                has_files = any(f.is_file() for f in d.iterdir() if not f.name.startswith("."))
+                if has_files:
+                    return ("待递交", 30.0)
+            except OSError:
+                pass
+
+    # 6. 默认收集资料
+    return ("收集资料", 15.0)
+
+
 def _build_case_meta(
     case_dir: Path,
     db: Session | None,
@@ -382,6 +454,8 @@ def _build_case_meta(
     prefilled: dict = {}
     if notes is not None:
         prefilled = _quick_rule_extract_notes(notes)
+
+    inferred_stage, inferred_progress = _infer_folder_stage(case_dir, parsed["status"])
 
     already_imported = False
     existing_case_id = None
@@ -413,6 +487,8 @@ def _build_case_meta(
         "property_address": parsed["property_address"] or prefilled.get("property_address"),
         "doc_type": parsed["doc_type"],
         "status": parsed["status"],
+        "stage": existing_stage or inferred_stage,
+        "progress_pct": inferred_progress,
         "onhold_reason": parsed["onhold_reason"],
         "is_recommended_active": False,
         "has_broker_notes": notes is not None,

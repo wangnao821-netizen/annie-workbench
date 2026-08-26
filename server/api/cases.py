@@ -250,6 +250,7 @@ def _to_case_response(case: Case, db: Session) -> CaseResponse:
         os_pending_count=os_pending,
         folder_path=case.folder_path,
         folder_mode="existing" if case.folder_path else "auto",
+        is_imported=bool(case.is_imported),
     )
 
 

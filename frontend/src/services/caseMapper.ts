@@ -21,6 +21,7 @@ export function mapCaseResponse(c: CaseResponse): CaseInfo {
     lastActivity: c.last_activity,
     folderPath: c.folder_path ?? null,
     folderMode: c.folder_mode ?? null,
+    isImported: c.is_imported ?? false,
     hasBossPending: c.has_boss_pending ?? false,
     assessorName: c.assessor_name ?? null,
     lenderRef: c.lender_ref ?? null,

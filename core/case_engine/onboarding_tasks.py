@@ -68,10 +68,13 @@ def create_initial_tasks(case_id: str, db: Session) -> list[Action]:
     except Exception as exc:  # noqa: BLE001
         logger.warning("Failed to check onboarding config: %s", exc)
 
-    # 2. 检查案件是否存在
+    # 2. 检查案件是否存在及是否为存量历史导入案卷 (WO-90)
     case = db.query(Case).filter(Case.id == case_id).first()
     if not case:
         logger.warning("Case %s not found when creating onboarding tasks", case_id)
+        return []
+    if case.is_imported:
+        logger.info("Case %s is imported from history/topology, skipping initial onboarding tasks", case_id)
         return []
 
     # 3. 计算截止/定时时间（Sydney 工作日）

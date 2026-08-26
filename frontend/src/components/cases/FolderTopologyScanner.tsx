@@ -406,10 +406,10 @@ export function FolderTopologyScanner({
           targetCase = freshCases.find((c) => res.created_case_ids?.includes(c.caseId));
         }
 
-        // 若包含推荐活跃主案，自动选中并进入该案卷详情
+        // 若包含推荐活跃主案，自动选中并进入该案卷的 AI 对话中栏 (WO-90)
         if (recActiveCase && targetCase) {
           useCaseStore.getState().setCurrentCase(targetCase);
-          window.dispatchEvent(new CustomEvent('open-case-detail', { detail: targetCase.caseId }));
+          window.dispatchEvent(new CustomEvent('open-case-brain', { detail: targetCase.caseId }));
         }
 
         if (onImportComplete) {

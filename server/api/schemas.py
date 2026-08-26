@@ -80,6 +80,7 @@ class CaseResponse(BaseModel):
     has_boss_pending: bool = False            # 该案件存在升级未决事项（待老板拍板）
     folder_path: str | None = None            # 关联物理文件夹绝对路径 (WO-88)
     folder_mode: str | None = None            # 关联模式 existing | auto (WO-88)
+    is_imported: bool = False                 # 是否为存量历史导入案卷 (WO-90)
 
 
 class CaseDetailResponse(BaseModel):

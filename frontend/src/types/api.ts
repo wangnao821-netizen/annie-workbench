@@ -151,6 +151,7 @@ export interface CaseResponse {
   os_pending_count?: number;
   folder_path?: string | null;
   folder_mode?: 'existing' | 'create' | 'auto' | string | null;
+  is_imported?: boolean;
   has_boss_pending?: boolean;
   assessor_name?: string | null;
   lender_ref?: string | null;
@@ -1240,6 +1241,8 @@ export interface CaseSubfolderMeta {
   property_address?: string;
   doc_type?: string;
   status: 'active' | 'withdrawn' | 'onhold' | 'submitted' | 'settled' | 'closed' | 'lead';
+  stage?: string;
+  progress_pct?: number;
   onhold_reason?: string;
   is_recommended_active: boolean;
   has_broker_notes?: boolean;

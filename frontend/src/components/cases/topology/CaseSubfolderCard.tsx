@@ -145,6 +145,20 @@ export function CaseSubfolderCard({
                 </span>
               )}
 
+              {c.stage && (
+                <span
+                  className="px-2 py-0.5 rounded-lg text-[10px] font-black border flex items-center space-x-1"
+                  style={{
+                    backgroundColor: 'var(--green-soft)',
+                    borderColor: 'rgba(5, 150, 105, 0.3)',
+                    color: 'var(--green)',
+                  }}
+                  title={`预估阶段：${c.stage} (${c.progress_pct || 0}%)`}
+                >
+                  <span>🎯 {c.stage}</span>
+                </span>
+              )}
+
               {c.is_resub && (
                 <span
                   className="px-1.5 py-0.5 rounded text-[10px] font-bold border"
