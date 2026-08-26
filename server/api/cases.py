@@ -248,6 +248,8 @@ def _to_case_response(case: Case, db: Session) -> CaseResponse:
         finance_deadline=case.finance_deadline,
         has_boss_pending=has_boss,
         os_pending_count=os_pending,
+        folder_path=case.folder_path,
+        folder_mode="existing" if case.folder_path else "auto",
     )
 
 

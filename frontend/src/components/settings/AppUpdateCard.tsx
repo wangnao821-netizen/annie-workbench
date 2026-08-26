@@ -72,13 +72,19 @@ export function AppUpdateCard() {
         setUpdateAvailable(res.updateInfo);
         showToast('info', `发现新版本 v${res.updateInfo.version}`);
       } else if (res.status === 'error') {
-        setStatusMessage(`检查更新失败: ${res.message || '网络无法连接到 GitHub Release'}`);
+        const cleanMsg = res.message?.includes('404')
+          ? '未发现新版本或仓库地址变更 (HTTP 404)'
+          : (res.message || '网络无法连接到 GitHub Release');
+        setStatusMessage(`检查更新提示: ${cleanMsg}`);
       } else {
         setStatusMessage(`已经是最新版本 (v${currentVersion})，无需更新`);
         showToast('success', `已是最新版本 v${currentVersion}`);
       }
     } catch (err: any) {
-      setStatusMessage(`检查更新失败: ${err?.message || '未知错误'}`);
+      const cleanMsg = err?.message?.includes('404')
+        ? '未发现新版本或仓库地址变更 (HTTP 404)'
+        : (err?.message || '未知错误');
+      setStatusMessage(`检查更新提示: ${cleanMsg}`);
     } finally {
       setChecking(false);
     }
@@ -143,7 +149,7 @@ export function AppUpdateCard() {
                 <span>当前安装版本：v{currentVersion}</span>
               </div>
               <p className="text-[11px] text-muted">
-                托管渠道：GitHub Releases（everstones/annie-workbench · 全球加速 CDN）
+                托管渠道：GitHub Releases（wangnao821-netizen/annie-workbench · 全球加速 CDN）
               </p>
             </div>
 

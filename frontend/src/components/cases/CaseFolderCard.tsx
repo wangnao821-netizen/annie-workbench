@@ -4,6 +4,7 @@ import { motion, useReducedMotion } from 'motion/react';
 import { useCaseStore } from '../../stores/caseStore';
 import { useToastStore } from '../../stores/toastStore';
 import { pickExistingFolder } from '../../services/folderPicker';
+import { associateCaseFolder } from '../../services/api/cases';
 
 interface CaseFolderCardProps {
   caseId: string;
@@ -54,6 +55,17 @@ export function CaseFolderCard({
         const resolvedMode = res.mode || 'existing';
         setFolderMode(resolvedMode);
 
+        try {
+          await associateCaseFolder(caseId, {
+            path: res.path,
+            mode: resolvedMode as 'existing' | 'create' | 'auto',
+          });
+          showToast('success', '案件文件夹关联成功并已持久化');
+        } catch (err: any) {
+          console.error('associateCaseFolder error:', err);
+          showToast('error', `文件夹关联持久化失败: ${err?.message}`);
+        }
+
         if (currentCase && currentCase.caseId === caseId) {
           setCurrentCase({
             ...currentCase,
@@ -61,6 +73,7 @@ export function CaseFolderCard({
             folderMode: resolvedMode,
           });
         }
+        useCaseStore.getState().fetchCases().catch(() => {});
       }
     } finally {
       setIsOpening(false);

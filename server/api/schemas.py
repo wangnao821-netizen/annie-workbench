@@ -78,6 +78,8 @@ class CaseResponse(BaseModel):
     finance_deadline: datetime | None = None  # Finance Clause / 关键截止日
     os_pending_count: int = 0                 # 待处理 OS 条件数
     has_boss_pending: bool = False            # 该案件存在升级未决事项（待老板拍板）
+    folder_path: str | None = None            # 关联物理文件夹绝对路径 (WO-88)
+    folder_mode: str | None = None            # 关联模式 existing | auto (WO-88)
 
 
 class CaseDetailResponse(BaseModel):
