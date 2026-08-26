@@ -1,6 +1,6 @@
 {
   "name": "vera-workbench-electron",
-  "version": "2.3.2",
+  "version": "2.3.3",
   "description": "Annie Electron 封装（窗口/托盘/后端进程管理/打包）",
   "main": "main.js",
   "private": true,

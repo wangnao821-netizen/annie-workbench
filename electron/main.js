@@ -387,7 +387,7 @@ function registerIpc() {
 function initAutoUpdater() {
   if (!IS_PACKAGED) return;
 
-  autoUpdater.autoDownload = false;
+  autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
 
   autoUpdater.on('update-available', (info) => {

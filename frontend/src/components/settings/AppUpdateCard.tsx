@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import {
   Sparkles,
@@ -8,105 +7,32 @@ import {
   RotateCcw,
   ShieldCheck,
 } from 'lucide-react';
-import { useToastStore } from '../../stores/toastStore';
-
-interface UpdateInfo {
-  version: string;
-  releaseDate?: string;
-  releaseNotes?: string;
-}
+import { useUpdateStore } from '../../stores/updateStore';
 
 export function AppUpdateCard() {
   const reduced = useReducedMotion();
-  const showToast = useToastStore((s) => s.showToast);
+  const {
+    currentVersion,
+    checking,
+    downloading,
+    updateAvailable,
+    updateDownloaded,
+    statusMessage,
+    checkForUpdates,
+    downloadUpdate,
+    installUpdate,
+  } = useUpdateStore();
 
-  const [currentVersion, setCurrentVersion] = useState<string>('2.2.0');
-  const [checking, setChecking] = useState<boolean>(false);
-  const [downloading, setDownloading] = useState<boolean>(false);
-  const [updateAvailable, setUpdateAvailable] = useState<UpdateInfo | null>(null);
-  const [updateDownloaded, setUpdateDownloaded] = useState<boolean>(false);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    const electron = (window as any).veraElectron;
-    if (electron) {
-      electron.getVersion?.().then((v: string) => {
-        if (v) setCurrentVersion(v);
-      }).catch(() => {});
-
-      // 监听桌面端更新事件
-      const unsubs = [
-        electron.onUpdateAvailable?.((info: any) => {
-          setUpdateAvailable(info);
-          setStatusMessage(`发现新版本 v${info.version}`);
-        }),
-        electron.onUpdateDownloaded?.((info: any) => {
-          setUpdateDownloaded(true);
-          setDownloading(false);
-          setStatusMessage(`新版本 v${info.version} 已下载完成`);
-          showToast('success', `🎉 Annie v${info.version} 更新包已就绪，重启软件即可生效！`);
-        }),
-      ];
-
-      return () => {
-        unsubs.forEach((unsub) => unsub && typeof unsub === 'function' && unsub());
-      };
-    }
-  }, []);
-
-  const handleCheckUpdate = async () => {
-    const electron = (window as any).veraElectron;
-    if (!electron || !electron.checkForUpdates) {
-      setStatusMessage('当前运行在 Web 开发端模式（打包桌面版支持一键全自动静默热更新）');
-      showToast('info', '当前为 Web 浏览器端，桌面客户端已开启自动更新通道');
-      return;
-    }
-
-    setChecking(true);
-    setStatusMessage(null);
-    try {
-      const res = await electron.checkForUpdates();
-      if (res.status === 'dev_mode') {
-        setStatusMessage('开发模式下已跳过自动更新');
-      } else if (res.status === 'ok' && res.updateInfo) {
-        setUpdateAvailable(res.updateInfo);
-        showToast('info', `发现新版本 v${res.updateInfo.version}`);
-      } else if (res.status === 'error') {
-        const cleanMsg = res.message?.includes('404')
-          ? '未发现新版本或仓库地址变更 (HTTP 404)'
-          : (res.message || '网络无法连接到 GitHub Release');
-        setStatusMessage(`检查更新提示: ${cleanMsg}`);
-      } else {
-        setStatusMessage(`已经是最新版本 (v${currentVersion})，无需更新`);
-        showToast('success', `已是最新版本 v${currentVersion}`);
-      }
-    } catch (err: any) {
-      const cleanMsg = err?.message?.includes('404')
-        ? '未发现新版本或仓库地址变更 (HTTP 404)'
-        : (err?.message || '未知错误');
-      setStatusMessage(`检查更新提示: ${cleanMsg}`);
-    } finally {
-      setChecking(false);
-    }
+  const handleCheckUpdate = () => {
+    checkForUpdates();
   };
 
-  const handleDownloadUpdate = async () => {
-    const electron = (window as any).veraElectron;
-    if (!electron || !electron.downloadUpdate) return;
-    setDownloading(true);
-    try {
-      await electron.downloadUpdate();
-      showToast('info', '正在后台静默下载新版本安装包...');
-    } catch (err: any) {
-      setDownloading(false);
-      showToast('error', `下载失败: ${err?.message}`);
-    }
+  const handleDownloadUpdate = () => {
+    downloadUpdate();
   };
 
   const handleInstallNow = () => {
-    const electron = (window as any).veraElectron;
-    if (!electron || !electron.installUpdate) return;
-    electron.installUpdate();
+    installUpdate();
   };
 
   return (

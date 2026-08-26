@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
-import { PanelRightOpen } from 'lucide-react';
+import { PanelRightOpen, Sparkles, RotateCcw } from 'lucide-react';
+import { useUpdateStore } from '../../stores/updateStore';
 import { ViewId } from '../../types/navigation';
 import { CaseBoard } from '../../pages/CaseBoard';
 import { CaseDetail } from '../../pages/CaseDetail';
@@ -35,6 +36,13 @@ export function AppShell() {
   const [view, setView] = useState<ViewId>("home");
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [panoramaCollapsed, setPanoramaCollapsed] = useState(false);
+
+  const { updateDownloaded, updateAvailable } = useUpdateStore();
+
+  useEffect(() => {
+    const cleanup = useUpdateStore.getState().initListeners();
+    return cleanup;
+  }, []);
 
   useEffect(() => {
     const handleOpenCaseDetail = (e: Event) => {
@@ -264,6 +272,34 @@ export function AppShell() {
         forceOpen={onboardingOpen}
         onClose={() => setOnboardingOpen(false)}
       />
+
+      {/* 4. 全局软件升级就绪浮窗 */}
+      {updateDownloaded && (
+        <motion.div
+          initial={{ opacity: 0, y: 20, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          className="fixed bottom-6 right-6 z-50 p-3.5 rounded-2xl border shadow-xl flex items-center space-x-3 bg-[var(--bg-card)]"
+          style={{ borderColor: 'var(--green)', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.2)' }}
+        >
+          <div className="w-8 h-8 rounded-xl bg-[var(--green-soft)] text-[var(--green)] flex items-center justify-center font-bold">
+            <Sparkles className="w-4 h-4" />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-[var(--text-primary)]">
+              Annie {updateAvailable?.version ? `v${updateAvailable.version}` : '新版本'} 已就绪
+            </p>
+            <p className="text-[11px] text-muted">更新包已后台下载完毕，重启即可生效</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => useUpdateStore.getState().installUpdate()}
+            className="px-3 py-1.5 rounded-xl bg-[var(--green)] text-white text-xs font-bold hover:opacity-90 cursor-pointer shadow-xs flex items-center space-x-1"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>立即重启</span>
+          </button>
+        </motion.div>
+      )}
     </div>
   );
 }
