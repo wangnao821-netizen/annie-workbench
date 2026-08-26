@@ -98,6 +98,12 @@ export function NewCaseSheet({ open, onClose, onCreated }: NewCaseSheetProps) {
       return;
     }
 
+    if (!formValues.parentPath || !formValues.parentPath.trim()) {
+      setFieldErrors({ parentPath: true });
+      showToast('error', '新建案件必须选择或指定客户档案文件夹目录');
+      return;
+    }
+
     setFieldErrors({});
     setIsSubmitting(true);
 
@@ -162,9 +168,10 @@ export function NewCaseSheet({ open, onClose, onCreated }: NewCaseSheetProps) {
       await fetchCases();
       onCreated(mappedCase);
 
-      // 5. 立即广播跳转事件进入详情页
+      // 5. 立即广播跳转事件直达主工作区（中栏 AI 聊天 + 右栏材料清单）
+      useUiStore.getState().setRightDeckTab('checklist');
       window.dispatchEvent(
-        new CustomEvent('open-case-detail', { detail: mappedCase.caseId })
+        new CustomEvent('open-case-brain', { detail: mappedCase.caseId })
       );
 
       // 6. 清理并关闭

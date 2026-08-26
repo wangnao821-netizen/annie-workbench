@@ -368,6 +368,7 @@ class ChecklistItemResponse(BaseModel):
     status: str
     ai_suggestion: str | None = None
     updated_at: datetime | None = None
+    master_id: str | None = None
     phase: str = "initial"                       # initial / condition（WO-74）
     deadline: datetime | None = None
     source_ref: str | None = None

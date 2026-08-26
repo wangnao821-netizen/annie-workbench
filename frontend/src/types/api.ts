@@ -308,6 +308,7 @@ export interface ChecklistItemResponse {
   item_name?: string;        // 后端材料名称
   category: string;         // "required" | "ai_suggested" | "optional" 或业务分类
   master_category?: string;
+  master_id?: string | null;
   section?: string;         // 首次模板 8 大板块 id（WO-74）
   phase?: string;           // initial / condition（WO-74）
   deadline?: string | null;
@@ -434,14 +435,19 @@ export interface DraftListItem {
 
 export interface DraftResponse {
   id: number;
-  action_id: number;
+  action_id?: number;
+  source_action_id?: number | null;
+  case_id?: string;
+  client_name?: string;
+  to_email?: string | null;
   subject: string;
-  body_zh: string;
-  body_en: string;
-  status: string;         // "draft" | "confirmed" | "sent"
-  version: number;
-  created_at: string;     // ISO
-  updated_at: string;     // ISO
+  body_zh?: string;
+  body_en?: string;
+  body?: string;
+  status: string;         // "draft" | "confirmed" | "sent" | "approved"
+  version?: number;
+  created_at?: string;     // ISO
+  updated_at?: string;     // ISO
 }
 
 export interface DraftVersionResponse {
@@ -1583,4 +1589,17 @@ export interface FactFindConfirmResponse {
   status: 'confirmed';
   event_id: number | null;
   checklist_updated: boolean;
+}
+
+export interface CaseFileItemResponse {
+  id: string;
+  case_id: string;
+  original_name: string;
+  assigned_type?: string | null;
+  confidence?: number | null;
+  nas_path?: string | null;
+  status: string;
+  file_extension?: string | null;
+  file_size?: number | null;
+  created_at?: string | null;
 }

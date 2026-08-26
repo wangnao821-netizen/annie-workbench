@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
-import { FileText, Inbox, RefreshCw, AlertCircle, CheckCircle2, Send, Clock, User, Hash } from 'lucide-react';
+import { FileText, Inbox, RefreshCw, AlertCircle, CheckCircle2, Send, Clock, User, Hash, ChevronRight } from 'lucide-react';
 import { listDrafts } from '../services/api/drafts';
 import { DraftListItem } from '../types/api';
+import { DraftDetailModal } from '../components/panel/DraftDetailModal';
 
 const MOCK_DRAFTS: DraftListItem[] = [
   { id: 1, action_id: 101, case_id: 'CASE_001', client_name: 'PERSON_1', subject: '关于补充 2025 NOA 及银行 3 个月月结单的说明邮件', status: 'draft', version: 2, updated_at: '10 分钟前' },
@@ -18,6 +19,7 @@ export function DraftsBox() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterStatus>('all');
+  const [selectedDraftId, setSelectedDraftId] = useState<number | null>(null);
 
   const fetchDrafts = useCallback(async () => {
     setLoading(true);
@@ -108,7 +110,14 @@ export function DraftsBox() {
       ) : (
         <div className="space-y-2.5">
           {filteredDrafts.map((draft) => (
-            <motion.div key={draft.id} id={`draft-item-${draft.id}`} whileTap={reduced ? undefined : { scale: 0.99 }} className="p-4 rounded-2xl border flex flex-col md:flex-row md:items-center justify-between gap-3 transition-colors hover:border-[var(--accent)]" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+            <motion.div
+              key={draft.id}
+              id={`draft-item-${draft.id}`}
+              whileTap={reduced ? undefined : { scale: 0.99 }}
+              onClick={() => setSelectedDraftId(draft.id)}
+              className="p-4 rounded-2xl border flex flex-col md:flex-row md:items-center justify-between gap-3 transition-all hover:border-[var(--accent)] hover:shadow-sm cursor-pointer"
+              style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}
+            >
               <div className="space-y-1.5 min-w-0 flex-1">
                 <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                   {renderStatusBadge(draft.status)}
@@ -120,14 +129,24 @@ export function DraftsBox() {
                   {draft.case_id && <span className="flex items-center space-x-1"><Hash className="w-3 h-3 text-[var(--accent)]" /><span>{draft.case_id}</span></span>}
                 </div>
               </div>
-              <div className="flex items-center space-x-1.5 text-[11px] font-mono text-muted flex-shrink-0 self-end md:self-center">
-                <Clock className="w-3 h-3" />
-                <span>{draft.updated_at || '刚刚'}</span>
+              <div className="flex items-center space-x-3 text-[11px] font-mono text-muted flex-shrink-0 self-end md:self-center">
+                <div className="flex items-center space-x-1">
+                  <Clock className="w-3 h-3" />
+                  <span>{draft.updated_at ? new Date(draft.updated_at).toLocaleDateString('zh-CN') : '刚刚'}</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted opacity-60" />
               </div>
             </motion.div>
           ))}
         </div>
       )}
+
+      {/* 草稿详情 Modal */}
+      <DraftDetailModal
+        draftId={selectedDraftId}
+        isOpen={Boolean(selectedDraftId)}
+        onClose={() => setSelectedDraftId(null)}
+      />
     </div>
   );
 }

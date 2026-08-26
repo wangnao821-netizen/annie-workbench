@@ -96,7 +96,7 @@ export function AssistantSettingsCard() {
                 maxLength={40}
                 value={aiName}
                 onChange={(e) => setAiName(e.target.value)}
-                placeholder="例如：小V"
+                placeholder="例如：Annie"
                 className="w-full px-3 py-2 rounded-xl border text-xs outline-none focus:border-[var(--purple)] transition-colors"
                 style={{ backgroundColor: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
               />

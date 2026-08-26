@@ -17,3 +17,6 @@ frontend/node_modules/
 
 # 前端目录由 AI Studio 管理（Downloads 最新编号为准），定稿前不进入版本控制，防止 git 还原/清理误伤
 ui/
+
+*.log
+

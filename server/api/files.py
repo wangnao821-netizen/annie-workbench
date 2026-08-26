@@ -7,6 +7,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core.ai.case_summary import mark_case_summary_dirty
@@ -34,6 +35,45 @@ _CATEGORY_LABELS = {
 }
 
 _TEMPLATE_SECTION_MAP: dict[str, str] | None = None
+
+_CATEGORY_TO_SECTION: dict[str, str] = {
+    "identity": "id",
+    "income_payg": "income",
+    "income_self_employed": "income",
+    "special": "asset",
+    "property": "asset",
+    "settlement": "asset",
+    "bank_specific": "liability",
+}
+
+
+def _resolve_item_section(it: CaseChecklist) -> str:
+    """根据 master_id / category / 名称智能解析 8 大板块或 other 兜底。"""
+    template_sec = _template_section_map().get(it.master_id or "")
+    if template_sec:
+        return template_sec
+    cat = (it.category or "").lower()
+    if cat in _CATEGORY_TO_SECTION:
+        return _CATEGORY_TO_SECTION[cat]
+    name = (it.item_name or "").lower()
+    if any(k in name for k in ("护照", "驾照", "身份", "passport", "licence")):
+        return "id"
+    if any(k in name for k in ("工资", "收入", "税", "payslip", "salary", "tax", "financial")):
+        return "income"
+    if any(k in name for k in ("雇主", "employment")):
+        return "employment_history"
+    if any(k in name for k in ("开支", "expense")):
+        return "living_expense"
+    if any(k in name for k in ("贷款", "信用卡", "负债", "loan", "liability", "credit")):
+        return "liability"
+    if any(k in name for k in ("居住", "living")):
+        return "living_history"
+    if any(k in name for k in ("资产", "房产", "市政", "合同", "定金", "存款", "rates", "asset", "super")):
+        return "asset"
+    if any(k in name for k in ("律师", "过户", "solicitor")):
+        return "solicitor"
+    return "other"
+
 
 
 def _template_section_map() -> dict[str, str]:
@@ -116,6 +156,7 @@ def _to_checklist_item(it: CaseChecklist, db: Session | None = None) -> Checklis
     return ChecklistItemResponse(
         id=it.id,
         case_id=it.case_id,
+        master_id=it.master_id,
         item_name=it.item_name,
         category=category,
         is_required=it.is_required,
@@ -127,7 +168,7 @@ def _to_checklist_item(it: CaseChecklist, db: Session | None = None) -> Checklis
         source_ref=it.source_ref,
         item_kind=it.item_kind or "document",
         master_category=label,
-        section=_template_section_map().get(it.master_id or ""),
+        section=_resolve_item_section(it),
         bank_specific=master_meta.get("bank_specific"),
         applicable_when=aw_str,
         matched_file_id=matched_file_id,
@@ -264,6 +305,68 @@ def revoke_checklist_item(
     db.refresh(item)
     mark_case_summary_dirty(case_id, db)
     return _to_checklist_item(item, db)
+
+
+class AdjustInitialChecklistRequest(BaseModel):
+    selected_master_ids: list[str]
+
+
+@router.put("/cases/{case_id}/checklist/initial", response_model=list[ChecklistItemResponse])
+def adjust_initial_checklist(
+    case_id: str,
+    req: AdjustInitialChecklistRequest,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> list[ChecklistItemResponse]:
+    """原子化重设首次材料清单（phase='initial'）：按勾选的 master_id 列表重建，杜绝叠加重名。"""
+    _get_case_or_404(case_id, db)
+    from core.checklist.email_draft import _load_master_index
+
+    master_index = _load_master_index()
+
+    # 查出已有 received 或已关联文件的 initial 项
+    existing_initial = (
+        db.query(CaseChecklist)
+        .filter(CaseChecklist.case_id == case_id, CaseChecklist.phase == "initial")
+        .all()
+    )
+    existing_by_master = {it.master_id: it for it in existing_initial if it.master_id}
+
+    # 原子清空旧 initial 项
+    db.query(CaseChecklist).filter(
+        CaseChecklist.case_id == case_id,
+        CaseChecklist.phase == "initial",
+    ).delete(synchronize_session=False)
+    db.flush()
+
+    # 插入选定的 master 项
+    new_rows: list[CaseChecklist] = []
+    for mid in req.selected_master_ids:
+        master = master_index.get(mid, {})
+        old_item = existing_by_master.get(mid)
+        new_rows.append(
+            CaseChecklist(
+                case_id=case_id,
+                item_name=master.get("name_zh", mid),
+                category=master.get("category", "special"),
+                is_required=True,
+                status=old_item.status if old_item else "pending",
+                master_id=mid,
+                phase="initial",
+                item_kind=master.get("kind", "document"),
+                received_file_id=old_item.received_file_id if old_item else None,
+            )
+        )
+
+    db.add_all(new_rows)
+    db.commit()
+
+    all_items = (
+        db.query(CaseChecklist)
+        .filter(CaseChecklist.case_id == case_id)
+        .order_by(CaseChecklist.id)
+        .all()
+    )
+    return [_to_checklist_item(it, db) for it in all_items]
 
 
 @router.post("/cases/{case_id}/checklist", response_model=ChecklistItemResponse, status_code=201)

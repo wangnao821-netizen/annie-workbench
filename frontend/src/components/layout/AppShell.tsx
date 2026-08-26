@@ -43,13 +43,23 @@ export function AppShell() {
         setView("case-detail");
       }
     };
+    const handleOpenCaseBrain = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      if (customEvent.detail) {
+        setSelectedCaseId(customEvent.detail);
+        useUiStore.getState().setRightDeckTab('checklist');
+        setView("brain");
+      }
+    };
     const handleOpenArchiveHub = () => {
       setView("archive");
     };
     window.addEventListener('open-case-detail', handleOpenCaseDetail);
+    window.addEventListener('open-case-brain', handleOpenCaseBrain);
     window.addEventListener('open-archive-hub', handleOpenArchiveHub);
     return () => {
       window.removeEventListener('open-case-detail', handleOpenCaseDetail);
+      window.removeEventListener('open-case-brain', handleOpenCaseBrain);
       window.removeEventListener('open-archive-hub', handleOpenArchiveHub);
     };
   }, []);

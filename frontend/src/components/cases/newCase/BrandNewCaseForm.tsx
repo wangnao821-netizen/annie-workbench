@@ -530,6 +530,7 @@ export function BrandNewCaseForm({
 
       {/* 4. 本地工作目录自动脚手架 (Directory Scaffolding) */}
       <ScaffoldDirectoryPreview
+        error={Boolean(errors.parentPath)}
         autoScaffold={values.autoScaffold}
         onToggleAutoScaffold={(val) => onChange({ autoScaffold: val })}
         parentPath={values.parentPath}

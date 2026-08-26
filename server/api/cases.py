@@ -1638,6 +1638,33 @@ def update_case_brief_endpoint(
     )
 
 
+@router.get(
+    "/{case_id}/email-draft/preliminary/preview",
+    response_model=EmailDraftResponse,
+)
+def preview_preliminary_email_draft(
+    case_id: str,
+    db: Session = Depends(get_db),  # noqa: B008
+) -> EmailDraftResponse:
+    """预览 Preliminary Assessment 标准英文邮件（实时读取已选清单与画像，不落库）。"""
+    case = db.query(Case).filter(Case.id == case_id).first()
+    if not case:
+        raise HTTPException(status_code=404, detail=f"案件 {case_id} 不存在")
+    try:
+        email = generate_preliminary_assessment_email(case_id, db)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return EmailDraftResponse(
+        ok=True,
+        case_id=case_id,
+        subject=email["subject"],
+        body_text=email["body_text"],
+        body_html=email["body_html"],
+        recipient_email=email["recipient_email"],
+        cc_email=email["cc_email"],
+    )
+
+
 @router.post(
     "/{case_id}/email-draft/preliminary",
     response_model=EmailDraftResponse,

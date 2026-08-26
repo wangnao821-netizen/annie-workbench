@@ -20,7 +20,7 @@ import yaml
 from sqlalchemy.orm import Session
 
 from core.logger import get_logger
-from core.models.orm import BrainFact, Case, EmailDraft
+from core.models.orm import BrainFact, Case, CaseChecklist, EmailDraft
 
 logger = get_logger(__name__)
 
@@ -228,6 +228,19 @@ def generate_preliminary_assessment_email(
         )
 
     sections = _apply_trim(sections, template.get("trim_rules", []), profile)
+
+    # 若数据库中已有本案选定的 initial 清单项，严格按实际选定项过滤，保证邮件与勾选台账 100% 同步
+    active_initial_rows = (
+        db.query(CaseChecklist)
+        .filter(CaseChecklist.case_id == case_id, CaseChecklist.phase == "initial")
+        .all()
+    )
+    if active_initial_rows:
+        active_refs = {r.master_id for r in active_initial_rows if r.master_id}
+        for sec in sections:
+            sec["documents"] = [d for d in sec["documents"] if d["ref"] in active_refs]
+            sec["info"] = [i for i in sec["info"] if i["ref"] in active_refs]
+        sections = [s for s in sections if s["documents"] or s["info"]]
 
     subject = (
         f"{_SUBJECT_PREFIX} - {case.client_name} - {profile['purpose']} "

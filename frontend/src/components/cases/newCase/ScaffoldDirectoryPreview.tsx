@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 
 interface ScaffoldDirectoryPreviewProps {
+  error?: boolean;
   autoScaffold: boolean;
   onToggleAutoScaffold: (enabled: boolean) => void;
   parentPath: string;
@@ -38,6 +39,7 @@ export const STANDARD_SUBDIRS = [
 ];
 
 export function ScaffoldDirectoryPreview({
+  error,
   autoScaffold,
   onToggleAutoScaffold,
   parentPath,
@@ -137,7 +139,7 @@ export function ScaffoldDirectoryPreview({
             >
               <span className="flex items-center space-x-1.5">
                 <HardDrive className="w-3.5 h-3.5" style={{ color: 'var(--text-muted)' }} />
-                <span>客户档案根目录 (Parent Directory)</span>
+                <span>客户档案根目录 (Parent Directory) <span className="text-red-500 font-bold">*</span></span>
               </span>
               <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
                 自动记住上次选择
@@ -152,7 +154,7 @@ export function ScaffoldDirectoryPreview({
                 className="flex-1 px-3 py-2 rounded-xl border text-xs font-mono transition-colors"
                 style={{
                   backgroundColor: 'var(--bg-input)',
-                  borderColor: 'var(--border)',
+                  borderColor: error ? 'var(--red)' : 'var(--border)',
                   color: 'var(--text-primary)',
                 }}
               />

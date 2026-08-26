@@ -10,6 +10,10 @@ export function listDrafts(params?: { case_id?: string; status?: string; limit?:
   return request<DraftListItem[]>(`/api/drafts/${qs ? `?${qs}` : ''}`);
 }
 
+export function getDraftById(draftId: number): Promise<DraftResponse> {
+  return request<DraftResponse>(`/api/drafts/by-id/${draftId}`);
+}
+
 export function getDraft(actionId: number): Promise<DraftResponse> {
   return request<DraftResponse>(`/api/drafts/${actionId}`);
 }

@@ -53,9 +53,9 @@ def generate_initial_checklist(
             raise ValueError(f"template trim add '{ref}' not found in checklist_master")
 
     profile = {
-        "employment_type": case.employment_type or "",
-        "residency": case.residency or "",
-        "purpose": case.purpose or "",
+        "employment_type": case.employment_type or "PAYG",
+        "residency": case.residency or "PR",
+        "purpose": case.purpose or "Purchase",
         "lender": case.lender or "",
     }
 

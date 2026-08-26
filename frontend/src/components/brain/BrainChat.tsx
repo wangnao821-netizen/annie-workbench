@@ -546,7 +546,7 @@ export function BrainChat({ caseId, onToggleRightDeck, isRightDeckCollapsed }: B
     setAssistantData(savedData);
     setShowOnboarding(false);
     // Insert local AI welcome message
-    const aiName = savedData.ai_name || '小V';
+    const aiName = savedData.ai_name || 'Annie';
     const userAddr = savedData.user_address || 'Vera';
     const welcomeMsg: ChatMessageResponse = {
       id: `msg-welcome-${Date.now()}`,

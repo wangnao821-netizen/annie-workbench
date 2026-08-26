@@ -2677,3 +2677,24 @@ export async function confirmFactFindSection(caseId: string, section: string): P
     method: 'POST',
   });
 }
+
+export function adjustInitialChecklist(
+  caseId: string,
+  selectedMasterIds: string[]
+): Promise<ChecklistItemResponse[]> {
+  return request<ChecklistItemResponse[]>(
+    `/api/cases/${encodeURIComponent(caseId)}/checklist/initial`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ selected_master_ids: selectedMasterIds }),
+    }
+  );
+}
+
+export function previewPreliminaryEmailDraft(
+  caseId: string
+): Promise<EmailDraftResponse> {
+  return request<EmailDraftResponse>(
+    `/api/cases/${encodeURIComponent(caseId)}/email-draft/preliminary/preview`
+  );
+}

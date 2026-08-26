@@ -39,7 +39,7 @@ export function AssistantOnboardingCard({
   ];
 
   const handleSave = async () => {
-    const finalAiName = aiName.trim() || '小V';
+    const finalAiName = aiName.trim() || 'Annie';
     const finalUserAddress = userAddress.trim() || 'Vera';
 
     setSaving(true);
@@ -101,7 +101,7 @@ export function AssistantOnboardingCard({
             maxLength={40}
             value={aiName}
             onChange={(e) => setAiName(e.target.value)}
-            placeholder="小V"
+            placeholder="Annie"
             className="w-full px-2.5 py-1.5 rounded-xl border text-xs outline-none focus:border-[var(--purple)] transition-colors"
             style={{ backgroundColor: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
           />
