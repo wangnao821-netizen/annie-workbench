@@ -199,14 +199,25 @@ def _build_case_brain(case: Case, db: Session) -> str:
         blockers.append(f"OS待处理: {raw[:60]}")
     parts.append(f"🚧 当前瓶颈: {'; '.join(blockers) if blockers else '无阻塞'}")
 
-    # 7. Vera 备忘录
-    notes = db.query(KnowledgeEntry).filter(
-        KnowledgeEntry.case_id == case.id,
-        KnowledgeEntry.source == "vera_manual"
-    ).order_by(KnowledgeEntry.created_at.desc()).limit(3).all()
+    # 7. Vera 备忘录（全量精准注入，带披露标记）
+    notes = (
+        db.query(KnowledgeEntry)
+        .filter(
+            KnowledgeEntry.case_id == case.id,
+            KnowledgeEntry.source == "vera_manual",
+        )
+        .order_by(KnowledgeEntry.created_at.asc())
+        .all()
+    )
     if notes:
-        notes_text = "; ".join(n.content[:100] for n in notes)
-        parts.append(f"📝 Vera备忘: {notes_text}")
+        formatted_notes = []
+        for n in notes:
+            tags = (n.tags or "").lower()
+            disc = "可披露" if "disclosed" in tags else "仅内部"
+            time_str = n.created_at.strftime("%m-%d %H:%M") if n.created_at else ""
+            prefix = f"• [{disc}{f' · {time_str}' if time_str else ''}]"
+            formatted_notes.append(f"{prefix} {n.content}")
+        parts.append("📝 Vera 手工备忘与核心交代 (最高优先级 · 必须严格遵守):\n" + "\n".join(formatted_notes))
 
     return "\n".join(parts)
 

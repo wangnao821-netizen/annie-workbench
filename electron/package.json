@@ -1,6 +1,6 @@
 {
   "name": "vera-workbench-electron",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Annie Electron 封装（窗口/托盘/后端进程管理/打包）",
   "main": "main.js",
   "private": true,
@@ -26,13 +26,11 @@
   "build": {
     "appId": "com.vera.workbench",
     "productName": "Annie",
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "wangnao821-netizen",
-        "repo": "annie-workbench"
-      }
-    ],
+    "publish": {
+      "provider": "github",
+      "owner": "wangnao821-netizen",
+      "repo": "annie-workbench"
+    },
     "afterPack": "after-pack.js",
     "asar": false,
     "directories": {

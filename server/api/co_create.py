@@ -32,10 +32,10 @@ def co_create_chat(req: CoCreateRequest, db: Session = Depends(get_db)) -> dict:
         {
             "flow_key": req.flow_key,
             "action": req.action,
-            "message": req.message,
-            "session_id": req.session_id,
+            "message": req.message or "",
+            "session_id": req.session_id or "",
             "parent_message_id": req.parent_message_id,
-            "branch_label": req.branch_label,
+            "branch_label": req.branch_label or "main",
             "create_todo": req.create_todo,
             "recipient_hint": "",
         },

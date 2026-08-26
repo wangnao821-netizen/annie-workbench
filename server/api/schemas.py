@@ -36,10 +36,10 @@ class CoCreateRequest(BaseModel):
     case_id: str
     flow_key: Literal["followup", "chaser", "os_reply"]  # 非法 → 422
     action: Literal["clarify", "generate", "version", "branch", "confirm"]
-    message: str = ""                       # 用户本轮输入（clarify/generate/version 用；confirm 可空）
-    session_id: str = ""                    # 恢复会话（默认 draft:{case_id}）
+    message: str | None = ""                # 用户本轮输入（clarify/generate/version 用；confirm 可空）
+    session_id: str | None = None           # 恢复会话（默认 draft:{case_id}）
     parent_message_id: int | None = None    # version/branch/confirm 指定父版本
-    branch_label: str = "main"
+    branch_label: str | None = "main"
     create_todo: bool = False               # confirm 时可选建待办（红线：必须显式传入）
     add_checklist_items: list[FromConditionItem] | None = None  # confirm 时可选沉淀追加清单项（WO-75b）
 
@@ -1065,6 +1065,7 @@ class KnowledgeEntryResponse(BaseModel):
     case_id: str | None = None
     content: str
     source: str
+    tags: str | None = None    # internal_only | disclosed 等标签
     vera_confirmed: bool = False
     lender: str | None = None
     created_at: datetime | None = None
@@ -1076,12 +1077,14 @@ class KnowledgeCreateRequest(BaseModel):
     content: str = Field(min_length=1)
     case_id: str | None = None
     lender: str | None = None
+    tags: str | None = None
     source: str = "vera_manual"
 
 
 class KnowledgeUpdateRequest(BaseModel):
     content: str | None = Field(default=None, min_length=1)
     lender: str | None = None
+    tags: str | None = None
     vera_confirmed: bool | None = None
 
 
@@ -1689,7 +1692,7 @@ class EmailDraftResponse(BaseModel):
     body_html: str
     recipient_email: str
     cc_email: str
-    draft_id: str
+    draft_id: str | None = None
 
 
 

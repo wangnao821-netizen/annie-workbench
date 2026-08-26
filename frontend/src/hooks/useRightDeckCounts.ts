@@ -3,9 +3,11 @@ import { useTaskStore } from '../stores/taskStore';
 import { useCaseStore } from '../stores/caseStore';
 import { getChecklist } from '../services/api/cases';
 import { getCaseFolderFiles } from '../services/api/fileOps';
+import { getKnowledge } from '../services/api/knowledge';
 
 export interface RightDeckCounts {
   checklistPendingCount: number;
+  notesCount: number;
   fileCount: number;
   unmatchedFileCount: number;
   taskCount: number;
@@ -16,6 +18,7 @@ export interface RightDeckCounts {
 
 export function useRightDeckCounts(caseId: string | null): RightDeckCounts {
   const [checklistPendingCount, setChecklistPendingCount] = useState(0);
+  const [notesCount, setNotesCount] = useState(0);
   const [fileCount, setFileCount] = useState(0);
   const [unmatchedFileCount, setUnmatchedFileCount] = useState(0);
   const tasks = useTaskStore((s) => s.tasks);
@@ -24,15 +27,17 @@ export function useRightDeckCounts(caseId: string | null): RightDeckCounts {
   const fetchCounts = useCallback(async () => {
     if (!caseId) {
       setChecklistPendingCount(0);
+      setNotesCount(0);
       setFileCount(0);
       setUnmatchedFileCount(0);
       return;
     }
 
     try {
-      const [chkData, fileData] = await Promise.all([
+      const [chkData, fileData, notesData] = await Promise.all([
         getChecklist(caseId).catch(() => []),
         getCaseFolderFiles(caseId, '').catch(() => ({ current_path: '', items: [] })),
+        getKnowledge({ layer: 'case', case_id: caseId }).catch(() => []),
       ]);
 
       // status !== 'received' 且 is_required
@@ -47,6 +52,7 @@ export function useRightDeckCounts(caseId: string | null): RightDeckCounts {
       ).length;
 
       setChecklistPendingCount(pendingChk);
+      setNotesCount((notesData || []).length);
       setFileCount(totalFiles);
       setUnmatchedFileCount(unmatched);
     } catch {
@@ -65,10 +71,12 @@ export function useRightDeckCounts(caseId: string | null): RightDeckCounts {
     window.addEventListener('checklist_updated', handleUpdate);
     window.addEventListener('files_updated', handleUpdate);
     window.addEventListener('task_updated', handleUpdate);
+    window.addEventListener('case_notes_updated', handleUpdate);
     return () => {
       window.removeEventListener('checklist_updated', handleUpdate);
       window.removeEventListener('files_updated', handleUpdate);
       window.removeEventListener('task_updated', handleUpdate);
+      window.removeEventListener('case_notes_updated', handleUpdate);
     };
   }, [fetchCounts]);
 
@@ -118,6 +126,7 @@ export function useRightDeckCounts(caseId: string | null): RightDeckCounts {
   });
 
   return {
+    notesCount,
     checklistPendingCount,
     fileCount,
     unmatchedFileCount,

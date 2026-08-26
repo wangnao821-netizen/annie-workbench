@@ -26,6 +26,7 @@ import { CasePanorama } from '../brain/CasePanorama';
 import { GlobalStatsPanel } from '../brain/GlobalStatsPanel';
 import { RightDeckTabs } from '../brain/RightDeckTabs';
 import { ChecklistDeck } from '../brain/ChecklistDeck';
+import { CaseNotesDeck } from '../cases/notes/CaseNotesDeck';
 import { TaskDeckContent } from '../brain/TaskDeckContent';
 import { FileDeckContent } from '../brain/FileDeckContent';
 import { OnboardingModal } from '../onboarding/OnboardingModal';
@@ -54,13 +55,21 @@ export function AppShell() {
     const handleOpenArchiveHub = () => {
       setView("archive");
     };
+    const handleNavigateView = (e: Event) => {
+      const customEvent = e as CustomEvent<ViewId>;
+      if (customEvent.detail) {
+        setView(customEvent.detail);
+      }
+    };
     window.addEventListener('open-case-detail', handleOpenCaseDetail);
     window.addEventListener('open-case-brain', handleOpenCaseBrain);
     window.addEventListener('open-archive-hub', handleOpenArchiveHub);
+    window.addEventListener('navigate-view', handleNavigateView);
     return () => {
       window.removeEventListener('open-case-detail', handleOpenCaseDetail);
       window.removeEventListener('open-case-brain', handleOpenCaseBrain);
       window.removeEventListener('open-archive-hub', handleOpenArchiveHub);
+      window.removeEventListener('navigate-view', handleNavigateView);
     };
   }, []);
 
@@ -142,7 +151,7 @@ export function AppShell() {
                         className="text-[11px] font-extrabold text-muted tracking-widest whitespace-nowrap"
                         style={{ writingMode: 'vertical-rl' }}
                       >
-                        {rightDeckTab === 'panorama' ? '客户全景' : rightDeckTab === 'checklist' ? '材料清单' : rightDeckTab === 'files' ? '案卷文件' : '客户任务'}
+                        {rightDeckTab === 'panorama' ? '全景' : rightDeckTab === 'notes' ? '备忘' : rightDeckTab === 'checklist' ? '清单' : rightDeckTab === 'files' ? '文件' : '任务'}
                       </span>
                       <div className="w-2 h-2 rounded-full bg-[var(--accent)]" />
                     </div>
@@ -160,6 +169,9 @@ export function AppShell() {
                             onToggle={() => setPanoramaCollapsed(!panoramaCollapsed)}
                             hideOuterHeader
                           />
+                        )}
+                        {rightDeckTab === 'notes' && (
+                          <CaseNotesDeck caseId={currentCase.caseId} />
                         )}
                         {rightDeckTab === 'checklist' && (
                           <ChecklistDeck caseId={currentCase.caseId} />

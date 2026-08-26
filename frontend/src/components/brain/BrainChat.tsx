@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { motion, useReducedMotion, AnimatePresence } from 'motion/react';
-import { Sparkles, Send, Brain, Bot, User, Plus, MessageSquare, AlertTriangle, ShieldAlert, X, Paperclip, Loader2, Zap, Calculator, Mail, PlusCircle, FolderSearch, PanelRightClose, PanelRightOpen, ArrowDown, Wrench, CheckCircle2, Copy, Check } from 'lucide-react';
+import { Sparkles, Send, Brain, Bot, User, Plus, MessageSquare, AlertTriangle, ShieldAlert, X, Paperclip, Loader2, Zap, Calculator, Mail, PlusCircle, FolderSearch, PanelRightClose, PanelRightOpen, ArrowDown, Wrench, CheckCircle2, Copy, Check, FileText, CheckSquare } from 'lucide-react';
 import { getChatHistory, sendChatStream, sendCardAction } from '../../services/api/chat';
 import { listContextEvents, confirmContextEvent, supersedeContextEvent, createContextEvent } from '../../services/api/cases';
 import { importCaseFile, getCaseFilePreview } from '../../services/api/fileOps';
@@ -28,24 +28,65 @@ import { CoCreateDialog } from './CoCreateDialog';
 import { WelcomeCard } from './WelcomeCard';
 import { FactFindConfirmCard } from './FactFindConfirmCard';
 
-type QuickAsk = { label: string; action: 'ask' };
+type QuickPromptItem = {
+  label: string;
+  action: 'send' | 'fill';
+  prompt: string;
+};
 
-const CASE_QUICK_ASKS: QuickAsk[] = [
-  { label: '这个案件缺什么材料？', action: 'ask' },
-  { label: '检查申报一致性', action: 'ask' },
-  { label: '当前案件下一步做什么？', action: 'ask' },
-  { label: '查一下银行政策', action: 'ask' },
-  { label: '材料缺口主动预判', action: 'ask' },
+const CASE_QUICK_ASKS: QuickPromptItem[] = [
+  { label: '📝 记一笔', action: 'fill', prompt: '记一下：' },
+  { label: '✅ 建任务', action: 'fill', prompt: '建个任务：' },
+  { label: '🔍 查缺口', action: 'send', prompt: '当前案件还缺哪些材料？请核对清单与进度。' },
+  { label: '📊 测能力', action: 'send', prompt: '帮我测算一下这个客户的最大借贷能力 (Servicing)。' },
+  { label: '📁 找文件', action: 'fill', prompt: '在案卷文件夹里找文件：' },
+  { label: '📄 审文件', action: 'fill', prompt: '帮我核验这个文件的真实数据与风险：' },
+  { label: '🛡️ 查一致', action: 'send', prompt: '检查申报材料一致性与流水隐患（查 HEM/未知负债）。' },
+  { label: '🏦 查政策', action: 'send', prompt: '查一下该银行的核心审贷政策（收入核定口径、LVR 与特殊要求）。' },
+  { label: '✉️ 写邮件', action: 'send', prompt: '针对当前缺失的关键材料，起草一份给客户的补件邮件草稿。' },
 ];
 
-const GLOBAL_QUICK_ASKS: QuickAsk[] = [
-  { label: '今天有哪些到期/逾期？', action: 'ask' },
-  { label: '查一下 CBA 的政策', action: 'ask' },
-  { label: '有多少案件在审贷中？', action: 'ask' },
-  { label: '生成这周周报', action: 'ask' },
-  { label: '最近业务怎么样？', action: 'ask' },
+const GLOBAL_QUICK_ASKS: QuickPromptItem[] = [
+  { label: '⏰ 到期倒计时', action: 'send', prompt: '今天有哪些案件面临 Finance Clause 或 Settlement 到期？' },
+  { label: '🚦 在途审批盘点', action: 'send', prompt: '盘点一下当前所有在途审贷（Lodged / Assessment）的案件进展。' },
+  { label: '🏦 政策与利率 Deals', action: 'send', prompt: '查一下四大行当前最新的房贷利率、转贷返现 (Cashback) 与政策动态。' },
+  { label: '📋 今日待办总览', action: 'send', prompt: '汇总今天我和团队需要优先处理的所有催件与待办事项。' },
+  { label: '📊 业绩与佣金', action: 'send', prompt: '汇总本月已交割与预计交割案件总额及佣金预估。' },
 ];
 
+
+function parseDraftContent(content: string): { subject: string; body: string; body_cn?: string; version?: string } | null {
+  if (!content) return null;
+  const trimmed = content.trim();
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed && typeof parsed === 'object' && (parsed.subject || parsed.body)) {
+        return {
+          subject: parsed.subject || '邮件草稿',
+          body: parsed.body || '',
+          body_cn: parsed.body_cn || parsed.bodyCn,
+          version: parsed.version || 'V1',
+        };
+      }
+    } catch {
+      // not JSON
+    }
+  }
+
+  // Fallback: Check if message contains an embedded email draft (Subject: ... and Dear ...)
+  const subjectMatch = trimmed.match(/(?:^|\n)(?:\*\*Subject:\*\*|Subject:)\s*([^\n]+)/i);
+  const dearMatch = trimmed.match(/(?:^|\n)(Dear\s+[^\n,]+[,:\s][\s\S]+?)(?=\n(?:⚠️|温馨提醒|请确认|这封是完整版|$))/i);
+  if (subjectMatch && dearMatch) {
+    return {
+      subject: subjectMatch[1].trim(),
+      body: dearMatch[1].trim(),
+      version: 'V1',
+    };
+  }
+
+  return null;
+}
 
 interface BrainChatProps {
   caseId: string | null;
@@ -236,9 +277,21 @@ export function BrainChat({ caseId, onToggleRightDeck, isRightDeckCollapsed }: B
         setPrompt(customEvent.detail);
       }
     };
+    const handleOpenCoCreate = (e: Event) => {
+      const customEvent = e as CustomEvent<{ flowKey?: 'followup' | 'chaser' | 'os_reply'; sessionId?: string }>;
+      if (customEvent.detail?.flowKey) {
+        setCoCreateFlowKey(customEvent.detail.flowKey);
+      }
+      if (customEvent.detail?.sessionId) {
+        setCoCreateSessionId(customEvent.detail.sessionId);
+      }
+      setCoCreateOpen(true);
+    };
     window.addEventListener('fill_chat_input', handleFillChat);
+    window.addEventListener('open-co-create-flow', handleOpenCoCreate);
     return () => {
       window.removeEventListener('fill_chat_input', handleFillChat);
+      window.removeEventListener('open-co-create-flow', handleOpenCoCreate);
     };
   }, []);
 
@@ -572,6 +625,29 @@ export function BrainChat({ caseId, onToggleRightDeck, isRightDeckCollapsed }: B
     setMessages((prev) => [...prev, { id: `usr-${Date.now()}`, role: 'user', content: text, created_at: '刚刚' }]);
     setSending(true);
 
+    // 自然语言显式导航指令识别（用户主动说“打开/查看某面板”才切屏）
+    const lowerText = text.toLowerCase();
+    if (lowerText.includes('打开备忘') || lowerText.includes('查看备忘') || lowerText.includes('看备忘') || lowerText.includes('备忘录面板')) {
+      setRightDeckTab('notes');
+    } else if (lowerText.includes('打开清单') || lowerText.includes('查看清单') || lowerText.includes('看清单') || lowerText.includes('清单面板')) {
+      setRightDeckTab('checklist');
+    } else if (lowerText.includes('打开文件') || lowerText.includes('查看文件') || lowerText.includes('看文件') || lowerText.includes('文件面板')) {
+      setRightDeckTab('files');
+    } else if (lowerText.includes('打开任务') || lowerText.includes('查看任务') || lowerText.includes('看任务') || lowerText.includes('任务面板')) {
+      setRightDeckTab('tasks');
+    } else if (lowerText.includes('打开全景') || lowerText.includes('查看全景') || lowerText.includes('看全景') || lowerText.includes('全景面板')) {
+      setRightDeckTab('panorama');
+    }
+
+    // 口述动作入账（呼吸微动效与事件广播，不强跳右栏）
+    if (text.startsWith('记一下') || text.startsWith('备忘') || text.includes('记一笔')) {
+      useUiStore.getState().triggerTabHighlight('notes');
+      window.dispatchEvent(new CustomEvent('case_notes_updated'));
+    } else if (text.startsWith('建个任务') || text.includes('建任务')) {
+      useUiStore.getState().triggerTabHighlight('tasks');
+      window.dispatchEvent(new CustomEvent('task_updated'));
+    }
+
     if (import.meta.env.VITE_USE_MOCK === 'true') {
       const isDeclarationRequest = text.includes('一致性') || text.includes('申报') || text.includes('检查');
       const isFollowup = text.includes('跟进') || text.includes('followup');
@@ -829,12 +905,6 @@ export function BrainChat({ caseId, onToggleRightDeck, isRightDeckCollapsed }: B
     }
   };
 
-  const handleQuickAsk = (item: QuickAsk) => {
-    if (item.action === 'ask') {
-      handleSend(item.label);
-    }
-  };
-
   const handleSuggestedAction = (act: string) => {
     const a = act || '';
     if (/邮件|草稿|拟写|写信/.test(a)) {
@@ -978,7 +1048,7 @@ export function BrainChat({ caseId, onToggleRightDeck, isRightDeckCollapsed }: B
         <div
           ref={scrollContainerRef}
           onScroll={handleScroll}
-          className="p-4 space-y-4 flex-1 overflow-y-auto no-scrollbar relative"
+          className="p-4 space-y-4 flex-1 overflow-y-auto relative"
         >
           {/* Assistant Onboarding Card (Whenever onboarding_needed = true) */}
           {showOnboarding && !dismissedOnboarding && (
@@ -1138,70 +1208,90 @@ export function BrainChat({ caseId, onToggleRightDeck, isRightDeckCollapsed }: B
                           </button>
                         )}
 
-                        {m.content.includes('📄 【文件识别】') ? (
-                          <div className="space-y-1.5">
-                            <div className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-[var(--green-soft)] text-[var(--green)] border border-[var(--green-soft)] font-bold text-[11px]">
-                              <span>📄 文件识别</span>
-                            </div>
-                            <div className="whitespace-pre-wrap select-text">{m.content.replace('📄 【文件识别】', '')}</div>
-                          </div>
-                        ) : m.role === 'user' ? (
-                          <div className="whitespace-pre-wrap select-text">{m.content}</div>
-                        ) : (
-                          <div className="markdown-body text-xs leading-relaxed space-y-1.5 prose dark:prose-invert max-w-none select-text">
-                            <ReactMarkdown
-                              remarkPlugins={[remarkGfm]}
-                              components={{
-                                p: ({ children }) => <p className="mb-1.5 last:mb-0 leading-relaxed">{children}</p>,
-                                strong: ({ children }) => <strong className="font-bold text-[var(--text-primary)]">{children}</strong>,
-                                ul: ({ children }) => <ul className="list-disc pl-4 space-y-1 my-1">{children}</ul>,
-                                ol: ({ children }) => <ol className="list-decimal pl-4 space-y-1 my-1">{children}</ol>,
-                                li: ({ children }) => <li className="leading-relaxed">{children}</li>,
-                                table: ({ children }) => (
-                                  <div className="overflow-x-auto my-2.5 rounded-xl border shadow-xs" style={{ borderColor: 'var(--border)' }}>
-                                    <table className="min-w-full text-xs text-left divide-y" style={{ borderColor: 'var(--border)' }}>
-                                      {children}
-                                    </table>
-                                  </div>
-                                ),
-                                thead: ({ children }) => (
-                                  <thead style={{ backgroundColor: 'var(--bg-card-hover)', color: 'var(--text-primary)' }}>
-                                    {children}
-                                  </thead>
-                                ),
-                                tbody: ({ children }) => (
-                                  <tbody className="divide-y" style={{ borderColor: 'var(--border)' }}>
-                                    {children}
-                                  </tbody>
-                                ),
-                                tr: ({ children }) => (
-                                  <tr className="hover:bg-[var(--bg-card-hover)] transition-colors">
-                                    {children}
-                                  </tr>
-                                ),
-                                th: ({ children }) => (
-                                  <th className="px-3 py-2 text-[11px] font-bold text-[var(--text-primary)] whitespace-nowrap">
-                                    {children}
-                                  </th>
-                                ),
-                                td: ({ children }) => (
-                                  <td className="px-3 py-2 text-[11px] text-[var(--text-secondary)] whitespace-nowrap">
-                                    {children}
-                                  </td>
-                                ),
-                              }}
-                            >
-                              {m.content || ' '}
-                            </ReactMarkdown>
-                            {isStreamingThis && (
-                              <motion.span
-                                animate={{ opacity: [1, 0.2, 1] }}
-                                transition={{ repeat: Infinity, duration: 0.8 }}
-                                className="inline-block w-1.5 h-3.5 ml-1 bg-[var(--accent)] rounded-xs align-middle"
+                        {(() => {
+                          const hasDraftToolCard = m.tool_cards?.some((c) => c.type === 'draft' || (c.type as string) === 'draft_email');
+                          const draftObj = (!hasDraftToolCard && m.role === 'assistant') ? parseDraftContent(m.content) : null;
+                          if (draftObj) {
+                            return (
+                              <DraftCard
+                                draft={{ subject: draftObj.subject, body: draftObj.body, disclosure: { needs_review: false, items: [] } }}
+                                clientName={activeCaseInfo?.clientName || '客户'}
+                                lender={activeCaseInfo?.lender || ''}
+                                version={draftObj.version || 'V1'}
+                                body_cn={draftObj.body_cn}
+                                caseId={caseId || undefined}
                               />
-                            )}
-                          </div>
-                        )}
+                            );
+                          }
+                          if (m.content.includes('📄 【文件识别】')) {
+                            return (
+                              <div className="space-y-1.5">
+                                <div className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md bg-[var(--green-soft)] text-[var(--green)] border border-[var(--green-soft)] font-bold text-[11px]">
+                                  <span>📄 文件识别</span>
+                                </div>
+                                <div className="whitespace-pre-wrap select-text">{m.content.replace('📄 【文件识别】', '')}</div>
+                              </div>
+                            );
+                          }
+                          if (m.role === 'user') {
+                            return <div className="whitespace-pre-wrap select-text">{m.content}</div>;
+                          }
+                          return (
+                            <div className="markdown-body text-xs leading-relaxed space-y-1.5 prose dark:prose-invert max-w-none select-text">
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                  p: ({ children }) => <p className="mb-1.5 last:mb-0 leading-relaxed">{children}</p>,
+                                  strong: ({ children }) => <strong className="font-bold text-[var(--text-primary)]">{children}</strong>,
+                                  ul: ({ children }) => <ul className="list-disc pl-4 space-y-1 my-1">{children}</ul>,
+                                  ol: ({ children }) => <ol className="list-decimal pl-4 space-y-1 my-1">{children}</ol>,
+                                  li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+                                  table: ({ children }) => (
+                                    <div className="overflow-x-auto my-2.5 rounded-xl border shadow-xs" style={{ borderColor: 'var(--border)' }}>
+                                      <table className="min-w-full text-xs text-left divide-y" style={{ borderColor: 'var(--border)' }}>
+                                        {children}
+                                      </table>
+                                    </div>
+                                  ),
+                                  thead: ({ children }) => (
+                                    <thead style={{ backgroundColor: 'var(--bg-card-hover)', color: 'var(--text-primary)' }}>
+                                      {children}
+                                    </thead>
+                                  ),
+                                  tbody: ({ children }) => (
+                                    <tbody className="divide-y" style={{ borderColor: 'var(--border)' }}>
+                                      {children}
+                                    </tbody>
+                                  ),
+                                  tr: ({ children }) => (
+                                    <tr className="hover:bg-[var(--bg-card-hover)] transition-colors">
+                                      {children}
+                                    </tr>
+                                  ),
+                                  th: ({ children }) => (
+                                    <th className="px-3 py-2 text-[11px] font-bold text-[var(--text-primary)] whitespace-nowrap">
+                                      {children}
+                                    </th>
+                                  ),
+                                  td: ({ children }) => (
+                                    <td className="px-3 py-2 text-[11px] text-[var(--text-secondary)] whitespace-nowrap">
+                                      {children}
+                                    </td>
+                                  ),
+                                }}
+                              >
+                                {m.content || ' '}
+                              </ReactMarkdown>
+                              {isStreamingThis && (
+                                <motion.span
+                                  animate={{ opacity: [1, 0.2, 1] }}
+                                  transition={{ repeat: Infinity, duration: 0.8 }}
+                                  className="inline-block w-1.5 h-3.5 ml-1 bg-[var(--accent)] rounded-xs align-middle"
+                                />
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                     )}
 
@@ -1547,6 +1637,9 @@ export function BrainChat({ caseId, onToggleRightDeck, isRightDeckCollapsed }: B
                           draft={card.payload as unknown as DraftPayload}
                           clientName={activeCaseInfo?.clientName || '客户'}
                           lender={activeCaseInfo?.lender || ''}
+                          version={(card.payload as any)?.version || 'V1'}
+                          body_cn={(card.payload as any)?.body_cn || (card.payload as any)?.bodyCn}
+                          caseId={caseId || undefined}
                         />
                       );
                     }
@@ -1668,10 +1761,10 @@ export function BrainChat({ caseId, onToggleRightDeck, isRightDeckCollapsed }: B
         )}
       </AnimatePresence>
 
-      {/* Codex Turn Rail Minimap (提问节点侧边导航条) */}
+      {/* Codex Turn Rail Minimap (提问节点侧边导航条 · 内缩避让细滚动条) */}
       {userTurns.length > 1 && (
         <div 
-          className="absolute right-1.5 top-1/2 -translate-y-1/2 z-20 flex flex-col items-end gap-3 py-3 px-1 pointer-events-auto"
+          className="absolute right-3.5 top-1/2 -translate-y-1/2 z-20 flex flex-col items-end gap-3 py-3 px-1 pointer-events-auto"
           id="chat-turn-minimap"
         >
           {userTurns.map((turn, turnIdx) => (
@@ -1707,24 +1800,26 @@ export function BrainChat({ caseId, onToggleRightDeck, isRightDeckCollapsed }: B
         id="brain-chat-file-input"
       />
 
-      {/* 快捷提问（按场景选组，常驻） */}
-      <div className="px-3 pb-1 flex items-center gap-1.5 flex-wrap flex-shrink-0"
-           style={{ backgroundColor: 'var(--bg-panel)' }}>
+      {/* 快捷提问与动作胶囊（支持横向滑动，常驻） */}
+      <div
+        className="px-3 py-1 flex items-center gap-1.5 overflow-x-auto flex-shrink-0 scroll-smooth"
+        style={{ backgroundColor: 'var(--bg-panel)' }}
+      >
         {quickAsks.map((item, idx) => (
           <button
             key={idx}
             type="button"
             onClick={() => {
-              if (item.label === '查一下银行政策' && activeCaseInfo?.lender) {
-                handleSend(`查一下 ${activeCaseInfo.lender} 的政策`);
-              } else if (item.label === '生成这周周报') {
-                handleSend('生成这周的周报，总结都推进了哪些案件');
+              if (item.action === 'fill') {
+                setPrompt(item.prompt);
+                const inputEl = document.getElementById('brain-chat-input') as HTMLInputElement;
+                inputEl?.focus();
               } else {
-                handleQuickAsk(item);
+                handleSend(item.prompt);
               }
             }}
             id={`quick-ask-chip-${idx}`}
-            className="px-2.5 py-1 rounded-full border text-[11px] font-medium cursor-pointer transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[var(--bg-card-hover)]"
+            className="px-2.5 py-1 rounded-full border text-[11px] font-bold cursor-pointer transition-all hover:border-[var(--accent)] hover:text-[var(--accent)] hover:bg-[var(--bg-card-hover)] whitespace-nowrap flex-shrink-0 shadow-2xs"
             style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
           >
             {item.label}
@@ -1759,29 +1854,89 @@ export function BrainChat({ caseId, onToggleRightDeck, isRightDeckCollapsed }: B
             type="button"
             onClick={() => setToolsMenuOpen(!toolsMenuOpen)}
             id="brain-tools-btn"
-            title="快捷工具与提问菜单"
+            title="信贷工具箱与提问菜单"
             className="px-2.5 py-1.5 rounded-xl border flex items-center space-x-1 font-bold text-xs bg-[var(--bg-card)] hover:bg-[var(--bg-card-hover)] text-[var(--text-primary)] border-[var(--border)] transition-all cursor-pointer flex-shrink-0"
           >
-            <Zap className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+            <Zap className="w-3.5 h-3.5 text-[var(--accent)]" />
             <span>工具</span>
           </motion.button>
 
           <AnimatePresence>
             {toolsMenuOpen && (
               <motion.div
-                initial={reduced ? { opacity: 0 } : { opacity: 0, y: 6, scale: 0.96  }}
+                initial={reduced ? { opacity: 0 } : { opacity: 0, y: 6, scale: 0.96 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={reduced ? { opacity: 0 } : { opacity: 0, y: 6, scale: 0.96  }}
-                className="absolute bottom-full mb-2 left-0 w-64 p-2 rounded-2xl border shadow-xl glass-panel z-40 space-y-2 text-xs"
+                exit={reduced ? { opacity: 0 } : { opacity: 0, y: 6, scale: 0.96 }}
+                className="absolute bottom-full mb-2 left-0 w-64 p-2.5 rounded-2xl border shadow-2xl glass-panel z-40 space-y-2.5 text-xs"
                 style={{ transformOrigin: 'bottom left', backgroundColor: 'var(--bg-panel)', borderColor: 'var(--border)' }}
                 id="brain-tools-popover"
               >
-                {/* Tool Actions Section */}
-                <div>
-                  <div className="px-2 py-1 text-xs font-extrabold text-muted uppercase tracking-wider">
-                    工具动作
+                {/* 📝 沉淀与档案 */}
+                <div className="space-y-1">
+                  <div className="px-2 py-0.5 text-[10px] font-extrabold text-muted uppercase tracking-wider">
+                    📝 沉淀与档案
                   </div>
                   <div className="space-y-0.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRightDeckTab('notes');
+                        setToolsMenuOpen(false);
+                      }}
+                      className="w-full px-2.5 py-1.5 rounded-xl flex items-center space-x-2 text-left hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer group"
+                    >
+                      <FileText className="w-3.5 h-3.5 text-[var(--purple)] group-hover:text-[var(--text-primary)]" />
+                      <span>查看案件手工备忘录</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRightDeckTab('tasks');
+                        setToolsMenuOpen(false);
+                      }}
+                      className="w-full px-2.5 py-1.5 rounded-xl flex items-center space-x-2 text-left hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer group"
+                    >
+                      <CheckSquare className="w-3.5 h-3.5 text-[var(--orange)] group-hover:text-[var(--text-primary)]" />
+                      <span>查看案件日程与任务</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewCaseOpen(true);
+                        setToolsMenuOpen(false);
+                      }}
+                      className="w-full px-2.5 py-1.5 rounded-xl flex items-center space-x-2 text-left hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer group"
+                    >
+                      <PlusCircle className="w-3.5 h-3.5 text-[var(--accent)] group-hover:text-[var(--text-primary)]" />
+                      <span>帮我建一个新案件</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 🎯 审贷攻坚与精算 */}
+                <div className="space-y-1 pt-1.5 border-t" style={{ borderColor: 'var(--border)' }}>
+                  <div className="px-2 py-0.5 text-[10px] font-extrabold text-muted uppercase tracking-wider">
+                    🎯 审贷攻坚与精算
+                  </div>
+                  <div className="space-y-0.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!activeCaseInfo) {
+                          useToastStore.getState().showToast('info', '请先在左侧选择案件，再进入 OS 攻坚工作台');
+                          return;
+                        }
+                        const osTask = tasks.find(t => t.caseId === activeCaseInfo.caseId && (t.type?.includes('OS') || t.title?.includes('OS') || t.tags.some(tag => tag.label.includes('OS'))));
+                        const targetTaskId = osTask ? osTask.id : (tasks.find(t => t.caseId === activeCaseInfo.caseId)?.id || 1);
+                        useUiStore.getState().openOsWorkbench(targetTaskId);
+                        setToolsMenuOpen(false);
+                      }}
+                      className="w-full px-2.5 py-1.5 rounded-xl flex items-center space-x-2 text-left hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer group"
+                      id="tool-opt-os-workbench"
+                    >
+                      <Zap className="w-3.5 h-3.5 text-[var(--purple)] group-hover:text-[var(--text-primary)]" />
+                      <span className="font-bold text-[var(--purple)]">OS 条件解下攻坚工作台</span>
+                    </button>
                     <button
                       type="button"
                       onClick={() => {
@@ -1789,12 +1944,41 @@ export function BrainChat({ caseId, onToggleRightDeck, isRightDeckCollapsed }: B
                         setToolsMenuOpen(false);
                       }}
                       className="w-full px-2.5 py-1.5 rounded-xl flex items-center space-x-2 text-left hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer group"
-                      id="tool-opt-calculator"
                     >
-                      <Calculator className="w-3.5 h-3.5 text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]" />
-                      <span>服务能力计算器</span>
+                      <Calculator className="w-3.5 h-3.5 text-[var(--accent)] group-hover:text-[var(--text-primary)]" />
+                      <span>借贷能力精算器 (Servicing)</span>
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleSend('检查申报材料一致性与流水隐患（查 HEM/未知负债）。');
+                        setToolsMenuOpen(false);
+                      }}
+                      className="w-full px-2.5 py-1.5 rounded-xl flex items-center space-x-2 text-left hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer group"
+                    >
+                      <ShieldAlert className="w-3.5 h-3.5 text-[var(--yellow)] group-hover:text-[var(--text-primary)]" />
+                      <span>申报一致性与流水风控核验</span>
+                    </button>
+                  </div>
+                </div>
 
+                {/* 📁 案卷文件与沟通 */}
+                <div className="space-y-1 pt-1.5 border-t" style={{ borderColor: 'var(--border)' }}>
+                  <div className="px-2 py-0.5 text-[10px] font-extrabold text-muted uppercase tracking-wider">
+                    📁 案卷文件与沟通
+                  </div>
+                  <div className="space-y-0.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRightDeckTab('files');
+                        setToolsMenuOpen(false);
+                      }}
+                      className="w-full px-2.5 py-1.5 rounded-xl flex items-center space-x-2 text-left hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer group"
+                    >
+                      <FolderSearch className="w-3.5 h-3.5 text-[var(--green)] group-hover:text-[var(--text-primary)]" />
+                      <span>打开案卷物理文件面板</span>
+                    </button>
                     <button
                       type="button"
                       onClick={() => {
@@ -1804,42 +1988,9 @@ export function BrainChat({ caseId, onToggleRightDeck, isRightDeckCollapsed }: B
                       className={`w-full px-2.5 py-1.5 rounded-xl flex items-center space-x-2 text-left transition-colors cursor-pointer group ${
                         activeCaseInfo ? 'hover:bg-[var(--bg-card-hover)]' : 'opacity-50 cursor-not-allowed'
                       }`}
-                      id="tool-opt-email"
                     >
                       <Mail className="w-3.5 h-3.5 text-[var(--purple)] group-hover:text-[var(--text-primary)]" />
                       <span>写补件邮件 (共创深谈)</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setNewCaseOpen(true);
-                        setToolsMenuOpen(false);
-                      }}
-                      className="w-full px-2.5 py-1.5 rounded-xl flex items-center space-x-2 text-left hover:bg-[var(--bg-card-hover)] transition-colors cursor-pointer group"
-                      id="tool-opt-newcase"
-                    >
-                      <PlusCircle className="w-3.5 h-3.5 text-[var(--accent)] group-hover:text-[var(--text-primary)]" />
-                      <span>帮我建一个案件</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!activeCaseInfo) {
-                          useToastStore.getState().showToast('info', '请先选择案件');
-                          return;
-                        }
-                        handleSend('去案件文件夹找材料');
-                        setToolsMenuOpen(false);
-                      }}
-                      className={`w-full px-2.5 py-1.5 rounded-xl flex items-center space-x-2 text-left transition-colors cursor-pointer group ${
-                        activeCaseInfo ? 'hover:bg-[var(--bg-card-hover)]' : 'opacity-50 cursor-not-allowed'
-                      }`}
-                      id="tool-opt-folder"
-                    >
-                      <FolderSearch className="w-3.5 h-3.5 text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]" />
-                      <span>去案件文件夹找材料</span>
                     </button>
                   </div>
                 </div>

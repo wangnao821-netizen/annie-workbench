@@ -1,7 +1,6 @@
 import { motion, useReducedMotion } from 'motion/react';
 import { AlertCircle, CheckCircle2, Sparkles, FileText, ArrowRight } from 'lucide-react';
 import { GapAnalysisPayload } from '../../types/api';
-import { createManualDraft } from '../../services/api/drafts';
 import { useToastStore } from '../../stores/toastStore';
 
 interface GapAnalysisCardProps {
@@ -14,33 +13,34 @@ export function GapAnalysisCard({ payload, caseId }: GapAnalysisCardProps) {
   const missing = payload?.missing || [];
   const matched = payload?.matched || [];
   const suggestions = payload?.suggestions || [];
-const summary = payload?.summary || '经过 Annie 对比审贷 Policy 规则，已梳理材料缺口与建议清单：';
 
-  const handleGenerateDraftList = async () => {
+  const handleOpenCoCreate = () => {
     if (!caseId) {
-      useToastStore.getState().showToast('info', '请先选择案件，再生成建议清单草稿');
+      useToastStore.getState().showToast('info', '请先选择左侧案件，再进入补件邮件共创');
       return;
     }
-    const draftTitle = `材料缺口补件清单草稿 (${new Date().toLocaleDateString()})`;
-    const draftContent = `【补件清单建议】\n` +
-      missing.map((m, i) => `${i + 1}. 【缺】${m.name || m.item || ''} — 原因：${m.reason}`).join('\n') +
-      `\n\n【处理建议】\n` +
-      suggestions.map((s, i) => `${i + 1}. ${s.title || s.item || s.item_name || ''}: ${s.description || s.suggestion || ''}`).join('\n');
-    try {
-      await createManualDraft({ case_id: caseId, subject: draftTitle, body: draftContent, track: 'internal' });
-      useToastStore.getState().showToast('success', '已存入草稿箱 (只出草稿，绝不发送)');
-      window.dispatchEvent(new CustomEvent('drafts_updated'));
-    } catch (err: any) {
-      const detail = err?.detail || err?.message || '';
-      if (/404|不存在/.test(detail)) {
-        useToastStore.getState().showToast('error', '保存草稿失败：案件不存在，请刷新后重试');
-      } else if (/422|校验/.test(detail)) {
-        useToastStore.getState().showToast('error', `保存草稿失败：${detail}`);
-      } else {
-        useToastStore.getState().showToast('error', `保存草稿失败：${detail || '后端不可用'}`);
-      }
-    }
+    window.dispatchEvent(new CustomEvent('open-co-create-flow', { detail: { flowKey: 'followup', caseId } }));
   };
+
+  if (missing.length === 0 && matched.length === 0 && suggestions.length === 0) {
+    return (
+      <div className="flex items-center justify-between p-2.5 rounded-xl border bg-[var(--purple-soft)] border-[var(--purple-soft)] text-xs my-1.5" id="gap-analysis-action-rail">
+        <div className="flex items-center space-x-2 text-[var(--purple)] font-bold text-[11px]">
+          <Sparkles className="w-3.5 h-3.5 flex-shrink-0" />
+          <span>材料缺口已核对，可一键开启催件沟通草稿</span>
+        </div>
+        <button
+          type="button"
+          onClick={handleOpenCoCreate}
+          className="px-3 py-1.5 rounded-xl text-[11px] font-bold text-white cursor-pointer hover:opacity-90 flex items-center space-x-1 shadow-xs btn-primary"
+          id="gap-start-cocreate-btn"
+        >
+          <ArrowRight className="w-3.5 h-3.5" />
+          <span>进入邮件共创 →</span>
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -67,15 +67,6 @@ const summary = payload?.summary || '经过 Annie 对比审贷 Policy 规则，�
             </p>
           </div>
         </div>
-      </div>
-
-      {/* Summary Banner */}
-      <div
-        className="p-2.5 rounded-xl border bg-[var(--yellow-soft)] border-[var(--yellow-soft)] text-xs leading-relaxed"
-        style={{ color: 'var(--text-primary)' }}
-      >
-        <span className="font-semibold text-[var(--yellow)]">💡 评估总结：</span>
-        {summary}
       </div>
 
       {/* Missing Items Section */}
@@ -192,14 +183,15 @@ const summary = payload?.summary || '经过 Annie 对比审贷 Policy 规则，�
       {/* Action Export Button */}
       <div className="pt-2 border-t flex justify-end" style={{ borderColor: 'var(--border)' }}>
         <motion.button
+          type="button"
           whileTap={reduced ? undefined : { scale: 0.95 }}
-          onClick={handleGenerateDraftList}
+          onClick={handleOpenCoCreate}
           className="px-3.5 py-2 rounded-xl text-xs font-bold shadow-xs flex items-center space-x-1.5 cursor-pointer transition-opacity hover:opacity-90"
           style={{ backgroundColor: 'var(--accent)', color: 'var(--on-accent)' }}
-          id="generate-draft-checklist-btn"
+          id="open-co-create-from-gap-btn"
         >
-          <span>生成建议清单</span>
-          <ArrowRight className="w-3.5 h-3.5" />
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>进入补件邮件共创 (推敲多版本) →</span>
         </motion.button>
       </div>
     </div>

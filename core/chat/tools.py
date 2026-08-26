@@ -320,17 +320,27 @@ def _policy_check(arguments: dict, case_id: str, db: Session) -> dict:
 
 
 def _draft_email(arguments: dict, case_id: str, db: Session, track: str = "internal") -> dict:
-    """邮件起草：run_co_create(case_id, {"action": "generate", "message": arguments.get("message","")}, db, track)。"""
+    """邮件起草与微调：run_co_create(case_id, {"action": "generate", "message": ...}, db, track)。"""
     if not case_id or db is None:
         return {"ok": False, "summary": "需要案件 ID 起草邮件"}
     try:
         from core.agents.draft_email import run_co_create
         msg = str(arguments.get("message", "")).strip()
         res = run_co_create(case_id, {"action": "generate", "message": msg}, db, track)
+        draft_info = res.get("draft") or {}
+        card_payload = {
+            "subject": draft_info.get("subject") or "邮件草稿",
+            "body": draft_info.get("body") or "",
+            "body_cn": draft_info.get("body_cn") or "",
+            "version": draft_info.get("version") or "V1",
+            "branch_label": draft_info.get("branch_label") or "main",
+            "message_id": draft_info.get("message_id"),
+            "disclosure": {"needs_review": False, "items": []},
+        }
         return {
             "ok": True,
-            "card": {"type": "draft_email", "data": res},
-            "summary": f"邮件草稿已起草: {res.get('subject', '新邮件')}" if isinstance(res, dict) else "邮件草稿已生成",
+            "card": {"type": "draft", "payload": card_payload},
+            "summary": res.get("reply") or f"邮件草稿已起草 ({card_payload['version']}): {card_payload['subject']}",
         }
     except Exception as e:  # noqa: BLE001
         logger.warning("draft_email failed: %s", e)

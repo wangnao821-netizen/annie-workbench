@@ -46,7 +46,7 @@ def _intent_prompt(intent: str, recipient_hint: str, previous: str, message: str
         parts.append(f"【案件全景】\n{panorama}")
     if message:
         parts.append(f"用户补充指令：{message}")
-    parts.append('只输出 JSON：{"subject": "...", "body": "..."}，body 为纯文本。')
+    parts.append('只输出 JSON：{"subject": "...", "body": "...", "body_cn": "..."}，其中 body 为专业地道的英文纯文本，body_cn 为清晰准确的中文对照翻译。')
     if previous:
         parts.append(f"参考上一版，只改需要改的地方：\n{previous[:800]}")
     return "\n".join(parts)
@@ -73,15 +73,17 @@ def _gen_draft(
         prefer_provider=prefer,
     )
     raw = rehydrate(result.response_text, scope, db).strip()
+    body_cn = ""
     try:
         start, end = raw.index("{"), raw.rindex("}")
         data = json.loads(raw[start:end + 1])
         subject = str(data.get("subject", ""))[:120]
         body = str(data.get("body", ""))
+        body_cn = str(data.get("body_cn", ""))
     except (ValueError, TypeError, KeyError):
         subject = raw.splitlines()[0][:120] if raw else "（无主题）"
         body = raw
-    return {"subject": subject or "（无主题）", "body": body or raw}
+    return {"subject": subject or "（无主题）", "body": body or raw, "body_cn": body_cn}
 
 
 def _next_version(db: Session, case_id: str, branch_label: str) -> str:
@@ -211,6 +213,7 @@ def _branch_versions(case_id: str, branch_label: str, db: Session) -> list[dict]
             {
                 "subject": data.get("subject", ""),
                 "body": data.get("body", ""),
+                "body_cn": data.get("body_cn", ""),
                 "version": data.get("version", "V?"),
                 "branch_label": m.branch_label or branch_label,
                 "message_id": m.id,
@@ -370,6 +373,7 @@ def run_co_create(case_id: str | None, args: dict, db: Session, track: str = "in
         draft = {
             "subject": data.get("subject", ""),
             "body": data.get("body", ""),
+            "body_cn": data.get("body_cn", ""),
             "version": version,
             "branch_label": target_branch,
             "message_id": target.id,
@@ -391,6 +395,7 @@ def run_co_create(case_id: str | None, args: dict, db: Session, track: str = "in
     draft_out = {
         "subject": draft["subject"],
         "body": draft["body"],
+        "body_cn": draft.get("body_cn", ""),
         "version": version,
         "branch_label": branch_label,
         "message_id": msg.id,

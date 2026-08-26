@@ -45,6 +45,7 @@ def _check_case(case_id: str | None, db: Session) -> None:
         raise HTTPException(status_code=404, detail=f"案件 {case_id} 不存在")
 
 
+@router.get("", response_model=list[KnowledgeEntryResponse])
 @router.get("/", response_model=list[KnowledgeEntryResponse])
 def list_knowledge(
     layer: str | None = None,
@@ -67,6 +68,7 @@ def list_knowledge(
     return [KnowledgeEntryResponse.model_validate(r) for r in rows]
 
 
+@router.post("", response_model=KnowledgeEntryResponse, status_code=201)
 @router.post("/", response_model=KnowledgeEntryResponse, status_code=201)
 def create_knowledge(
     req: KnowledgeCreateRequest,
@@ -83,6 +85,7 @@ def create_knowledge(
         content=req.content.strip(),
         source=req.source or "vera_manual",
         lender=req.lender,
+        tags=req.tags,
         vera_confirmed=False,
     )
     db.add(entry)
@@ -97,12 +100,14 @@ def update_knowledge(
     req: KnowledgeUpdateRequest,
     db: Session = Depends(get_db),  # noqa: B008
 ) -> KnowledgeEntryResponse:
-    """更新 content/lender/vera_confirmed（仅传非空字段）。"""
+    """更新 content/lender/tags/vera_confirmed（仅传非空字段）。"""
     entry = _get_entry_or_404(entry_id, db)
     if req.content is not None:
         entry.content = req.content.strip()
     if req.lender is not None:
         entry.lender = req.lender
+    if req.tags is not None:
+        entry.tags = req.tags
     if req.vera_confirmed is not None:
         entry.vera_confirmed = req.vera_confirmed
     db.commit()

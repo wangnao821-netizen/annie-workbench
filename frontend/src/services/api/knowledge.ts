@@ -101,20 +101,29 @@ export function createKnowledge(body: {
   case_id?: string;
   lender?: string;
   source?: string;
+  tags?: string[] | string;
 }): Promise<KnowledgeEntry> {
+  const payload = {
+    ...body,
+    tags: Array.isArray(body.tags) ? body.tags.join(',') : body.tags,
+  };
   return request<KnowledgeEntry>('/api/knowledge', {
     method: 'POST',
-    body: JSON.stringify(body),
+    body: JSON.stringify(payload),
   });
 }
 
 export function updateKnowledge(
   id: string,
-  body: { content?: string; lender?: string; vera_confirmed?: boolean }
+  body: { content?: string; lender?: string; vera_confirmed?: boolean; tags?: string[] | string }
 ): Promise<KnowledgeEntry> {
+  const payload = {
+    ...body,
+    tags: Array.isArray(body.tags) ? body.tags.join(',') : body.tags,
+  };
   return request<KnowledgeEntry>(`/api/knowledge/${encodeURIComponent(id)}`, {
     method: 'PATCH',
-    body: JSON.stringify(body),
+    body: JSON.stringify(payload),
   });
 }
 

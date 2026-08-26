@@ -111,6 +111,7 @@ def list_drafts(
     return [_to_draft_item(d, db) for d in drafts]
 
 
+@router.post("", response_model=DraftListItemResponse)
 @router.post("/", response_model=DraftListItemResponse)
 def create_manual_draft(
     req: DraftCreateRequest,

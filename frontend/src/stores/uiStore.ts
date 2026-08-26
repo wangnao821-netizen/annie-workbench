@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { useTaskStore } from './taskStore';
 
-export type RightDeckView = 'panorama' | 'checklist' | 'tasks' | 'files';
+export type RightDeckView = 'panorama' | 'notes' | 'checklist' | 'tasks' | 'files';
 
 interface UiState {
   newCaseOpen: boolean;
@@ -15,6 +15,8 @@ interface UiState {
   setPendingChatPrompt: (prompt: string | null) => void;
   rightDeckTab: RightDeckView;
   setRightDeckTab: (tab: RightDeckView) => void;
+  highlightedTab: RightDeckView | null;
+  triggerTabHighlight: (tab: RightDeckView) => void;
   taskDrawerOpen: boolean;
   setTaskDrawerOpen: (open: boolean) => void;
   taskDrawerTab: 'all' | 'overdue' | 'in_progress' | 'boss' | 'delegated' | 'completed';
@@ -47,6 +49,13 @@ export const useUiStore = create<UiState>((set) => ({
   setPendingChatPrompt: (prompt) => set({ pendingChatPrompt: prompt }),
   rightDeckTab: 'panorama',
   setRightDeckTab: (tab) => set({ rightDeckTab: tab }),
+  highlightedTab: null,
+  triggerTabHighlight: (tab) => {
+    set({ highlightedTab: tab });
+    setTimeout(() => {
+      set((s) => (s.highlightedTab === tab ? { highlightedTab: null } : {}));
+    }, 1600);
+  },
   taskDrawerOpen: false,
   setTaskDrawerOpen: (open) => set({ taskDrawerOpen: open }),
   taskDrawerTab: 'all',

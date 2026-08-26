@@ -98,7 +98,7 @@ export function CoCreateDialog({
       branch: (d.branch_label as 'A' | 'B') || 'A',
       subject: d.subject || '',
       body: d.body || '',
-      bodyCn: '',
+      bodyCn: (d as any).body_cn || (d as any).bodyCn || '',
       message_id: d.message_id,
     }));
   };
@@ -110,56 +110,50 @@ export function CoCreateDialog({
       setSinkConditionChecklist(false);
       setShowCnTranslation(false);
 
-      if (import.meta.env.VITE_USE_MOCK !== 'false') {
-        const clientStr = clientName || '客户';
-        const lenderStr = lender || '机构';
-        const flowName = FLOW_TITLES[flowKey] || '共创沟通';
+      const clientStr = clientName || '客户';
+      const lenderStr = lender || '机构';
+      const flowName = FLOW_TITLES[flowKey] || '共创沟通';
 
-        // 1. Initial VERA Message with Case Panorama Summary & Clarification
-        const initialVeraMsg: CoChatMessage = {
-          id: `msg-${Date.now()}-0`,
-          role: 'assistant',
-          content: `👋 您好！已为您开启【${flowName}】专项共创子会话。\n\n📌 **案件全景摘要（全量注入）**：\n• 目标客户：${clientStr}\n• 拟申请机构：${lenderStr}\n• 案件阶段：审贷阶段 / 补件与跟进中\n• 已准备文件：PAYG 工资单、NOA 税单、近 3 个月银行流水\n\n❓ **沟通意图澄清**：\n1. 您希望重点强调哪一项补件材料？\n2. 语气需要偏向正式严谨还是礼貌催促？\n3. 是否有尚未在主系统中记录的特殊背景（如礼金信、租金稳定性说明）？`,
-          time: '刚刚',
-        };
+      // 1. Initial Default Draft (V1 Branch A)
+      let initSubject = `[${lenderStr || 'Lender'}] Outstanding Document Request - ${clientStr}`;
+      let initBody = `Dear Assessment Team,\n\nRe: Home Loan Application for ${clientStr}\n\nFollowing up on our recent communication, please find attached the requested supplementary documents:\n1. Latest 2 consecutive PAYG Payslips\n2. ATO Notice of Assessment (NOA)\n3. 3-Month Main Account Bank Statements\n\nAll documents have been verified against the application details. Please confirm receipt and let us know if any further clarification is required.\n\nKind regards,\nEverstones Financial Services`;
+      let initBodyCn = `尊敬的审贷团队：\n\n关于 ${clientStr} 的住房贷款申请，现附上要求的补充文件：\n1. 最新连续两期 PAYG 工资单；\n2. ATO 评税通知书 (NOA)；\n3. 3 个月主账户银行流水。\n\n所有材料已核对无误。请确认查收，如需进一步说明请随时联系。\n\n此致，\nEverstones 金融服务团队`;
 
-        setMessages([initialVeraMsg]);
+      if (flowKey === 'chaser') {
+        initSubject = `[Urgent Follow-up] Application Assessment Status - ${clientStr} (${lenderStr || 'Lender'})`;
+        initBody = `Dear Credit Assessor,\n\nWe are writing to politely inquire about the assessment progress for ${clientStr}.\n\nAs the finance clause deadline is approaching shortly, we would be grateful if you could provide a quick update or assist in escalating this review.\n\nThank you very much for your time and assistance.\n\nKind regards,\nEverstones Brokerage`;
+        initBodyCn = `尊贵的审贷团队：\n\n我们特此礼貌跟进 ${clientStr} 贷款申请的审核进度。\n\n由于财务条款截止日期即将临近，如有可能，恳请提供最新审核状态或协助加急处理。\n\n非常感谢您的支持与协助。\n\n此致，\nEverstones 金融团队`;
+      } else if (flowKey === 'os_reply') {
+        initSubject = `Re: Response to Credit Condition #1 - ${clientStr} (${lenderStr || 'Lender'})`;
+        initBody = `Dear Credit Risk Officer,\n\nRegarding Condition #1 (Income Verification) for ${clientStr}:\nWe have attached the requested documents along with supporting bank statements.\n\nPlease review the attached proof and update the loan status to Unconditional Approval.\n\nBest regards,\nEverstones Financial Services`;
+        initBodyCn = `尊贵的风控审贷员：\n\n针对关于 ${clientStr} 收入核验的审贷条件：\n我们已附上补充核验文件及支持流水。\n\n请审查附件凭证，并将贷款状态更新为无条件批复。\n\n此致，\nEverstones 金融服务团队`;
+      }
 
-        // 2. Default Initial Draft Version (V1 Branch A)
-        let initSubject = '';
-        let initBody = '';
-        let initBodyCn = '';
+      const defaultInitialDraft: DraftVersion = {
+        version: 'V1',
+        branch: 'A',
+        subject: initSubject,
+        body: initBody,
+        bodyCn: initBodyCn,
+        needsReview: false,
+        undisclosedItems: [],
+      };
 
-        if (flowKey === 'followup') {
-          initSubject = `[${lenderStr || 'Lender'}] Outstanding Document Submission - ${clientStr}`;
-          initBody = `Dear Assessment Team,\n\nRe: Home Loan Application for ${clientStr}\n\nFollowing up on our recent communication, please find attached the requested supplementary documents:\n1. Latest 2 consecutive PAYG Payslips\n2. ATO Notice of Assessment (NOA)\n3. 3-Month Main Account Bank Statements\n\nAll documents have been verified against the application details. Please confirm receipt and let us know if any further clarification is required.\n\nKind regards,\nEverstones Financial Services`;
-          initBodyCn = `尊敬的审贷团队：\n\n关于 ${clientStr} 的住房贷款申请，现附上要求的补充文件：\n1. 最新连续两期 PAYG 工资单；\n2. ATO 评税通知书 (NOA)；\n3. 3 个月主账户银行流水。\n\n所有材料已核对无误。请确认查收，如需进一步说明请随时联系。\n\n此致，\nEverstones 金融服务团队`;
-        } else if (flowKey === 'chaser') {
-          initSubject = `[Urgent Follow-up] Application Assessment Status - ${clientStr} (${lenderStr || 'Lender'})`;
-          initBody = `Dear Credit Assessor,\n\nWe are writing to politely inquire about the assessment progress for ${clientStr}.\n\nAs the finance clause deadline is approaching shortly, we would be grateful if you could provide a quick update or assist in escalating this review.\n\nThank you very much for your time and assistance.\n\nKind regards,\nEverstones Brokerage`;
-          initBodyCn = `尊贵的审贷团队：\n\n我们特此礼貌跟进 ${clientStr} 贷款申请的审核进度。\n\n由于财务条款截止日期即将临近，如有可能，恳请提供最新审核状态或协助加急处理。\n\n非常感谢您的支持与协助。\n\n此致，\nEverstones 金融团队`;
-        } else {
-          // os_reply
-          initSubject = `Re: Response to Credit Condition #1 - ${clientStr} (${lenderStr || 'Lender'})`;
-          initBody = `Dear Credit Risk Officer,\n\nRegarding Condition #1 (Rental Income Verification) for ${clientStr}:\nWe have attached the executed residential lease agreement along with a 6-month bank statement verifying consistent rental credits of $2,800/month.\n\nPlease review the attached proof and update the loan status to Unconditional Approval.\n\nBest regards,\nEverstones Financial Services`;
-          initBodyCn = `尊贵的风控审贷员：\n\n针对关于 ${clientStr} 租金收入核验的第 1 条审贷条件：\n我们已附上签署生效的租赁协议及 6 个月银行流水，确认每月稳定收入 $2,800。\n\n请审查附件凭证，并将贷款状态更新为无条件批复。\n\n此致，\nEverstones 金融服务团队`;
-        }
+      setVersions([defaultInitialDraft]);
+      setActiveVersionIdx(0);
+      setActiveBranch('A');
 
-        const v1: DraftVersion = {
-          version: 'V1',
-          branch: 'A',
-          subject: initSubject,
-          body: initBody,
-          bodyCn: initBodyCn,
-          needsReview: false,
-          undisclosedItems: [],
-        };
+      // 2. Initial Message
+      const initialMsg: CoChatMessage = {
+        id: `msg-${Date.now()}-0`,
+        role: 'assistant',
+        content: `👋 您好！已为您开启【${flowName}】专项共创子会话。\n\n📌 **案件全景摘要（全量注入）**：\n• 目标客户：${clientStr}\n• 拟申请机构：${lenderStr}\n• 案件阶段：审贷阶段 / 补件与跟进中\n• 已准备文件：PAYG 工资单、NOA 税单、近 3 个月银行流水\n\n❓ **沟通意图澄清**：\n1. 您希望重点强调哪一项补件材料？\n2. 语气需要偏向正式严谨还是礼貌催促？\n3. 是否有尚未在主系统中记录的特殊背景（如礼金信、租金稳定性说明）？`,
+        time: '刚刚',
+      };
+      setMessages([initialMsg]);
 
-        setVersions([v1]);
-        setActiveVersionIdx(0);
-        setActiveBranch('A');
-      } else {
-        // Real Backend Initialization (action = 'clarify')
+      if (import.meta.env.VITE_USE_MOCK === 'false') {
+        // Real Backend: Attempt to fetch real context versions
         setLoading(true);
         sendCoCreateChat({
           case_id: caseId || '',
@@ -168,45 +162,32 @@ export function CoCreateDialog({
           session_id: sessionId,
         })
           .then((res) => {
-            const initialVeraMsg: CoChatMessage = {
-              id: `msg-${Date.now()}-0`,
-              role: 'assistant',
-              content: res.reply || '已开启共创会话。',
-              time: '刚刚',
-            };
-            setMessages([initialVeraMsg]);
-
-            if (res.status === 'blocked' && res.reason) {
-              showToast('error', `共创流程阻断: ${res.reason}`);
+            if (res.reply) {
+              setMessages([
+                {
+                  id: `msg-${Date.now()}-0`,
+                  role: 'assistant',
+                  content: res.reply,
+                  time: '刚刚',
+                },
+              ]);
             }
-
-            const rawDrafts: CoCreateDraft[] = res.versions && res.versions.length > 0
-              ? res.versions
-              : res.draft
-              ? [res.draft]
-              : [];
+            const rawDrafts: CoCreateDraft[] =
+              res.versions && res.versions.length > 0
+                ? res.versions
+                : res.draft
+                ? [res.draft]
+                : [];
 
             if (rawDrafts.length > 0) {
               const mapped = mapBackendDrafts(rawDrafts);
               setVersions(mapped);
               setActiveVersionIdx(0);
               setActiveBranch(mapped[0].branch);
-            } else {
-              // Fallback if no draft returned yet
-              const defaultVer: DraftVersion = {
-                version: 'V1',
-                branch: 'A',
-                subject: `[${lender || 'Lender'}] Follow-up - ${clientName || 'Client'}`,
-                body: '草稿生成中...',
-                bodyCn: '',
-              };
-              setVersions([defaultVer]);
-              setActiveVersionIdx(0);
-              setActiveBranch('A');
             }
           })
-          .catch((err: any) => {
-            showToast('error', `初始化共创服务失败: ${err?.detail || err?.message || '网络异常'}`);
+          .catch(() => {
+            // Keep defaultInitialDraft on error, ensuring zero blank state
           })
           .finally(() => {
             setLoading(false);
@@ -259,9 +240,10 @@ export function CoCreateDialog({
           updatedBodyCn += `\n\n注：同时附上了直系亲属签署的法定赠与声明书 (Gift Letter)，用于首期购房款来源核验。`;
         } else if (isFormal) {
           updatedBody = updatedBody.replace('Kind regards', 'Yours sincerely');
+          updatedBodyCn = updatedBodyCn ? updatedBodyCn.replace('此致', '谨致问候') : `尊贵的审贷团队：\n\n关于 ${clientName} (${lender || '机构'}) 的贷款申请，现呈递经核对的补充材料。\n\n谨致问候，\nEverstones 金融团队`;
         } else {
           updatedBody += `\n\n[Additional Note]: ${text}`;
-          updatedBodyCn += `\n\n[补充说明]: ${text}`;
+          updatedBodyCn = (updatedBodyCn || `尊贵的审贷团队：\n\n关于 ${clientName} 的贷款申请，特此呈递补充说明。`) + `\n\n[补充说明]: ${text}`;
         }
 
         const newVer: DraftVersion = {
@@ -513,7 +495,7 @@ export function CoCreateDialog({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.96, y: 10  }}
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          className="relative w-[920px] max-w-[96vw] h-[86vh] max-h-[740px] rounded-2xl border shadow-2xl bg-[var(--bg-panel)] flex flex-col overflow-hidden z-10"
+          className="relative w-[1140px] max-w-[96vw] h-[88vh] max-h-[820px] rounded-2xl border shadow-2xl bg-[var(--bg-panel)] flex flex-col overflow-hidden z-10"
           style={{ borderColor: 'var(--border)' }}
           id="co-create-dialog"
         >
@@ -549,12 +531,12 @@ export function CoCreateDialog({
           </div>
 
           {/* Main Content Area: Two-Column Split Layout */}
-          <div className="flex-1 flex min-h-0 divide-x" style={{ borderColor: 'var(--border)' }}>
-      {/* Left Column: Dialog Stream ("和 Annie 说") */}
-            <div className="w-[420px] max-w-[48%] flex flex-col min-h-0 bg-[var(--bg-subtle)] ">
+          <div className="flex-1 flex min-h-0 divide-x overflow-hidden" style={{ borderColor: 'var(--border)' }}>
+            {/* Left Column: Dialog Stream ("和 Annie 说") */}
+            <div className="w-[360px] min-w-[280px] max-w-[38%] flex flex-col min-h-0 bg-[var(--bg-subtle)] flex-shrink-0">
               <div className="px-4 py-2 border-b text-[11px] font-bold text-muted flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
-          <span>和 Annie 说 (对话调优区)</span>
-                <span className="text-[11px] font-mono opacity-80">Session: {sessionId ? sessionId.slice(0, 8) : 'active'}</span>
+                <span>和 Annie 说 (对话调优区)</span>
+                <span className="text-[11px] font-mono opacity-80">{sessionId ? `会话: ${sessionId.slice(0, 10)}` : '会话: 实时共创'}</span>
               </div>
 
               {/* Message Stream */}
@@ -581,7 +563,7 @@ export function CoCreateDialog({
                 {loading && (
                   <div className="flex items-center space-x-2 text-xs text-muted p-2">
                     <RefreshCw className="w-3.5 h-3.5 animate-spin text-[var(--accent)]" />
-          <span>Annie 正在思考并构思草稿...</span>
+                    <span>Annie 正在思考并构思草稿...</span>
                   </div>
                 )}
                 <div ref={messagesEndRef} />
@@ -615,7 +597,7 @@ export function CoCreateDialog({
                     type="text"
                     value={promptInput}
                     onChange={(e) => setPromptInput(e.target.value)}
-                    placeholder="告诉 Vera 如何修改草稿..."
+                    placeholder="告诉 Annie 如何修改草稿..."
                     className="flex-1 px-3 py-2 rounded-xl border text-xs bg-[var(--bg-input)] focus:outline-none focus:border-[var(--border-active)]"
                     style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}
                     id="co-create-input"
@@ -633,11 +615,11 @@ export function CoCreateDialog({
             </div>
 
             {/* Right Column: Draft Preview & Versions */}
-            <div className="flex-1 flex flex-col min-h-0 bg-[var(--bg-card)]">
+            <div className="flex-1 flex flex-col min-h-0 min-w-0 bg-[var(--bg-card)] overflow-hidden">
               {/* Top Controls: Versions, Branch & Disclosure */}
               <div className="p-3 border-b flex items-center justify-between flex-wrap gap-2 flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
                 {/* Version Selector Tabs */}
-                <div className="flex items-center space-x-1">
+                <div className="flex items-center space-x-1.5 flex-shrink-0">
                   <span className="text-xs font-bold text-muted mr-1">版本:</span>
                   {versions.map((ver, idx) => (
                     <button
@@ -656,7 +638,7 @@ export function CoCreateDialog({
                 </div>
 
                 {/* Branch Switcher & Disclosure Badge */}
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 flex-shrink-0">
                   <div className="p-0.5 rounded-lg border flex items-center bg-[var(--bg-input)]" style={{ borderColor: 'var(--border)' }}>
                     <button
                       type="button"
@@ -680,12 +662,12 @@ export function CoCreateDialog({
 
                   {/* Disclosure Badge */}
                   {currentVersion?.needsReview ? (
-                    <span className="px-2 py-1 rounded-lg bg-[var(--yellow-soft)] text-[var(--yellow)] border border-[var(--yellow-soft)] font-bold text-[11px] flex items-center space-x-1">
+                    <span className="px-2 py-1 rounded-lg bg-[var(--yellow-soft)] text-[var(--yellow)] border border-[var(--yellow-soft)] font-bold text-[11px] flex items-center space-x-1 flex-shrink-0">
                       <AlertTriangle className="w-3 h-3 text-[var(--yellow)]" />
                       <span>含待审核项</span>
                     </span>
                   ) : (
-                    <span className="px-2 py-1 rounded-lg bg-[var(--green-soft)] text-[var(--green)] border border-[var(--green-soft)] font-bold text-[11px] flex items-center space-x-1">
+                    <span className="px-2 py-1 rounded-lg bg-[var(--green-soft)] text-[var(--green)] border border-[var(--green-soft)] font-bold text-[11px] flex items-center space-x-1 flex-shrink-0">
                       <CheckCircle2 className="w-3 h-3 text-[var(--green)]" />
                       <span>✅ 仅含已披露数据</span>
                     </span>
@@ -722,12 +704,25 @@ export function CoCreateDialog({
                     exit={reduced ? { opacity: 0 } : { opacity: 0, height: 0  }}
                     className="p-3.5 rounded-xl border bg-[var(--purple-soft)] border-[var(--purple-soft)] space-y-1.5"
                   >
-                    <div className="text-xs font-bold text-[var(--purple)] flex items-center space-x-1">
-                      <Languages className="w-3.5 h-3.5" />
-                      <span>中文参考对照 (方便阅读与核对)</span>
+                    <div className="text-xs font-bold text-[var(--purple)] flex items-center justify-between">
+                      <div className="flex items-center space-x-1">
+                        <Languages className="w-3.5 h-3.5" />
+                        <span>中文参考对照 (方便阅读与核对)</span>
+                      </div>
+                      {!currentVersion?.bodyCn && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleSendPrompt('请为当前草稿生成对应的完整中文对照翻译。');
+                          }}
+                          className="text-[11px] text-[var(--purple)] underline font-medium hover:opacity-80 cursor-pointer"
+                        >
+                          让 Annie 补全中文翻译
+                        </button>
+                      )}
                     </div>
-                    <div className="text-xs leading-relaxed whitespace-pre-wrap font-sans text-muted">
-                      {currentVersion?.bodyCn || '暂无中文翻译对照。'}
+                    <div className="text-xs leading-relaxed whitespace-pre-wrap font-sans" style={{ color: 'var(--text-primary)' }}>
+                      {currentVersion?.bodyCn || '暂无中文翻译对照。您可以点击右上角让 Annie 补全中文翻译。'}
                     </div>
                   </motion.div>
                 )}
@@ -775,8 +770,8 @@ export function CoCreateDialog({
               </div>
 
               {/* Bottom Action Bar */}
-              <div className="p-3 border-t glass-panel flex items-center justify-between flex-shrink-0 whitespace-nowrap gap-2" style={{ borderColor: 'var(--border)' }}>
-                <div className="flex items-center space-x-2 flex-shrink-0 min-w-0">
+              <div className="p-3 border-t glass-panel flex items-center justify-between flex-wrap gap-2 flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
+                <div className="flex items-center space-x-2 flex-shrink-0">
                   <button
                     type="button"
                     onClick={() => setShowCnTranslation(!showCnTranslation)}
@@ -827,7 +822,7 @@ export function CoCreateDialog({
                     type="button"
                     title="存为草稿箱草稿"
                     onClick={handleSaveToDraftBox}
-                    className="px-2.5 py-1.5 rounded-xl border text-xs font-bold cursor-pointer hover:bg-[var(--bg-card-hover)] transition-colors flex-shrink-0"
+                    className="px-3 py-1.5 rounded-xl border text-xs font-bold cursor-pointer hover:bg-[var(--bg-card-hover)] transition-colors flex-shrink-0"
                     style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}
                     id="co-create-save-draft-btn"
                   >
@@ -838,7 +833,7 @@ export function CoCreateDialog({
                     type="button"
                     title="确认此版本并存入草稿箱与案件记录"
                     onClick={handleConfirmVersion}
-                    className="px-2.5 py-1.5 rounded-xl text-xs font-extrabold text-white cursor-pointer shadow-xs hover:opacity-90 transition-opacity flex items-center space-x-1 btn-primary flex-shrink-0"
+                    className="px-3 py-1.5 rounded-xl text-xs font-extrabold text-white cursor-pointer shadow-xs hover:opacity-90 transition-opacity flex items-center space-x-1 btn-primary flex-shrink-0"
                     id="co-create-confirm-version-btn"
                   >
                     <CheckCircle2 className="w-3.5 h-3.5" />
