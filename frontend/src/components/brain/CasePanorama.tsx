@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { motion, useReducedMotion } from 'motion/react';
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import {
   User, AlertCircle, PanelRightOpen, PanelRightClose,
   Clock, FileText, Sparkles, ClipboardList,
   MapPin, Building2, Target, DollarSign, Percent, Users,
-  AlertTriangle, ShieldAlert, Landmark, AlertOctagon
+  AlertTriangle, ShieldAlert, Landmark, AlertOctagon,
+  ChevronDown, Check, Loader2
 } from 'lucide-react';
 import {
-  getCaseContext, listBrainFacts, getPolicyCheck
+  getCaseContext, listBrainFacts, getPolicyCheck, updateCaseStage
 } from '../../services/api/cases';
 import { listTasks } from '../../services/api/tasks';
 import {
@@ -15,10 +16,23 @@ import {
 } from '../../types/api';
 import { useUiStore } from '../../stores/uiStore';
 import { useCaseStore } from '../../stores/caseStore';
+import { useToastStore } from '../../stores/toastStore';
 import { PolicyHintCard } from './PolicyHintCard';
 import { ReadOnlyFactFindSummary } from './FactFindSection';
 import { RecommendedPrecedentsRadar } from '../cases/RecommendedPrecedentsRadar';
 import { formatFactValue } from './FactCard';
+
+const STAGE_OPTIONS = [
+  { label: '初步咨询', pct: 10 },
+  { label: '收集资料', pct: 20 },
+  { label: '待递交', pct: 30 },
+  { label: '已递交(等银行)', pct: 45 },
+  { label: '银行补件', pct: 50 },
+  { label: '估值中', pct: 55 },
+  { label: '已批准', pct: 70 },
+  { label: '结算中', pct: 85 },
+  { label: '已结算', pct: 100 },
+];
 
 interface CasePanoramaProps {
   caseId: string | null;
@@ -57,6 +71,8 @@ export function CasePanorama({ caseId, collapsed, onToggle, hideOuterHeader }: C
   const [policyResult, setPolicyResult] = useState<PolicyCheckResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isChangingStage, setIsChangingStage] = useState(false);
+  const [showStageMenu, setShowStageMenu] = useState(false);
 
   const reduced = useReducedMotion();
   const setTaskDrawerOpen = useUiStore((s) => s.setTaskDrawerOpen);
@@ -218,9 +234,90 @@ export function CasePanorama({ caseId, collapsed, onToggle, hideOuterHeader }: C
                           </span>
                         )}
                       </div>
-                      <span className="px-2 py-0.5 rounded-md text-[11px] font-extrabold bg-[var(--purple-soft)] text-[var(--purple)] shrink-0 border border-[var(--purple-soft)]">
-                        {context?.facts.stage || caseInfo?.stage || '推进中'}
-                      </span>
+
+                      {/* 交互式阶段下拉切换选择器 (WO-91: Apple 统一弹出设计) */}
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setShowStageMenu(!showStageMenu)}
+                          disabled={isChangingStage || !caseId}
+                          className="px-2.5 py-1 rounded-xl text-[11px] font-black border flex items-center space-x-1 hover:opacity-85 transition-opacity cursor-pointer shadow-2xs"
+                          style={{
+                            backgroundColor: 'var(--bg-subtle)',
+                            borderColor: 'var(--border)',
+                            color: 'var(--text-primary)',
+                          }}
+                          title="点击快速微调阶段"
+                        >
+                          {isChangingStage ? (
+                            <Loader2 className="w-3 h-3 animate-spin text-[var(--accent)]" />
+                          ) : (
+                            <Target className="w-3 h-3 text-[var(--accent)]" />
+                          )}
+                          <span>{context?.facts.stage || caseInfo?.stage || '收集资料'}</span>
+                          <ChevronDown className="w-3 h-3 text-muted" />
+                        </button>
+
+                        <AnimatePresence>
+                          {showStageMenu && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 4, scale: 0.95 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              exit={{ opacity: 0, scale: 0.95 }}
+                              transition={{ duration: 0.15 }}
+                              className="absolute right-0 top-full mt-1.5 w-44 rounded-xl border shadow-xl p-1 z-50 overflow-hidden"
+                              style={{
+                                backgroundColor: 'var(--bg-card)',
+                                borderColor: 'var(--border)',
+                                backdropFilter: 'blur(20px)',
+                              }}
+                            >
+                              <div className="text-[10px] font-bold px-2 py-1 text-muted border-b mb-0.5" style={{ borderColor: 'var(--border)' }}>
+                                切换所处阶段
+                              </div>
+                              <div className="max-h-48 overflow-y-auto no-scrollbar space-y-0.5">
+                                {STAGE_OPTIONS.map((opt) => {
+                                  const currentStageVal = context?.facts.stage || caseInfo?.stage || '收集资料';
+                                  const isSelected = opt.label === currentStageVal || currentStageVal.includes(opt.label);
+                                  return (
+                                    <button
+                                      key={opt.label}
+                                      type="button"
+                                      onClick={async () => {
+                                        if (!caseId) return;
+                                        setShowStageMenu(false);
+                                        setIsChangingStage(true);
+                                        try {
+                                          await updateCaseStage(caseId, opt.label);
+                                          useToastStore.getState().showToast('success', `阶段已更新为：${opt.label}`);
+                                          useCaseStore.getState().bumpStageVersion();
+                                          await useCaseStore.getState().fetchCases();
+                                          await loadData();
+                                        } catch (err: any) {
+                                          useToastStore.getState().showToast('error', `更新阶段失败: ${err?.message}`);
+                                        } finally {
+                                          setIsChangingStage(false);
+                                        }
+                                      }}
+                                      className="w-full px-2 py-1 rounded-lg text-left text-xs font-semibold flex items-center justify-between hover:bg-[var(--bg-subtle)] transition-colors cursor-pointer"
+                                      style={{
+                                        color: isSelected ? 'var(--accent)' : 'var(--text-primary)',
+                                        backgroundColor: isSelected ? 'var(--accent-soft)' : 'transparent',
+                                      }}
+                                    >
+                                      <span>{opt.label}</span>
+                                      <span className="text-[10px] font-mono text-muted flex items-center space-x-1">
+                                        <span>{opt.pct}%</span>
+                                        {isSelected && <Check className="w-3 h-3 text-[var(--accent)]" />}
+                                      </span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
                     </div>
 
                     {/* 推荐人 / 渠道徽章 */}

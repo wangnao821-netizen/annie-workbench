@@ -185,13 +185,17 @@ export function NewCaseSheet({ open, onClose, onCreated }: NewCaseSheetProps) {
     }
   };
 
-  // 通道二：批量迁移完成回调
+  // 通道二：批量迁移完成回调 (WO-91: 直达 AI 对话中栏)
   const handleBatchMigrationComplete = async (importedCount: number, activeCaseId?: string) => {
     showToast('success', `成功批量导入 ${importedCount} 个案卷！`);
     await fetchCases();
     if (activeCaseId) {
+      const targetCase = useCaseStore.getState().cases.find((c) => c.caseId === activeCaseId);
+      if (targetCase) {
+        useCaseStore.getState().setCurrentCase(targetCase);
+      }
       window.dispatchEvent(
-        new CustomEvent('open-case-detail', { detail: activeCaseId })
+        new CustomEvent('open-case-brain', { detail: activeCaseId })
       );
     }
     onClose();

@@ -279,8 +279,68 @@ def _derive_headline(events: list[dict[str, Any]]) -> tuple[str | None, str | No
     return assessor, lender_ref, active_blocker
 
 
+STAGE_PRIORITY: dict[str, int] = {
+    "settled": 90,
+    "已结算": 90,
+    "已放款": 90,
+    "settling": 80,
+    "结算中": 80,
+    "approved": 70,
+    "已批准": 70,
+    "valuing": 60,
+    "估值中": 60,
+    "os_requested": 50,
+    "银行补件": 50,
+    "submitted": 45,
+    "已递交(等银行)": 45,
+    "已递交": 45,
+    "to_submit": 30,
+    "待递交": 30,
+    "reviewing": 20,
+    "审核中": 20,
+    "gathering": 10,
+    "收集资料": 10,
+}
+
+
+def _infer_stage_from_timeline(events: list[dict[str, Any]]) -> str | None:
+    """根据邮件时序事件推断案件当前应当处于的阶段 (WO-91)。"""
+    inferred = None
+    max_priority = 0
+
+    for ev in events:
+        ev_type = ev.get("event_type") or ""
+        subj = (ev.get("subject") or "").lower()
+        body = (ev.get("body") or "").lower()
+        text = f"{subj} {body}"
+
+        cand_stage = None
+        if "settlement" in text and any(k in text for k in ("confirmed", "completed", "done", "已放款", "已结算")):
+            cand_stage = "已结算"
+        elif "ready for signing" in text or "loan documents" in text or "signing" in subj:
+            cand_stage = "结算中"
+        elif ev_type == "approval_issued" or "unconditional" in text or "formal approval" in text or "offer of finance" in text or "批复" in text:
+            cand_stage = "已批准"
+        elif "conditional approval" in text or "pre-approval" in text:
+            cand_stage = "已批准"
+        elif ev_type == "mir_requested" or "mir" in text or "missing information" in text or "补件" in text:
+            cand_stage = "银行补件"
+        elif ev_type == "valuation_shortfall" or "valuation" in text:
+            cand_stage = "估值中"
+        elif ev_type == "submission_lodged" or "lodged" in text or "application received" in text or "递交" in text:
+            cand_stage = "已递交(等银行)"
+
+        if cand_stage:
+            prio = STAGE_PRIORITY.get(cand_stage, 0)
+            if prio > max_priority:
+                max_priority = prio
+                inferred = cand_stage
+
+    return inferred
+
+
 def sync_timeline_for_case(case_id: str, db: Session) -> dict[str, Any]:
-    """对指定案件执行邮件时间线扫描、解析审批官/案号并落库 CaseContextEvent。"""
+    """对指定案件执行邮件时间线扫描、解析审批官/案号并落库 CaseContextEvent，同时联动推进阶段 (WO-91)。"""
     case = db.query(Case).filter(Case.id == case_id).first()
     if case is None or not case.folder_path:
         logger.info("案件不存在或未关联文件夹，跳过时间线同步: %s", case_id)
@@ -291,6 +351,17 @@ def sync_timeline_for_case(case_id: str, db: Session) -> dict[str, Any]:
     )
     written = sum(1 for ev in events if _write_event(case_id, ev, db))
     assessor, lender_ref, active_blocker = _derive_headline(events)
+
+    # 联动推进阶段 (WO-91)
+    inferred_stage = _infer_stage_from_timeline(events)
+    if inferred_stage:
+        curr_prio = STAGE_PRIORITY.get(case.stage or "", 0)
+        new_prio = STAGE_PRIORITY.get(inferred_stage, 0)
+        if new_prio > curr_prio or case.stage in ("收集资料", "初步咨询", "待递交", None):
+            case.stage = inferred_stage
+            db.flush()
+            logger.info("案件 %s 阶段根据邮件时序自动推进为: %s", case_id, inferred_stage)
+
     logger.info("案件 %s 邮件时间线同步完成：解析 %d 封，写入 %d 条", case_id, len(events), written)
     return {"extracted_count": written, "assessor_name": assessor, "lender_ref": lender_ref, "active_blocker": active_blocker}
 

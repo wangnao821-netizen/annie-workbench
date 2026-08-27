@@ -124,7 +124,9 @@ export function CaseDetail({ caseId, onBack }: CaseDetailProps) {
   const toggleActionMenu = () => {
     if (!showActionMenu && menuBtnRef.current) {
       const rect = menuBtnRef.current.getBoundingClientRect();
-      setMenuPos({ top: rect.bottom + 6, left: Math.max(8, rect.left) });
+      const menuWidth = 216; // w-54
+      const calculatedLeft = Math.max(12, Math.min(window.innerWidth - menuWidth - 16, rect.right - menuWidth));
+      setMenuPos({ top: rect.bottom + 6, left: calculatedLeft });
     }
     setShowActionMenu(!showActionMenu);
   };
@@ -283,7 +285,7 @@ export function CaseDetail({ caseId, onBack }: CaseDetailProps) {
               {showActionMenu &&
                 createPortal(
                   <div
-                    className="fixed w-52 rounded-2xl border shadow-2xl py-1.5 z-50 text-xs"
+                    className="fixed w-[216px] rounded-2xl border shadow-2xl py-1.5 z-50 text-xs"
                     style={{
                       top: `${menuPos.top}px`,
                       left: `${menuPos.left}px`,

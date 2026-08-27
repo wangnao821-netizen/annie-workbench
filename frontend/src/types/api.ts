@@ -725,6 +725,8 @@ export interface CaseContext {
     client_goal: string | null;
     special_circumstances: string | null;
     internal_notes?: string | null;
+    property_address?: string | null;
+    co_borrowers?: string[] | null;
   };
   checklist: { done: number; total: number; missing: string[] };
   os: { pending_count: number; items: { raw_text: string; status: string }[] };

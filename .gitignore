@@ -19,4 +19,6 @@ frontend/node_modules/
 ui/
 
 *.log
+.bin/
+frontend/dist/
 

@@ -1,6 +1,8 @@
 import { AlertTriangle, CheckCircle2, Clock, Landmark, ShieldCheck, UserCheck, AlertOctagon } from 'lucide-react';
 import { CaseContext } from '../../../types/api';
 import { useCaseStore } from '../../../stores/caseStore';
+import { useToastStore } from '../../../stores/toastStore';
+import { updateCaseStage } from '../../../services/api/cases';
 import { CaseFolderCard } from '../CaseFolderCard';
 
 interface OverviewFactsProps {
@@ -78,9 +80,36 @@ export function OverviewFacts({ context }: OverviewFactsProps) {
               <div className="col-span-2"><span className="text-muted">银行案号: </span><span className="font-bold font-mono text-primary">{lenderRef}</span></div>
             )}
             <div><span className="text-muted">LVR: </span><span className="font-bold font-mono text-primary">{facts.lvr ? `${facts.lvr}%` : '未计算'}</span></div>
-            <div><span className="text-muted">用途: </span><span className="font-medium text-primary truncate block">{facts.purpose || '自住购房'}</span></div>
             <div><span className="text-muted">申请利率: </span><span className="font-bold font-mono text-primary">{facts.interest_rate || '5.99%'}</span></div>
-            <div><span className="text-muted">当前阶段: </span><span className="font-bold text-[var(--yellow)]">{facts.stage || '预审中'}</span></div>
+            <div className="col-span-2 flex items-center justify-between pt-1.5 mt-0.5 border-t border-[var(--border)]">
+              <span className="text-muted font-bold">当前阶段: </span>
+              <select
+                value={facts.stage || '收集资料'}
+                onChange={async (e) => {
+                  const newStage = e.target.value;
+                  if (!currentCase?.caseId) return;
+                  try {
+                    await updateCaseStage(currentCase.caseId, newStage);
+                    useToastStore.getState().showToast('success', `阶段已更新为：${newStage}`);
+                    useCaseStore.getState().bumpStageVersion();
+                    useCaseStore.getState().fetchCases();
+                  } catch (err: any) {
+                    useToastStore.getState().showToast('error', `更新阶段失败: ${err?.message}`);
+                  }
+                }}
+                className="px-2 py-0.5 rounded-lg text-xs font-black border cursor-pointer outline-none bg-[var(--bg-app)] text-[var(--accent)] border-[var(--accent-soft)] hover:opacity-90"
+              >
+                <option value="初步咨询">初步咨询 (10%)</option>
+                <option value="收集资料">收集资料 (20%)</option>
+                <option value="待递交">待递交 (30%)</option>
+                <option value="已递交(等银行)">已递交(等银行) (45%)</option>
+                <option value="银行补件">银行补件 (50%)</option>
+                <option value="估值中">估值中 (55%)</option>
+                <option value="已批准">已批准 (70%)</option>
+                <option value="结算中">结算中 (85%)</option>
+                <option value="已结算">已结算 (100%)</option>
+              </select>
+            </div>
           </div>
         </div>
 
